@@ -1,4 +1,4 @@
-import { put, list } from '@vercel/blob'
+import { put, list, head } from '@vercel/blob'
 import { getCanvasEvents } from './eventIndexer'
 import { generateStoryEntries, PRIMER_ENTRIES } from './storyGenerator'
 import { publicClient, DEPLOY_BLOCK } from './viemClient'
@@ -56,16 +56,18 @@ function serialize(events: IndexedEvent[]): SerializedEvent[] {
 async function readBlob(): Promise<{ cache: BlobCache; ageMs: number } | null> {
   try {
     const { blobs } = await list({ prefix: BLOB_KEY })
-    console.log('[readBlob] found blobs:', blobs.length, blobs.map(b => b.pathname))
+    console.log('[readBlob] found blobs:', blobs.length)
     if (!blobs.length) return null
     const blob = blobs[0]
-    console.log('[readBlob] fetching:', blob.downloadUrl?.slice(0, 60))
-    // Try downloadUrl first, fall back to url
-    const urlToFetch = blob.downloadUrl ?? blob.url
-    const res = await fetch(urlToFetch, { cache: 'no-store' })
+    // For private blobs, fetch with the token as Authorization header
+    const token = process.env.BLOB_READ_WRITE_TOKEN
+    const res = await fetch(blob.url, {
+      cache: 'no-store',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
     console.log('[readBlob] fetch status:', res.status)
     if (!res.ok) {
-      console.error('[readBlob] fetch failed:', res.status, res.statusText)
+      console.error('[readBlob] failed:', res.status)
       return null
     }
     const cache = await res.json() as BlobCache
