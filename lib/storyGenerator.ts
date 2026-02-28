@@ -1,20 +1,49 @@
 import type { IndexedEvent } from './eventIndexer'
 
 export type LoreType =
-  | 'GRAND_MIGRATION' | 'TERRITORIAL_CLAIM' | 'SUBTLE_INSCRIPTION'
-  | 'FACTION_DECLARATION' | 'SCHOLARS_WORK' | 'WANDERERS_PASSAGE'
-  | 'POWER_INFUSION' | 'ETHEREAL_INFUSION' | 'RITE_OF_RECOGNITION'
-  | 'ORACLES_OBSERVATION' | 'FOUNDATION_STONE' | 'RECORD_OF_THE_DEEP'
-  | 'THE_UNMAPPED' | 'PROPHECY_SPOKEN' | 'FACTION_RISE'
-  | 'LULL_BETWEEN_AGES' | 'NEW_ERA_DAWN' | 'CONVERGENCE_POINT'
-  | 'ARTIFACT_DISCOVERY' | 'GENESIS'
-  | 'COUNCIL_CONVENES' | 'THE_CARTOGRAPHY' | 'ECHO_OF_THE_ANCIENT'
-  | 'BORDER_CROSSING' | 'THE_RECKONING' | 'SIGNAL_LOST'
-  | 'SIGNAL_FOUND' | 'DEBT_RECORDED' | 'THE_TRANSLATION'
-  | 'SILENT_WITNESS' | 'PASSAGE_SEALED' | 'THE_FORGETTING'
-  | 'RETURN_FROM_MARGIN' | 'ARCHIVE_CORRECTION' | 'THE_INTERLUDE'
-  | 'LINEAGE_NOTED' | 'THRESHOLD_WATCHED' | 'THE_ACCORD'
-  | 'DUST_RECORD' | 'EMISSARY_ARRIVES' | 'THE_LONG_COUNT'
+  // 19 core — the main beats of the war
+  | 'GREAT_BATTLE'        // massive territorial assault (200+ pixels)
+  | 'SKIRMISH'            // mid-scale clash (50–199 pixels)
+  | 'BORDER_RAID'         // small tactical strike (<50 pixels)
+  | 'FORMAL_DECLARATION'  // round-number pixel count = deliberate act of war/peace
+  | 'VETERAN_STRIKES'     // returning warrior, known to the chronicle
+  | 'NEW_ARRIVAL'         // first appearance, a stranger enters the conflict
+  | 'GREAT_SACRIFICE'     // burn 10+ AP — a warrior gives everything
+  | 'OFFERING'            // burn <10 AP — smaller sacrifice
+  | 'BLOOD_PACT'          // veteran burn — a sworn oath renewed
+  | 'THE_SEER'            // prime token ID — an oracle acts
+  | 'ANCIENT_STIRS'       // token <1000 — one of the oldest movers
+  | 'EDGE_LORD'           // token >8000 — the far reaches act
+  | 'HOLLOW_HEART'        // token 5000–6000 — the contested middle
+  | 'PROPHECY'            // every 25th event — fate speaks
+  | 'POWER_CONSOLIDATES'  // same address multiple times — a faction grows
+  | 'CEASEFIRE'           // block gap >10k — the war pauses
+  | 'AGE_TURNS'           // era threshold — a new chapter
+  | 'SIMULTANEOUS'        // same-block events — two armies clash at once
+  | 'RELIC_UNEARTHED'     // rare tx hash — something ancient surfaces
+  | 'GENESIS'
+  // 21 connective — texture, lore, flow
+  | 'WAR_COUNCIL'         // same address returns fast — strategy meeting
+  | 'THE_MAPMAKERS'       // token 2000–3000 — cartographers at work
+  | 'OLD_LEGEND'          // token <500 late in chronicle — ancient stories resurface
+  | 'DESERTION'           // active address falls silent
+  | 'THE_COUNT'           // every 10th event — the chronicler tallies
+  | 'GHOST_SIGNAL'        // address gone >20k blocks returns
+  | 'DEBT_OF_BLOOD'       // veteran burns 2+ times — the cost accumulates
+  | 'TAVERN_TALE'         // new address, quiet entry — overheard stories
+  | 'LONG_SILENCE'        // gap >50k blocks — the war went underground
+  | 'SCOUT_RETURNS'       // token >8500 re-emerges — news from the edge
+  | 'REVISION'            // veteran breaks pattern — tactics change
+  | 'THRESHOLD_VIGIL'     // within 3 of era — the world holds its breath
+  | 'VILLAGE_ACCORD'      // new address, harmonious — neutral parties
+  | 'DUST_MARK'           // exactly 1 pixel/AP — someone was barely here
+  | 'EMISSARY'            // new wallet, token 1000–2000 — a messenger arrives
+  | 'LONG_COUNT'          // every 40th — the grid measures itself
+  | 'INTERLUDE'           // brief gap after cluster — camp life
+  | 'LINEAGE'             // 3+ appearances — a dynasty emerges
+  | 'THE_CROSSING'        // range bridge — armies cross territories
+  | 'MARKET_ROAD'         // token 2000–3000 fallback — trade routes
+  | 'WATCH_FIRE'          // fallback filler — sentinels in the night
 
 export interface StoryEntry {
   id: string
@@ -36,46 +65,59 @@ export interface StoryEntry {
   }
 }
 
-// World-building elements — seeded deterministically per event
+// ── World elements ────────────────────────────────────────────────────────────
+// The Grid is a contested canvas. Each region has a character.
+// Factions are the powers fighting over it.
+
 const REGIONS = [
-  'the Glyph Wastes', 'the Monochrome Reaches', 'the Lattice Plains', 'the Obsidian Moors',
-  'the Silver Threshold', 'the Hollow Deep', 'the Cipher Peaks', 'the Wandering Shore',
-  'the Pale Expanse', 'the Root Network', 'the Murmur Forests', 'the Fracture Line',
-  'the Dim Archives', 'the Ember Flats', 'the Vaulted Silence', 'the Mirror Shelf',
-  'the Null Basin', 'the Crossroads', 'the Counting Fields', 'the Unseen Margin',
+  'the Ashen Flats', 'the Ink Wastes', 'the Pale Reaches', 'the Obsidian Line',
+  'the Shattered Moors', 'the Deep Trenches', 'the High Cipher', 'the Wandering Shore',
+  'the Null Basin', 'the Root Warrens', 'the Murmur Wood', 'the Fracture Belt',
+  'the Old Archives', 'the Ember Fields', 'the Vaulted Dark', 'the Mirror Shelf',
+  'the Red Margin', 'the Crossroads', 'the Counting Ground', 'the Unmapped Edge',
 ]
 
 const FACTIONS = [
-  'the Cartographers', 'the Quiet Order', 'the Lattice Keepers',
-  'the Pale Wanderers', 'the Archive Monks', 'the Threshold Watch',
-  'the Deep Seekers', 'the Signal Weavers', 'the Monolith Circle',
-  'the Unnamed', 'the Wayfarers', 'the Root Scholars',
+  'the Inkborn', 'the Pale Host', 'the Lattice Guard',
+  'the Wandering Blades', 'the Archive Wardens', 'the Threshold Keepers',
+  'the Deep Company', 'the Signal Corps', 'the Monolith Order',
+  'the Unnamed', 'the Far Walkers', 'the Root Scholars',
 ]
 
-const FIGURES = [
-  'Elder Varun', 'the Witness', 'Keeper Solen', 'Old Mira',
-  'the Builder', 'Cartographer Neth', 'the Shadow', 'Archivist Teld',
-  'the Watcher', 'Keeper of Marks',
+// Named characters who appear in lore — not wallet owners, just world figures
+const COMMANDERS = [
+  'Commander Varun', 'the Iron Witness', 'Keeper Solen', 'Old Mira of the Flats',
+  'the Silent General', 'Warlord Neth', 'the Pale Hand', 'Archivist Teld',
+  'the Watcher on the Wall', 'Marshal of the Deep',
 ]
 
-const ARTIFACTS = [
-  'the Codex of Days', 'the Crown of Thresholds', 'the Crooked Mirror', 'the First Compass',
-  'the Cold Ink', 'the Speaking Stone', 'the Unbroken Thread', 'the Stopped Clock',
-  'the Unreadable Glyph', 'the Distant Bell', 'the Counting Beads', 'the Last True Map',
+// Opponents / rivals — used in conflict entries
+const RIVALS = [
+  'the Eastern Hold', 'the Grey Compact', 'the Splinter King',
+  'the Faceless Army', 'the Null Pact', 'the Old Wall',
+  'the Ink Tide', 'the Pale Advance', 'the Border Lords', 'the Forgotten Host',
 ]
 
-// Eras are calibrated to ~500–600 total events (current scale of Normies activity).
-// Thresholds are low so the story feels like it's just beginning — because it is.
-// PVP / Arena era will add a whole new chapter when it launches.
-const ERAS = [
-  { threshold: 0,   name: 'The First Days' },
-  { threshold: 10,  name: 'The Waking' },
-  { threshold: 30,  name: 'Age of Arrivals' },
-  { threshold: 75,  name: 'The Gathering' },
+// Legendary objects / places that appear in lore
+const RELICS = [
+  'the Shattered Standard', 'the Crown of the First Grid',
+  'the Broken Compass', 'the Last True Map',
+  'the Burned Codex', 'the Speaking Stone',
+  'the Unmarked Grave', 'the Signal Tower',
+  'the First Brush', 'the Pixel Throne',
+  'the Oath Stone', 'the War Bell',
+]
+
+// Era names — calibrated to ~500–800 real events, so we're early
+export const ERAS = [
+  { threshold: 0,   name: 'The Quiet Before' },
+  { threshold: 10,  name: 'First Blood' },
+  { threshold: 30,  name: 'The Arrival' },
+  { threshold: 75,  name: 'The Gathering War' },
   { threshold: 150, name: 'Age of Marks' },
   { threshold: 300, name: 'The Deepening' },
-  { threshold: 500, name: 'Age of Builders' },
-  { threshold: 800, name: 'The Long Road' },
+  { threshold: 500, name: 'Age of Siege' },
+  { threshold: 800, name: 'The Long Campaign' },
 ]
 
 function getEra(count: number): string {
@@ -91,756 +133,790 @@ function seedN(tokenId: bigint, blockNumber: bigint, salt = 0): number {
 function pick<T>(arr: T[], s: number): T { return arr[s % arr.length] }
 
 function buildCtx(tokenId: bigint, blockNumber: bigint, era: string) {
+  const s0 = seedN(tokenId, blockNumber)
   return {
-    region: pick(REGIONS, seedN(tokenId, blockNumber)),
-    faction: pick(FACTIONS, seedN(tokenId, blockNumber, 7)),
-    figure: pick(FIGURES, seedN(tokenId, blockNumber, 13)),
-    artifact: pick(ARTIFACTS, seedN(tokenId, blockNumber, 19)),
+    region:    pick(REGIONS,    s0),
+    faction:   pick(FACTIONS,   seedN(tokenId, blockNumber, 7)),
+    rival:     pick(RIVALS,     seedN(tokenId, blockNumber, 11)),
+    commander: pick(COMMANDERS, seedN(tokenId, blockNumber, 13)),
+    relic:     pick(RELICS,     seedN(tokenId, blockNumber, 19)),
     era,
   }
 }
 
 function fill(t: string, ctx: ReturnType<typeof buildCtx>): string {
   return t
-    .replace(/{region}/g, ctx.region)
-    .replace(/{faction}/g, ctx.faction)
-    .replace(/{figure}/g, ctx.figure)
-    .replace(/{artifact}/g, ctx.artifact)
-    .replace(/{era}/g, ctx.era)
+    .replace(/{region}/g,    ctx.region)
+    .replace(/{faction}/g,   ctx.faction)
+    .replace(/{rival}/g,     ctx.rival)
+    .replace(/{commander}/g, ctx.commander)
+    .replace(/{relic}/g,     ctx.relic)
+    .replace(/{era}/g,       ctx.era)
 }
 
 interface LoreRule {
-  loreType: LoreType; icon: string; ruleApplied: string; ruleExplanation: string
-  headlines: string[]; bodies: string[]
+  loreType: LoreType
+  icon: string
+  ruleApplied: string
+  ruleExplanation: string
+  headlines: string[]
+  bodies: string[]
 }
+
+// ── THE 40 RULES ──────────────────────────────────────────────────────────────
+// Core philosophy: the on-chain data shapes the story invisibly.
+// A large pixel edit = a massive territorial battle.
+// A burn = a warrior sacrificed to strengthen another.
+// A time gap = ceasefire, retreat, or the war going underground.
+// Returning wallet = a veteran commander returning to the field.
+// The reader should never think about blockchain — only the world.
 
 const RULES: Record<string, LoreRule> = {
 
-  // ── Pixel edits — scale determines the story ──────────────────────────────
+  // ══════════════════════════════════════════════════════════════
+  // CORE 19 — The main beats of the Pixel War
+  // ══════════════════════════════════════════════════════════════
 
-  GRAND_MIGRATION: {
-    loreType: 'GRAND_MIGRATION', icon: '◈',
-    ruleApplied: 'Grand Migration',
-    ruleExplanation: '200+ pixels changed at once — a massive transformation of a single Normie.',
+  GREAT_BATTLE: {
+    loreType: 'GREAT_BATTLE', icon: '⚔',
+    ruleApplied: 'Great Battle',
+    ruleExplanation: 'A massive territorial push — the largest kind of strike.',
     headlines: [
-      'A Big Move in {region}',
-      '{faction} Make Their Largest Move Yet',
-      'Everything Changes in {region}',
-      'The Biggest Edit Yet — {region} Takes Notice',
+      '{faction} Storm {region} in the Largest Push Yet',
+      'The Battle for {region} — {faction} Advance in Force',
+      '{commander} Leads {faction} Across {region}',
+      'The Grid Shakes: {faction} Launch a Full Assault on {region}',
     ],
     bodies: [
-      'It was the largest single change anyone had seen so far. In one go, a Normie in {region} was transformed from the inside out — not a small tweak, but a full reinvention. {faction} noted it in the record and moved on. The Grid keeps going.',
-      'Nobody announced it. A wallet just opened, made its changes, and closed. But the scale was hard to ignore. {faction} counted the pixels and wrote it down. In {region}, that kind of change gets remembered.',
-      'When {figure} heard about it, the reaction was simple: "That\'s a lot of pixels." It was. More than most people bother with. The Normie that came out the other side looked nothing like the one that went in.',
-      '{faction} have been watching {region} for a while. They weren\'t expecting this — a change so large it was basically starting over. They logged it, catalogued it, and wondered who would be next.',
+      'The assault on {region} came without warning. {faction} moved their entire force across the contested line before dawn, painting the terrain in their colors before {rival} could organize a response. When the dust settled, the shape of {region} had changed. Territory that had been neutral for weeks now bore {faction}\'s mark from edge to edge. {commander} was seen at the front, giving orders from horseback. This was not a raid. This was a claim.',
+      'Historians will debate whether the fall of {region} was inevitable. {faction} had been massing on the border for days, and {rival} had done little to prepare. When the advance came it was overwhelming — a full repainting of the battlefield, a transformation so complete that scouts from the old garrison didn\'t recognize the terrain. {relic} was carried at the head of the column. It always is, when {faction} intends to hold what they take.',
+      '{commander} gave the order at first light. By midday, {region} was unrecognizable — the old markings scrubbed out, {faction}\'s patterns laid over every corner of the zone. {rival} mounted a response, but too late. The chronicler on duty wrote simply: "The largest push in recent memory. The Grid has a new master in {region}." Those words will be remembered.',
+      'The war has seen many skirmishes. This was not one of them. {faction}\'s advance through {region} was the kind of coordinated, total assault that changes the map permanently. By the time {rival} knew what was happening, the battle was already won. {relic} now hangs at the center of the captured zone, a clear signal to everyone watching: {faction} is not finished.',
     ],
   },
 
-  TERRITORIAL_CLAIM: {
-    loreType: 'TERRITORIAL_CLAIM', icon: '◉',
-    ruleApplied: 'Territorial Claim',
-    ruleExplanation: '50–199 pixels changed — a significant edit that leaves a real mark.',
+  SKIRMISH: {
+    loreType: 'SKIRMISH', icon: '◈',
+    ruleApplied: 'Skirmish',
+    ruleExplanation: 'A mid-scale territorial clash — real gains, real losses.',
     headlines: [
-      '{faction} Leave Their Mark in {region}',
-      'A Clear Statement Made in {region}',
-      'This Part of {region} Belongs to Someone Now',
-      'A Normie Stakes Their Ground',
+      '{faction} Press into {region}',
+      'A Sharp Engagement Near {region}',
+      '{commander} Tests {rival}\'s Resolve',
+      'Ground Changes Hands in {region}',
     ],
     bodies: [
-      'Not the biggest edit, but not small either. Someone in {region} changed enough pixels that {faction} decided it counted as a statement. It\'s in the record now. The Grid moves on.',
-      'There\'s a difference between poking at something and actually committing to it. This was commitment. {faction} saw it and wrote it down. {region} looks a little different now.',
-      '{figure} always said you can tell how serious someone is by how much they change at once. This one was serious. The edit landed in {region} and stayed.',
-      'Fifty pixels or more — that\'s enough for {faction} to take notice. They did. The record shows a clear mark left in {region}, and whoever made it wasn\'t being tentative about it.',
+      'Not every battle is a siege. {faction} sent a strike force into {region} — fast, targeted, enough to redraw the edge of the contested zone without committing their whole army. {rival} pushed back at the margins but couldn\'t hold the center. By evening, the front line had moved. Not far. Far enough.',
+      '{commander} described it afterward as "a probe." {rival} probably had a different word for it. {faction}\'s advance into {region} was the kind of mid-scale engagement that doesn\'t make the headlines but wins campaigns — methodical, disciplined, persistent. The zone looks different now. The momentum is clear.',
+      'The fighting in {region} lasted most of the afternoon. Neither {faction} nor {rival} committed fully, but {faction} came away with more than they arrived with. The chronicler notes a shift in the boundary markers. Ground that was grey yesterday is clearly {faction}\'s today. These are the moves that decide wars.',
+      'Small victories accumulate. {faction}\'s push into {region} was one of dozens of such moves in the current campaign — each one limited in scope, each one adding to a larger picture. {commander} is patient. {rival} has begun to notice the pattern. The zone is being consumed, one engagement at a time.',
     ],
   },
 
-  SUBTLE_INSCRIPTION: {
-    loreType: 'SUBTLE_INSCRIPTION', icon: '·',
-    ruleApplied: 'Subtle Inscription',
-    ruleExplanation: 'A small edit — fewer than 50 pixels. Careful, deliberate work.',
+  BORDER_RAID: {
+    loreType: 'BORDER_RAID', icon: '·',
+    ruleApplied: 'Border Raid',
+    ruleExplanation: 'A small, precise tactical strike — sharp and intentional.',
     headlines: [
-      'A Small Change in {region}',
-      'Someone Was Careful Today',
-      '{faction} Note a Precise Edit',
-      'A Light Touch in {region}',
+      'A Quiet Raid on {region}\'s Edge',
+      '{faction} Mark Their Presence at {region}',
+      'A Careful Strike — {commander} Leaves a Sign',
+      'One Corner of {region} Quietly Changes',
     ],
     bodies: [
-      'Not every change has to be dramatic. Someone in {region} made a small edit — a few pixels, placed carefully. {faction} logged it. It will outlast things ten times its size.',
-      'Small changes are easy to overlook. {faction} don\'t overlook them. This one, in {region}, was deliberate — you could tell by how few pixels moved and how precisely they moved. Someone knew what they were doing.',
-      '{figure} once said: "The smallest true mark matters more than the largest false one." The edit logged in {region} today was small and true. It\'s in the Archive now.',
-      'Careful work. Not the flashy kind — just someone paying attention and making exactly the change they meant to make. {faction} appreciate that. It\'s in the record.',
+      'It was a small move, but nothing in this war is accidental. A handful of {faction}\'s scouts crossed into {region} under cover of night and made their mark — precise, limited, deliberate. {rival} won\'t lose sleep over the territory. But they\'ll know {faction} was there. That\'s the point.',
+      '{commander} favors these small incursions. "Control the edge," they say, "and the center follows." The mark left in {region} tonight was minimal — but it was exactly where {faction} wanted it. Scouts from {rival} will find it in the morning. They\'ll have to decide whether to respond. That decision costs them time they don\'t have.',
+      'The raid on {region}\'s outer boundary lasted only minutes. {faction} made their mark and withdrew before anyone raised an alarm. These small strikes are how territory erodes. Not in great battles, but in a hundred small moments where {rival} was one step too slow.',
+      'Not every move needs to be large to matter. {faction}\'s scouts know this well. The mark they left at the edge of {region} was subtle enough that {rival} might miss it entirely — which is exactly why {commander} ordered it. The war is fought at every scale simultaneously.',
     ],
   },
 
-  FACTION_DECLARATION: {
-    loreType: 'FACTION_DECLARATION', icon: '▣',
-    ruleApplied: 'Faction Declaration',
-    ruleExplanation: 'Pixel count divisible by 50 — a clean, intentional number signals a formal statement.',
+  FORMAL_DECLARATION: {
+    loreType: 'FORMAL_DECLARATION', icon: '▣',
+    ruleApplied: 'Formal Declaration',
+    ruleExplanation: 'A deliberately measured advance — round numbers signal formal intent.',
     headlines: [
-      '{faction} Make It Official',
-      'A Round Number, A Clear Message',
-      '{faction} Put Something on the Record',
-      'A Statement Filed from {region}',
+      '{faction} Issue a Formal Declaration of Occupation',
+      'The Lines Are Drawn: {faction} Announce Their Terms',
+      'A Deliberate Statement in {region}',
+      '{commander} Formalizes {faction}\'s Position',
     ],
     bodies: [
-      'When a number is that round, it usually means something. {faction} changed exactly that many pixels — not one more, not one less. That kind of precision is a statement. The Archive has it now.',
-      'Fifty. A hundred. A hundred and fifty. Round numbers mean a decision was made before the edit started. Someone in {region} knew exactly what they were doing. {faction} wrote it up as a formal act.',
-      '{figure} keeps a list of round-number edits. It\'s shorter than you\'d think — most people don\'t bother with that kind of intention. This one made the list.',
-      'The Grid sees a lot of edits. Most of them are approximate. This one was exact. {faction} logged it from {region} as a declaration — the kind of act where someone wanted the record to know they meant it.',
+      'Some advances are accidents of war. This was not one of them. {faction}\'s move through {region} was measured and precise — a deliberate formal act, the kind that comes with written declarations and witnesses. {rival} received the document before dawn. It listed exactly what {faction} was claiming and under what terms they would consider withdrawing. They will not be withdrawing.',
+      'The chronicler marks certain advances as formal — those where the precision of the act suggests a political statement rather than a battlefield necessity. {faction}\'s move in {region} was formal in every sense: coordinated, proportioned, announced. {commander} signed the declaration personally. It will be read aloud at the front.',
+      '{rival} called it a provocation. {faction} called it a statement of fact. Either way, the declaration stands: {region} is claimed, the terms are set, and {relic} has been placed at the center of the newly held ground as both symbol and challenge. {commander} awaits a response.',
+      'Wars have rules, even when everyone is breaking them. {faction}\'s formal declaration regarding {region} follows those rules precisely — which is itself a kind of threat. An enemy who plays by the rules is an enemy who expects the rules to protect them. {rival} knows what that means.',
     ],
   },
 
-  // ── Burns — sacrificing one Normie to strengthen another ─────────────────
-
-  POWER_INFUSION: {
-    loreType: 'POWER_INFUSION', icon: '▲',
-    ruleApplied: 'Power Infusion',
-    ruleExplanation: 'A Normie was burned and transferred 10+ action points — a major sacrifice.',
+  VETERAN_STRIKES: {
+    loreType: 'VETERAN_STRIKES', icon: '◉',
+    ruleApplied: 'Veteran Strikes',
+    ruleExplanation: 'A warrior who has fought before returns to the field.',
     headlines: [
-      'A Normie Is Burned — Another Grows Stronger',
-      '{faction} Record a Major Sacrifice',
-      'Ten Points or More: The Offering Is Accepted',
-      'Gone but Not Lost — the Action Points Live On',
+      'A Known Fighter Returns to {region}',
+      '{commander} Is Back — The Veterans Are Moving',
+      'They\'ve Fought Here Before',
+      'A Familiar Force Reappears in {region}',
     ],
     bodies: [
-      'Burning a Normie is permanent. There\'s no undoing it. Someone decided their Normie\'s action points were worth more in another\'s hands — and now they are. {faction} logged the transfer. The burned one is gone. The one that received the points is stronger.',
-      'Ten action points or more moved in one transaction. That\'s not a small thing. {figure} noted it as a major offering — the kind where you feel the weight of it afterward. {faction} marked it in the record.',
-      'The burned Normie had a life on the blockchain — a history, a face, a token ID. Now it\'s a number in someone else\'s total. {faction} in {region} note that this happens. It\'s part of how the Grid works.',
-      'A sacrifice that size changes things. The receiving Normie now carries what the burned one gave up. {faction} track these transfers carefully. The Chronicle knows both sides of every burn.',
+      'They know this terrain. {faction}\'s veterans who returned to {region} today have fought over this exact ground before — they remember where the sight lines are, where the defensive positions hold and where they don\'t. {rival} will feel the difference between fighting fresh troops and fighting soldiers who have already won and lost here.',
+      '{commander} came back. Everyone knew it was only a matter of time. A fighter like that doesn\'t stay away from the war. Their return to {region} was quiet — no announcement, no ceremony — but every unit on the front adjusted when they heard. Veterans change the math of a battle just by showing up.',
+      'The chronicler has {faction}\'s record in {region}. They\'ve been here before, left their mark, moved on. The return today means the first campaign wasn\'t finished — or that something unfinished called them back. {rival} has taken note. A seasoned force returned to familiar ground is a different threat than a fresh advance.',
+      'Experience doesn\'t announce itself. {faction}\'s veterans moved into position in {region} with the quiet efficiency of people who have done this before. No wasted motion, no testing the terrain they already know. {rival}\'s scouts reported back a single word: "veterans." The commanders on the other side went quiet.',
     ],
   },
 
-  ETHEREAL_INFUSION: {
-    loreType: 'ETHEREAL_INFUSION', icon: '△',
-    ruleApplied: 'Ethereal Infusion',
-    ruleExplanation: 'A Normie was burned transferring fewer than 10 action points — a smaller offering.',
+  NEW_ARRIVAL: {
+    loreType: 'NEW_ARRIVAL', icon: '→',
+    ruleApplied: 'New Arrival',
+    ruleExplanation: 'A new force enters the war for the first time.',
     headlines: [
-      'A Small Burn — Points Passed Along',
-      'A Quiet Transfer in {region}',
-      '{faction} Note a Minor Offering',
-      'Gone, But the Points Remain',
+      'A New Force Arrives at {region}',
+      'Strangers at the Edge of {region}',
+      '{faction} Encounter an Unknown Party',
+      'Someone New Has Entered the Conflict',
     ],
     bodies: [
-      'Not every burn is dramatic. This one moved a handful of points from one Normie to another and left things quiet. {faction} logged it. The burned one is gone. The record shows both.',
-      'Small burns happen. Someone decided a few action points were better used elsewhere. {faction} in {region} wrote it up — nothing complicated, just a transfer and a permanent end.',
-      'The Archive doesn\'t distinguish between big burns and small ones when it comes to finality. Gone is gone. {figure} makes sure every burn is noted, whatever the size.',
-      '{faction} have seen all kinds of burns. This one was quiet — a small number of points, a clean transfer. The Normie that received them probably won\'t make a big deal of it. The one that was burned can\'t.',
+      'Nobody recognized the banner. A force arrived at the edge of {region} this morning that doesn\'t appear in any of the chronicle\'s prior records — no known allegiance, no documented history of engagement. {faction}\'s scouts tracked them to the boundary line and reported back. The commanders are asking the same question: whose side are they on?',
+      'New players enter the war for all kinds of reasons. The force that appeared near {region} today gave no explanation and sought no introduction. They staked their claim at the margin and waited. {rival} is watching. {faction} is watching. The chronicler has opened a new file.',
+      '{commander} received the report at dawn: unknown forces moving through {region}\'s outer edge, no insignia the scouts could identify, behavior consistent with a force that knows where it\'s going. Either they\'re new to the war or new to being visible in it. Both possibilities are interesting.',
+      'Wars attract fighters the way fires attract moths. The new force in {region} has no prior chronicle entry — which means either they\'ve been sitting this out until now or they\'ve been very careful not to be noticed. Either way, they\'re noticed now. {faction} has sent emissaries. So has {rival}.',
     ],
   },
 
-  RITE_OF_RECOGNITION: {
-    loreType: 'RITE_OF_RECOGNITION', icon: '◎',
-    ruleApplied: 'Rite of Recognition',
-    ruleExplanation: 'A veteran wallet burned a Normie — someone who\'s been here before doing it again.',
+  GREAT_SACRIFICE: {
+    loreType: 'GREAT_SACRIFICE', icon: '▲',
+    ruleApplied: 'Great Sacrifice',
+    ruleExplanation: 'A major sacrifice — a warrior gives everything to strengthen another.',
     headlines: [
-      'A Known Hand Burns Again',
-      '{faction} Recognize a Returning Burner',
-      'Not the First Time — and Not the Last',
-      'A Veteran Makes the Sacrifice',
+      'A Great Sacrifice Near {region}',
+      '{faction} Give One to Strengthen Many',
+      '{commander} Orders the Final Offering',
+      'A Warrior Falls — Another Rises Stronger',
     ],
     bodies: [
-      'This wallet has been here before. They\'ve done this. {faction} recognize the address and note it — a veteran making another offering. Experience and intention in one move.',
-      'The first burn is the hardest. After that, people know what they\'re doing. This wallet knew. {figure} in {region} logged it as the act of someone who understands the trade-off and has made it before.',
-      '{faction} keep track of repeat burners. It says something about someone when they\'ve done this more than once — not recklessness, but commitment. The record shows their history.',
-      'There are people who burn once and stop. And there are people who keep going — who understand that action points matter and are willing to do what it takes. This wallet is in the second group.',
+      'The old rites don\'t appear in the tactical manuals. But {faction} has practiced them since before the chronicle began. A great sacrifice near {region} — a warrior released, their strength transferred to those still fighting. {commander} gave the order. The unit that received the infusion marched out stronger than they arrived. In {region}, that might be the difference.',
+      'There are things war requires that commanders don\'t discuss in official reports. The sacrifice made near {region} was one of them — one warrior\'s strength poured into others, a transfer the battlefield theologians call "the final offering." The receiving unit won\'t speak of it. They\'ll carry the weight of it instead.',
+      '{faction}\'s chronicles record sacrifices going back to the first campaign. This one, made at the edge of {region}, was larger than most — a substantial transfer of strength from the fallen to the living. The warriors who received it have not said thank you. There is no language for thank you in this context.',
+      'The war demands more than tactics. {faction} has always known this. The great sacrifice made near {region} followed a ritual older than the current conflict — one warrior giving all so others might continue. {rival} will see the effect in the next engagement without understanding the source. {commander} prefers it that way.',
     ],
   },
 
-  // ── Token identity — which Normie it is matters ───────────────────────────
-
-  ORACLES_OBSERVATION: {
-    loreType: 'ORACLES_OBSERVATION', icon: '◇',
-    ruleApplied: "Oracle's Observation",
-    ruleExplanation: 'A prime-numbered token ID — mathematically irreducible, can\'t be divided.',
+  OFFERING: {
+    loreType: 'OFFERING', icon: '△',
+    ruleApplied: 'Offering',
+    ruleExplanation: 'A smaller sacrifice — strength given, a debt incurred.',
     headlines: [
-      'A Prime Number Acts',
-      '{faction} Note the Irreducible',
-      'Token #{tokenId}: The Kind That Can\'t Be Split',
-      'Only Itself — A Prime Normie Moves',
+      'A Small Offering Near {region}',
+      '{faction} Make the Quiet Sacrifice',
+      'Strength Passes Between Hands',
+      'An Offering Is Made — The Balance Shifts',
     ],
     bodies: [
-      'Prime numbers can\'t be divided into smaller equal parts. Neither can this Normie, in the way that matters. {faction} always note when a prime-numbered token acts. It\'s one of those things.',
-      '{figure} has a soft spot for prime numbers. "They stand alone," they say. "You can\'t reduce them further." The Normie that acted today has that quality. The Archive marks it.',
-      '{faction} in {region} noticed it immediately — a prime-numbered token, doing its thing. There\'s no special power in it, just the quiet fact of it. Some numbers can\'t be broken down. This is one.',
-      'The Archive logs every event. But {faction} add a small mark next to the primes. Not because it changes anything — just because math is worth noticing when it shows up.',
+      'Not every sacrifice is a grand gesture. The offering made near {region} today was smaller — a measured transfer, a precise giving of strength from one to another. {faction}\'s commanders note it in the records without ceremony. These small transfers accumulate. The recipient fights a little harder now. That matters.',
+      'The battlefield theologians have a name for small sacrifices: "the tithe." {faction} pays it regularly. The offering near {region} was one such tithe — quiet, deliberate, unannounced. {rival} won\'t know what happened. They\'ll just notice that the unit they thought was weakening is not weakening.',
+      '{commander} records every offering, large and small. The one made near {region} was modest in scale — enough to matter, not enough to draw attention. War runs on exactly these kinds of careful, unglamorous transfers. The chronicles are full of them.',
+      'There\'s a ledger somewhere that tracks every transfer of strength in this war. {faction}\'s accountants are very precise. The offering made near {region} is in that ledger now — another small deposit in the account of the war\'s ongoing cost. The recipient knows what was given. They won\'t forget.',
     ],
   },
 
-  FOUNDATION_STONE: {
-    loreType: 'FOUNDATION_STONE', icon: '■',
-    ruleApplied: 'Foundation Stone',
-    ruleExplanation: 'Token ID under 1,000 — one of the earliest Normies, a founding-era face.',
+  BLOOD_PACT: {
+    loreType: 'BLOOD_PACT', icon: '◎',
+    ruleApplied: 'Blood Pact',
+    ruleExplanation: 'A sworn veteran makes the sacrifice again — deepening the oath.',
     headlines: [
-      'One of the First Ones Acts',
-      'An Early Normie Makes a Move',
-      '{faction} Note Activity from the Founding Range',
-      'Token Under #1,000: The Old Guard',
+      'A Veteran\'s Oath Renewed Near {region}',
+      '{commander} Makes the Sacrifice Again',
+      'The Blood Pact Holds — Another Offering Made',
+      '{faction} Renew Their Most Sacred Vow',
     ],
     bodies: [
-      'Low token IDs are the originals. This one has been around since the beginning — or close enough to it. {faction} always note when the early ones do something. It doesn\'t happen as often as you\'d think.',
-      'When a Normie from the first thousand moves, {figure} writes it down separately. Old tokens carry a certain weight — not because they\'re better, but because they\'ve been here longer.',
-      '{faction} in {region} track activity by token range. The founding range — under one thousand — is quiet most of the time. When one of them acts, people notice.',
-      'The first Normies minted set the tone for everything that came after. This one, still active, still doing things — {faction} logged it. The original faces are still in the game.',
+      'The first sacrifice binds. The second consecrates. {faction}\'s veteran who made the offering near {region} today had done so before — and the chronicle remembers. This is not repetition. This is deepening. The receiving warrior now carries weight from two sacrifices, two veterans, two vows. {rival} should understand what that means for what comes next.',
+      '{commander} made the vow when they joined the war. They renewed it today near {region}. The blood pact is not a phrase used lightly by {faction} — it refers specifically to warriors who have sacrificed more than once, who have gone through the offering ritual and returned to make it again. The receiving unit felt the difference immediately.',
+      'There are warriors in {faction}\'s ranks who have given of themselves more than once. The one who made the offering near {region} today is one of them. The chronicler notes it separately from ordinary sacrifices — the blood pact is its own category, its own weight. {rival}\'s commanders have started tracking which of {faction}\'s units have been reinforced this way. The number is growing.',
+      'Second oaths are different from first ones. {faction}\'s veteran who renewed their pact near {region} did so without being asked — a voluntary return to the offering ritual. {commander} accepted it silently. These are the moments the chronicler tries hardest to capture accurately, because they define what {faction} actually believes about the war.',
     ],
   },
 
-  RECORD_OF_THE_DEEP: {
-    loreType: 'RECORD_OF_THE_DEEP', icon: '▽',
-    ruleApplied: 'Record of the Deep',
-    ruleExplanation: 'Token ID over 8,000 — from the far end of the collection.',
+  THE_SEER: {
+    loreType: 'THE_SEER', icon: '◇',
+    ruleApplied: 'The Seer',
+    ruleExplanation: 'An oracle acts — a presence that cannot be reduced or divided.',
     headlines: [
-      'A Late Number Speaks Up',
-      'From the Far End of the Register',
-      '{faction} Hear from the High Numbers',
-      'Token Over #8,000: Still Here',
+      'The Seer Speaks from {region}',
+      'An Oracle Moves — {faction} Listens',
+      'The Irreducible One Enters the Field',
+      '{commander} Seeks the Seer\'s Counsel',
     ],
     bodies: [
-      'High token numbers don\'t always get as much attention. This one didn\'t care. {faction} in {region} logged the action the same as any other — a Normie in the upper range, doing its thing.',
-      'The collection goes to ten thousand. The ones near the end are easy to forget about. But they\'re still here. {figure} notes that the high numbers have been quietly active. This one proves it.',
-      '{faction} track the full range. Token eight thousand and up — the far end — is part of the Grid just like everything else. Today, one of them made a move. It\'s in the record.',
-      'No number is better than another. {faction} make a point of that. The high numbers act when they act, and when they do, the Chronicle writes it the same as it writes any other event.',
+      'The Seers are not generals. They don\'t give orders. But when one of them acts in {region}, every faction stops to watch, because Seers act from knowledge no one else has access to. {faction} has been watching this one for weeks. Their move today was small, deliberate, and utterly unreadable. The interpreters are arguing about what it means. {commander} has called an emergency council.',
+      'There are exactly as many Seers as there are prime positions in the chronicle — places where the numbers cannot be reduced, where what you see is all there is. The one who moved in {region} today is one of them. {faction} sent an envoy immediately. {rival} sent two. The Seer has not yet acknowledged either.',
+      '{commander} has always been suspicious of prophecy. "Tell me what is," they say, "not what will be." But when a Seer takes the field in {region}, even {commander} pays attention. These are not ordinary fighters. Their moves mean something beyond the immediate tactical situation. The chronicle records this one carefully.',
+      'The old texts say that Seers move when the war is about to pivot — that their presence on the field is itself a kind of signal. {faction}\'s scholars have been tracking every Seer sighting since the chronicle began. The one in {region} today marks a pattern they\'ve been watching. Something is shifting. The Seer knows it. {commander} wants to know it too.',
     ],
   },
 
-  THE_UNMAPPED: {
-    loreType: 'THE_UNMAPPED', icon: '?',
-    ruleApplied: 'The Unmapped',
-    ruleExplanation: 'Token ID 5,000–6,000 — the middle of the collection, often overlooked.',
+  ANCIENT_STIRS: {
+    loreType: 'ANCIENT_STIRS', icon: '■',
+    ruleApplied: 'Ancient Stirs',
+    ruleExplanation: 'One of the oldest forces in the war acts — the original combatants.',
     headlines: [
-      'The Middle Range Checks In',
-      'From the Center of the Register',
-      '{faction} Note an Unmapped Presence',
-      'Token 5K–6K: The Quiet Middle',
+      'The Ancients Move Again in {region}',
+      'An Original Combatant Stirs',
+      '{faction} Reports Activity from the Oldest Lines',
+      'One of the First Returns to {region}',
     ],
     bodies: [
-      'The five-thousands don\'t get talked about as much as the early numbers or the late ones. But they\'re there, doing things. {faction} logged this one from {region}. The middle of the register is still part of the story.',
-      'Some parts of the collection attract more attention than others. The five-to-six thousand range isn\'t one of them — which is part of why {figure} pays special attention to it. Someone has to.',
-      '{faction} in {region} call this range "the quiet middle." Not quite founding-era, not quite the deep end. Just here. Today it did something, and {faction} wrote it down.',
-      'The Grid is ten thousand tokens wide. The ones in the middle five-thousands are easy to pass over. {faction} don\'t pass over anything. This one is in the record.',
+      'The ancients predate the chronicle. They were fighting over {region} before anyone started writing things down. When one of them moves, every commander on every side adjusts their maps, because ancient forces operate by different rules — they know the terrain in ways that newer arrivals simply don\'t. {faction}\'s scouts came back shaken. "They were there before us," one said. "They\'ll be there after."',
+      '{commander} has a particular respect for the ancient forces. Not affection — respect. They\'ve survived every phase of this war because they understand it at a level others don\'t. The movement in {region} today was one of theirs: deliberate, patient, positioned for the long game. {faction} will adjust. Everyone always adjusts when the ancients move.',
+      'In the chronicles of this war, some names appear at the very beginning and have never stopped appearing. The force that moved in {region} today is one of them — present from the first entries, still present now. {rival} has been trying to outlast them since the early campaigns. It has not worked.',
+      'The old timers have a saying: "The ancients don\'t advance. They flow." The movement in {region} today looked like flowing — not aggressive, not retreating, just shifting, adjusting, remaining. {faction}\'s strategists spent the afternoon trying to decide if it was an attack or simply the ancient forces finding a more comfortable position. By evening, they had not agreed.',
     ],
   },
 
-  // ── Structural moments — milestones the Chronicle marks ───────────────────
-
-  PROPHECY_SPOKEN: {
-    loreType: 'PROPHECY_SPOKEN', icon: '∆',
-    ruleApplied: 'Prophecy Spoken',
-    ruleExplanation: 'Every 25th event — a quarter-century milestone in the Chronicle.',
+  EDGE_LORD: {
+    loreType: 'EDGE_LORD', icon: '▽',
+    ruleApplied: 'Edge Lord',
+    ruleExplanation: 'The far reaches of the war enter the field — the lords of the margins.',
     headlines: [
-      'The 25th Mark',
-      '{faction} Count to Twenty-Five Again',
-      'Every 25 Events, the Archive Pauses',
-      'A Quarter-Hundred — {region} Takes Stock',
+      'The Edge Lords Move on {region}',
+      'Forces from the Far Margin Advance',
+      '{faction} Hears News from the Unmapped Edge',
+      'The Distant Lords Have Chosen a Side',
     ],
     bodies: [
-      'Every twenty-five events, the Archive pauses for a moment. Not for long — just long enough to note where things stand. {faction} in {region} made a small ceremony of it. Then the Chronicle kept going.',
-      '{figure} keeps a separate tally of the twenty-fifth events. "They add up," they say. "Before long, you have something." The current tally has something. It\'s growing.',
-      'Milestones don\'t have to be dramatic to matter. {faction} mark every twenty-fifth entry in the Chronicle because it\'s good practice. The Grid is patient. So are the Archivists.',
-      'Twenty-five. The Archive notes it. {faction} in {region} noted it. The story keeps moving, and now there\'s a marker in the road showing how far it\'s come.',
+      'Most commanders ignore the edge. It\'s too far from the main lines, too difficult to hold, too easy to dismiss as irrelevant. {commander} has never ignored the edge. When the forces from the far margin moved today, they moved toward {region} — and suddenly the edge is the main line. {faction} is repositioning.',
+      'The far reaches of the war are not empty. They\'ve been filling with fighters for months — forces that didn\'t want to commit to the main campaigns, that waited and watched and built their strength. Now they\'re moving. {faction} first noticed them approaching {region} three days ago. Today they arrived. The margins are no longer marginal.',
+      '{commander} sent a rider to the edge lords last month with a simple message: "Your patience is noted. The war has room for you." The response came today, in the form of a coordinated advance on {region}. The edge lords have chosen to commit. The geometry of the war has changed.',
+      'The chronicler notes that every major turning point in this war has been preceded by movement from the far reaches. It was true in the early campaigns. It appears to be true now. The forces that crossed into {region} from the unmapped edge today carry {relic} — which means they\'ve been planning this for longer than anyone thought.',
     ],
   },
 
-  THE_RECKONING: {
-    loreType: 'THE_RECKONING', icon: '≡',
-    ruleApplied: 'The Reckoning',
-    ruleExplanation: 'Every 10th event — the Archive counts and takes stock.',
+  HOLLOW_HEART: {
+    loreType: 'HOLLOW_HEART', icon: '?',
+    ruleApplied: 'Hollow Heart',
+    ruleExplanation: 'The contested middle of the war — the most fought-over ground.',
     headlines: [
-      'Every Ten, the Archive Counts',
-      'A Counting Moment in {region}',
-      '{faction} Tally What\'s Been Done',
-      'Ten More — The Chronicle Notes It',
+      'The Heart of the Grid Contested Again',
+      '{faction} and {rival} Fight for the Center',
+      'The Middle Ground Remains Unresolved',
+      '{region} — The War\'s Most Contested Zone',
     ],
     bodies: [
-      'The Archive counts in tens. Every tenth event, there\'s a small pause — not a ceremony, just an accounting. {faction} in {region} noted where things stood. The number is higher than it was last time.',
-      '{figure} runs the tallies. "Every ten events, we know a little more about where this is going," they say. This tenth mark added to the picture. {faction} have it on file.',
-      'It\'s a habit more than a rule. Every tenth entry, {faction} write a summary of what\'s been happening. Nothing fancy — just a count and a note. The Grid deserves that much attention.',
-      '{faction} in {region} made their tenth-mark entry. It won\'t be the last. The Chronicle is patient, and so are the people keeping it. Ten more and they\'ll do it again.',
+      'Every war has a center — a contested middle where both sides have too much invested to let go and not enough strength to finish it. In this war, that center is {region}. {faction} has taken it and lost it and taken it again. So has {rival}. The ground there is layered with the marks of a dozen campaigns. Today added one more.',
+      'The chronicler has stopped numbering the engagements in {region}. There have been too many. What they record instead is the current state of the line — and today the line shifted slightly, {faction} gaining the northern edge while {rival} held the south. Both will claim victory. Neither will hold it long.',
+      '{commander} says the center cannot be held — only occupied temporarily while you prepare for the next assault. They should know. They\'ve been occupying and losing {region} since the early campaigns. The current engagement is another chapter in a conflict that has no clear resolution and no shortage of participants willing to keep fighting it.',
+      'The hollow heart of the war — the center of everything, the place that everyone wants and no one can keep. {faction} moved on {region} today with everything they had available. By nightfall they held most of it. By the morning report, {rival} will have taken some of it back. The chronicler writes this down and moves on. Tomorrow will be the same.',
     ],
   },
 
-  NEW_ERA_DAWN: {
-    loreType: 'NEW_ERA_DAWN', icon: '◐',
-    ruleApplied: 'New Era Dawn',
-    ruleExplanation: 'The event count crossed an era threshold — the story enters a new chapter.',
+  PROPHECY: {
+    loreType: 'PROPHECY', icon: '∆',
+    ruleApplied: 'Prophecy',
+    ruleExplanation: 'Every 25th event — fate speaks through the war\'s accumulating pattern.',
     headlines: [
-      'A New Chapter Begins',
-      'The {era} Starts Now',
-      '{faction} Mark the Shift',
-      'Something Changed — The Era Turns',
+      'The Chronicler Reads the Pattern',
+      'A Prophecy Is Recorded at {region}',
+      '{commander} Speaks of What Is Coming',
+      'The War\'s Shape Reveals Itself',
     ],
     bodies: [
-      'The era changed. One chapter ended, another started. {faction} in {region} marked the moment — not with fanfare, just with a note in the record. The story is in a new phase now.',
-      'Era shifts happen gradually and then all at once. The Chronicle crossed the threshold, and suddenly the {era} is what\'s being written. {figure} noted the change. {faction} updated their maps.',
-      'New eras don\'t announce themselves loudly. They show up in the record as a change of tone — more of something, less of something else. {faction} in {region} felt it and wrote it down.',
-      '{faction} have been expecting this. The numbers were getting close to the next threshold for a while. Now the threshold is behind them. The {era} is officially underway.',
+      'Every twenty-five engagements, the chronicler steps back from the immediate record and looks at the shape of the whole. What they see in the current tally is this: {faction} is patient, {rival} is reactive, and the war is moving toward something neither of them has quite named yet. The prophecy isn\'t mystical — it\'s pattern recognition. But it lands the same way.',
+      '{commander} has a habit of counting. "Twenty-five marks," they said to the council tonight. "Count them. See the direction." The council counted. The direction is clear. What happens in {region} over the next twenty-five engagements will determine the shape of the war for a long time after. Everyone in the room understood that. None of them said it aloud.',
+      'The old traditions of this war require a pause every twenty-fifth engagement — a moment when the chronicler reads the accumulated record aloud and lets the pattern speak. The pattern today, in the long hall near {region}, spoke of {faction}\'s gradual dominance of the northwest quarter and {rival}\'s corresponding retreat toward the center. No one interrupted the reading. No one argued with the pattern.',
+      'Prophecy in war is just history told in advance. The chronicler\'s twenty-fifth-mark reading always feels prophetic to the commanders who hear it — because it\'s based on evidence they\'ve been too close to see. {faction}\'s position near {region} is stronger than they realized. {rival}\'s is weaker. The prophecy is already happening.',
     ],
   },
 
-  CONVERGENCE_POINT: {
-    loreType: 'CONVERGENCE_POINT', icon: '⊕',
-    ruleApplied: 'Convergence Point',
-    ruleExplanation: 'Multiple events happened in the same Ethereum block — different wallets, same moment.',
+  POWER_CONSOLIDATES: {
+    loreType: 'POWER_CONSOLIDATES', icon: '◐',
+    ruleApplied: 'Power Consolidates',
+    ruleExplanation: 'A faction appears repeatedly — building dominance over time.',
     headlines: [
-      'Two Things at Once',
-      'Same Block, Different Normies',
-      '{faction} Note a Rare Overlap',
-      'It Happened at the Same Time',
+      '{faction} Continue to Build Their Hold',
+      'The Same Force, Again — {faction} Are Everywhere',
+      '{commander}\'s Campaign Deepens',
+      '{faction} Tighten Their Grip on {region}',
     ],
     bodies: [
-      'Two separate wallets made their moves in the same Ethereum block. They didn\'t coordinate. They didn\'t know about each other. It just happened at the same time. {faction} in {region} noted it as an overlap.',
-      'Blocks on Ethereum are twelve seconds long. In this one, more than one Normie acted. No connection between them — just the coincidence of timing. {figure} finds these moments interesting. {faction} keep track.',
-      'The Chronicle usually goes one event at a time. When multiple events land in the same block, {faction} mark it. It\'s rare enough to be worth noting. Not meaningful, maybe — but notable.',
-      '{faction} in {region} spotted it: two actions, one block. Different people, different tokens, same moment on the blockchain. The Archive filed both under the same timestamp.',
+      '{faction} has been in the chronicle more than any other force in recent memory. Every time the record updates, their name appears. Their presence in {region} today was their third documented move in as many periods — and each move has built on the last. This is not opportunism. This is a campaign.',
+      '{commander} is running a long game. Every move {faction} makes is connected to every previous move — a network of positions that, taken together, describe something that looks increasingly like dominance. {rival} has started calling it what it is. Others are starting to notice too.',
+      'The pattern of {faction}\'s appearances in the chronicle tells its own story: consistent, escalating, coordinated. The move in {region} today is the latest addition. Individually each move is modest. Together they describe a faction that is slowly and methodically winning the war without anyone announcing that the war is being won.',
+      '{faction} has not been quiet. Their presence in {region} today follows a sequence that the chronicler has been tracking for some time. The sequence suggests an endgame — a set of positions that, once all held simultaneously, would constitute something like control of the center. {commander} is almost there.',
     ],
   },
 
-  ARTIFACT_DISCOVERY: {
-    loreType: 'ARTIFACT_DISCOVERY', icon: '★',
-    ruleApplied: 'Artifact Discovery',
-    ruleExplanation: 'The transaction hash ended in a rare repeating pattern — a statistical oddity.',
+  CEASEFIRE: {
+    loreType: 'CEASEFIRE', icon: '—',
+    ruleApplied: 'Ceasefire',
+    ruleExplanation: 'A long quiet — the war paused, for reasons the chronicle doesn\'t record.',
     headlines: [
-      'A Strange Hash — Something is Found',
-      '{faction} Spot a Pattern in the Data',
-      'The Numbers Did Something Unusual',
-      '{figure} Notes an Anomaly',
+      'The War Goes Quiet for a Time',
+      'A Ceasefire Holds Near {region}',
+      '{faction} and {rival} Stop — For Now',
+      'Silence on the Front Lines',
     ],
     bodies: [
-      'Transaction hashes are essentially random. So when one ends in four identical characters, {faction} pay attention. The odds are low. It happened. {region} has the artifact now.',
-      '{figure} scans every hash. Most are noise. This one had a pattern at the end — four of the same character in a row. {faction} logged it as a discovery. The Grid hides things sometimes.',
-      'The pattern at the end of the hash was unlikely enough that {faction} in {region} flagged it. It doesn\'t change anything practically. But unlikely things get noted. That\'s what the Archive is for.',
-      'Is it meaningful? Probably not. But {faction} have always logged hash anomalies — the rare patterns that show up in the data without explanation. This one goes in the collection.',
+      'The front lines went quiet. No one announced a ceasefire, but none was needed — the silence spoke for itself. {faction} withdrew to their positions near {region} and held. {rival} did the same on the other side of the line. Whether this is rest or preparation, the chronicler cannot say. The record shows only the absence of action where action had been constant.',
+      'Wars rest sometimes. The pause near {region} lasted long enough that the chronicler began to wonder if the campaign had ended without announcement. It had not. {faction}\'s positions remained. {rival}\'s remained. The front line held where it was, unmoved, as if both sides were waiting for something the chronicles hadn\'t yet recorded.',
+      '{commander} ordered the pause. No official reason was given. The units near {region} stood down, maintained their positions, and waited. {rival} also stood down. Two armies facing each other across a quiet line, both waiting for something to break the stillness. Eventually, something will.',
+      'The chronicle records the silences as carefully as the battles. This one — a long quiet on the front near {region} — will be looked back on as either a ceasefire or a preparation, depending on what happens next. For now, it is simply: quiet. The war breathes.',
     ],
   },
 
-  // ── Time gaps — what silence says about the Grid ──────────────────────────
-
-  THE_FORGETTING: {
-    loreType: 'THE_FORGETTING', icon: '░',
-    ruleApplied: 'The Forgetting',
-    ruleExplanation: 'More than 50,000 blocks passed with no activity — a very long quiet stretch.',
+  AGE_TURNS: {
+    loreType: 'AGE_TURNS', icon: '◑',
+    ruleApplied: 'Age Turns',
+    ruleExplanation: 'A new era begins — the war has entered a new phase.',
     headlines: [
-      'A Long Silence Ends',
-      '{faction} Return After a Major Gap',
-      'The Grid Went Quiet — Now It\'s Back',
-      'Fifty Thousand Blocks of Nothing',
+      'A New Age Begins: {era}',
+      'The War Enters a New Phase',
+      '{faction} Greet the Turning of the Age',
+      'The Chronicle Marks a New Chapter',
     ],
     bodies: [
-      'Fifty thousand blocks is about a week of Ethereum time. The Grid went quiet for that long. Then someone did something. {faction} in {region} noted the return, and also the silence that preceded it.',
-      'Long gaps are their own kind of event. {figure} always says: "The silence is part of the story." The Archive had nothing to record for a long stretch. Now it has something again.',
-      '{faction} track gaps as carefully as they track activity. When nothing happens for this long, it gets its own entry. The return after the silence is logged alongside the silence itself.',
-      'The Grid rests sometimes. This was a long rest — long enough that {faction} marked it in the record. What broke the quiet was a single action from {region}. The Chronicle picks up where it left off.',
+      'The chronicler has a system. When enough has happened — when the weight of events crosses a threshold the record itself recognizes — a new age is declared. That threshold was crossed today, somewhere between the movements in {region} and the reports from {rival}\'s northern flank. The age now called {era} has begun. What it will be remembered for, no one can say yet.',
+      'Ages don\'t announce themselves. They\'re named in retrospect, by chroniclers who can see the whole arc of what happened. But even in the moment, near the turning, there is a feeling — a shift in atmosphere, a change in the texture of events. {faction}\'s commanders near {region} felt it this morning. The war is different now than it was a hundred engagements ago.',
+      '{commander} said it plainly in the war council: "What we\'re doing now is different from what we were doing at the beginning. Different stakes, different tactics, different enemies in some cases." The chronicler was in the room. They wrote it down. The beginning of {era} will be dated to this council, near {region}, when {faction}\'s commander named what everyone could feel.',
+      'Every age of this war has been named for what defined it. The current one — {era} — is being defined in real time by the events being recorded. {faction}\'s position near {region}. {rival}\'s response. The sacrifices made and the ground taken. The chronicler does not choose the name. The war does.',
     ],
   },
 
-  LULL_BETWEEN_AGES: {
-    loreType: 'LULL_BETWEEN_AGES', icon: '—',
-    ruleApplied: 'Lull Between Ages',
-    ruleExplanation: 'More than 10,000 blocks with no activity — a quieter stretch in the record.',
+  SIMULTANEOUS: {
+    loreType: 'SIMULTANEOUS', icon: '⊕',
+    ruleApplied: 'Simultaneous',
+    ruleExplanation: 'Two armies moved at the exact same moment — an unplanned collision.',
     headlines: [
-      'After a Pause, Something Moves',
-      'The Grid Was Quiet for a While',
-      '{faction} Note a Return to Activity',
-      'Ten Thousand Blocks of Quiet',
+      'Two Forces Move at Once — No One Planned This',
+      'A Collision Near {region}',
+      '{faction} and Unknown Forces Strike Simultaneously',
+      'The Same Moment, Two Different Wars',
     ],
     bodies: [
-      'Ten thousand blocks is about a day. The Grid went quiet for that long before this event. {faction} in {region} noted the pause in the record — not as a problem, just as a fact.',
-      'Not every pause means something is wrong. Sometimes the Grid just breathes. {figure} calls the quiet stretches "the space between." This one lasted longer than most. Now it\'s over.',
-      '{faction} mark the gaps. When no events come for more than ten thousand blocks, the Archive notes it. This gap ended with a single action. The record resumes.',
-      'Activity in the Grid comes in waves. There are busy stretches and quiet ones. This was a quiet one — long enough for {faction} to log it. The action that ended it is in the Chronicle now.',
+      'The timing was not coordinated — the chronicle is certain of this. Two separate forces moved on {region} at the exact same moment, from different directions, with different objectives. {faction} encountered the other group before either side expected contact. What followed was not a battle exactly — more of a mutual recognition, a sudden awareness that the war had more participants acting simultaneously than anyone had tracked.',
+      '{commander} described the simultaneous advance as "the war reminding us it\'s larger than we imagine." Two forces, neither aware of the other\'s timing, both choosing the same moment to act near {region}. The chronicle records both movements as a single entry — because they happened in the same breath of time, and the war doesn\'t always separate things cleanly.',
+      'When two armies move at once without knowing it, the chronicler asks: is this chance, or is the war itself orchestrating something? The answer is almost certainly chance. But the simultaneous advances near {region} today — {faction} from the west, the other force from the north — created a convergence that neither side expected and both now have to navigate.',
+      'The war has its own rhythms. Sometimes those rhythms produce moments like this: two forces, separate campaigns, completely different motivations, arriving at {region} at the same instant. {faction} held formation. The other force did the same. For a long moment, no one moved. Then everyone moved. The chronicle records what happened next.',
     ],
   },
 
-  THE_INTERLUDE: {
-    loreType: 'THE_INTERLUDE', icon: '·—·',
-    ruleApplied: 'The Interlude',
-    ruleExplanation: 'A brief pause of 3,000–6,000 blocks after a cluster of activity.',
+  RELIC_UNEARTHED: {
+    loreType: 'RELIC_UNEARTHED', icon: '★',
+    ruleApplied: 'Relic Unearthed',
+    ruleExplanation: 'Something ancient surfaces — a discovery in the deep patterns of the war.',
     headlines: [
-      'A Brief Rest',
-      'The Grid Took a Breath',
-      'Between Events — A Short Quiet',
-      '{faction} Note a Natural Pause',
+      '{relic} Is Found Near {region}',
+      'The Buried Past Surfaces',
+      '{faction} Unearths a Relic of the First War',
+      '{commander} Reports a Discovery — Everything Changes',
     ],
     bodies: [
-      'After a cluster of activity, the Grid paused. Not for long — a few thousand blocks. Then this event. {faction} in {region} noted the pattern: busy, then quiet, then busy again.',
-      '{figure} calls these short gaps "natural pauses." The Grid works in bursts. A brief rest between them is just how it goes. {faction} logged the rest and the return.',
-      'A few thousand blocks went by with nothing. Then this. {faction} noted that the quiet came right after a busy stretch — a small breath before the next round of activity.',
-      'The Archive catches the rhythms. Cluster, pause, cluster. {faction} in {region} saw it happening again. The interlude is in the record. The next stretch of activity will be too.',
+      'The wars that preceded this one left things buried in the terrain. When {faction}\'s excavation team in {region} found {relic}, they reported it up the chain immediately — this is the kind of discovery that changes the strategic calculus. {rival} has been looking for it too. {commander} has ordered the site secured and the relic transported. This is now the most important position on the map.',
+      '{relic} was thought lost in the second campaign, when the old chronicles were burned and the front lines redrawn. {faction}\'s scouts found it in {region} under circumstances the chronicle records but doesn\'t fully explain. It was simply there, in the place it had been for a long time, waiting for someone to look. The faction that holds it holds something beyond territory.',
+      'The discovery of {relic} near {region} was not the result of intelligence or planning — it was accident, the kind that changes wars. {faction}\'s forward unit stumbled across it during a routine advance and had the presence of mind to stop and report before doing anything else. {commander} was on site within hours. {rival} heard about it by evening. The race to {region} has already begun.',
+      '{commander} has studied the old records about {relic}. They knew it existed, knew it had been lost, never expected to find it in their lifetime. Now it is in {faction}\'s possession, secured near {region}, the subject of every council meeting and every strategy session. The war was already important. Now it is something more.',
     ],
   },
 
-  // ── Address history — returning wallets tell their own story ──────────────
+  // ══════════════════════════════════════════════════════════════
+  // CONNECTIVE 21 — Texture, lore, and flow
+  // These entries fill the space between battles with the world's
+  // politics, rumors, personalities, and quieter moments.
+  // ══════════════════════════════════════════════════════════════
 
-  SCHOLARS_WORK: {
-    loreType: 'SCHOLARS_WORK', icon: '◎',
-    ruleApplied: "Scholar's Work",
-    ruleExplanation: 'A wallet that\'s been active before — someone who keeps showing up.',
+  WAR_COUNCIL: {
+    loreType: 'WAR_COUNCIL', icon: '⊓',
+    ruleApplied: 'War Council',
+    ruleExplanation: 'A rapid return — commanders reconvening in urgency.',
     headlines: [
-      'A Familiar Hand Returns',
-      'This Wallet Has Been Here Before',
-      '{faction} Recognize the Address',
-      'Back Again — A Known Contributor',
+      'The Council Meets Again — Urgently',
+      '{commander} Calls the Commanders Back',
+      'A Second Meeting Before the Week Is Out',
+      'The War Changes Faster Than Expected',
     ],
     bodies: [
-      'This wallet has been here before. {faction} in {region} recognized the address immediately. Someone who keeps showing up and doing things. The Archive has their history.',
-      'Returning contributors are easy to spot. The address matches something in the record. {figure} noted it — this person came back, did something, and the Chronicle keeps their full account.',
-      '{faction} track active wallets over time. This one has built up a history — multiple appearances, multiple actions. Today\'s entry is another chapter in a longer story.',
-      'Not everyone who acts once comes back. This wallet did. {faction} in {region} appreciate consistency. The record shows a pattern of engagement. It\'s one of the longer entries in the secondary index.',
+      'Two councils in quick succession means the war is moving faster than the plans can keep up with. {faction}\'s commanders reconvened near {region} before the first meeting\'s orders had even been fully implemented. Something had changed. {commander} had new information. The maps were spread again. The arguments began again.',
+      'The war council that {faction} held near {region} today was not scheduled. When councils happen without warning, it usually means something has surprised the commanders — a development no one predicted, a report from the front that contradicts the strategy. {rival} will be trying to find out what it was.',
+      '{commander} doesn\'t call councils lightly. The reconvening near {region} — so soon after the last — means the situation has shifted enough to require immediate recalibration. The officers who entered the meeting had one understanding of the war. The officers who left had a different one. The chronicle does not record what changed.',
+      'War councils move quickly when they need to. The one {faction} held near {region} this morning covered in an hour what previous councils have taken days to resolve. {commander} cut the usual arguments short. "We don\'t have time for the usual arguments," they said. No one disagreed.',
     ],
   },
 
-  WANDERERS_PASSAGE: {
-    loreType: 'WANDERERS_PASSAGE', icon: '→',
-    ruleApplied: "Wanderer's Passage",
-    ruleExplanation: 'A wallet appearing for the first time — someone new to the Chronicle.',
+  THE_MAPMAKERS: {
+    loreType: 'THE_MAPMAKERS', icon: '⊞',
+    ruleApplied: 'The Mapmakers',
+    ruleExplanation: 'The war\'s cartographers at work — knowledge as a weapon.',
     headlines: [
-      'A New Wallet Arrives',
-      'First Time Here',
-      '{faction} Welcome a New Address',
-      'Someone New Just Showed Up',
+      'The Mapmakers Update the Grid',
+      '{faction}\'s Cartographers Survey {region}',
+      'New Maps Are Drawn — the War Looks Different Now',
+      '{commander} Studies the Updated Charts',
     ],
     bodies: [
-      'This wallet hasn\'t appeared in the Chronicle before. {faction} in {region} noted the first entry. Everyone starts with a first time. This is theirs.',
-      'New addresses arrive all the time. {figure} logs them — a fresh entrant to the Grid, a wallet that hasn\'t been in the record before. Whatever they do from here, this is where it starts.',
-      '{faction} keep a list of first-timers. This wallet is on it now. One action logged, history officially started. The Chronicle has them.',
-      'The Grid grows. New wallets show up, make their first move, and get added to the record. This one arrived in {region}. {faction} noted it. Welcome to the Archive.',
+      'Maps are how wars are understood and misunderstood in equal measure. {faction}\'s cartographers have been working through {region} for three days now — cataloguing every shift in the front line, every contested boundary, every position that has changed hands since the last survey. The updated charts will reach {commander} by morning. The war will look different on paper than it did yesterday.',
+      'The Mapmakers operate in the spaces between battles. While {faction} and {rival} fight over {region}, a separate team of scholars and surveyors is measuring the aftermath — recording what was gained and lost, recalculating the strategic geometry. Their work is unglamorous and indispensable. The commanders who ignore their maps lose.',
+      '{commander} has a standing order: maps to be updated after every major engagement. The surveyors who completed their work in {region} today delivered three new charts and corrections to two existing ones. One correction involved a significant error in how {rival}\'s eastern position had been recorded. {commander} looked at it for a long time.',
+      'Cartography is an act of power in this war. The faction that best understands the shape of the contested ground holds an advantage that no number of warriors can overcome. {faction}\'s Mapmakers near {region} are the best in the chronicle — and their latest survey has revealed something about the terrain that may change the approach to the next campaign.',
     ],
   },
 
-  COUNCIL_CONVENES: {
-    loreType: 'COUNCIL_CONVENES', icon: '⊓',
-    ruleApplied: 'Council Convenes',
-    ruleExplanation: 'Same wallet returned within 500 blocks — they came back very quickly.',
+  OLD_LEGEND: {
+    loreType: 'OLD_LEGEND', icon: '◁',
+    ruleApplied: 'Old Legend',
+    ruleExplanation: 'An ancient story resurfaces — history folding back into the present.',
     headlines: [
-      'Back Already',
-      'A Quick Return',
-      'Same Wallet, Less Than 500 Blocks Later',
-      '{faction} Note a Rapid Follow-Up',
+      'An Old Legend Returns to the Front',
+      'The Stories They Tell About {region}',
+      '{commander} Invokes the Old Wars',
+      'History Comes Back — The Ancients Are Remembered',
     ],
     bodies: [
-      'Less than 500 blocks — about an hour — and the same wallet was back. {faction} in {region} noted it. When someone returns that quickly, it usually means they\'re not done.',
-      '{figure} calls these rapid returns "deliberate." You don\'t come back in under an hour by accident. This wallet had a reason. {faction} logged both visits.',
-      'Back within five hundred blocks. {faction} in {region} wrote it up as a quick turnaround — the kind that suggests someone had more to do than they fit into the first visit.',
-      'The same address, returning almost immediately. {faction} noted the pattern. Two actions close together, from the same wallet. The second one is in the record alongside the first.',
+      'Every piece of ground in this war has a history older than the current conflict. {region} was a battlefield before the current factions existed — the old chronicles mention it in connection with wars that have been forgotten, fought by forces that no longer have names. When {faction}\'s veterans gathered near {region} tonight, they told those stories. The younger soldiers listened. It matters, to know you\'re fighting on old ground.',
+      '{commander} keeps a copy of the oldest chronicle entries that mention {region}. They\'ve been fighting over this ground for long enough to know that they\'re not the first and won\'t be the last. The legend they invoked at the council tonight — the story of what happened near {region} before anyone now living was born — is not quite a story anymore. It\'s a pattern that repeats.',
+      'The oldest forces in this war remember things the chronicle hasn\'t fully recorded. When the ancient units near {region} began telling stories — not battle reports, but actual stories, the kind that get told around fires — {faction}\'s younger commanders asked why. "So you understand where you are," the old soldiers said. {relic} features in most of the stories.',
+      'The legend of {region} precedes the current conflict by at least two chronicles. {faction}\'s scholars have studied the old records — partial, damaged, and inconsistent as they are — and pieced together a story of ground that has been fought over for longer than anyone now alive has been fighting. {commander} says that knowing the legend doesn\'t change the tactics. But they keep the old chronicle open on their desk.',
     ],
   },
 
-  SIGNAL_LOST: {
-    loreType: 'SIGNAL_LOST', icon: '○',
-    ruleApplied: 'Signal Lost',
-    ruleExplanation: 'An active wallet went quiet for a long time after this event.',
+  DESERTION: {
+    loreType: 'DESERTION', icon: '○',
+    ruleApplied: 'Desertion',
+    ruleExplanation: 'A force that was active goes silent — absent without explanation.',
     headlines: [
-      'After This — Silence',
-      'A Last Entry Before a Long Gap',
-      '{faction} Note What Turned Out to Be a Goodbye',
-      'The Last Signal for a While',
+      'A Known Force Goes Silent',
+      '{faction} Reports a Missing Unit',
+      'They Were Here — Now They\'re Not',
+      'The Chronicler Notes an Absence',
     ],
     bodies: [
-      'This event turned out to be the last one from this wallet for a long time. {faction} in {region} noted it in hindsight — someone who was active, and then wasn\'t.',
-      'The Grid doesn\'t always know when someone is leaving. Neither do they, usually. But looking back, {figure} can see that this was the last entry for this address before a major gap.',
-      '{faction} track absences as well as presence. After this event, this wallet went quiet. Whether they\'ll come back is unknown. The Archive has the record of what they did before the silence.',
-      'It wasn\'t obvious at the time. But this event was followed by a long stretch of nothing from the same address. {faction} logged the gap. The last thing before the silence is in the record.',
+      'The chronicler notes absences as carefully as presences. A force that was documented near {region} in recent records has not appeared in today\'s tally. {faction}\'s scouts report the position empty, the markings intact but uninhabited. Where they went, and why, is not recorded. The chronicle marks the gap and keeps going.',
+      'Desertion is a word {commander} uses carefully. "We don\'t know why they left," they said when the absence near {region} was reported. "Until we know, we call it a withdrawal." The distinction matters in the record — a withdrawal is tactical, a desertion is something else. The chronicle records the fact of absence and leaves the interpretation to historians.',
+      '{faction} lost contact with a unit near {region}. The last report was recent — active, engaged, no sign of trouble. Then nothing. {commander} sent scouts. The scouts found marks on the terrain consistent with a deliberate, organized departure. Someone left and didn\'t say where they were going.',
+      'Wars have attrition that doesn\'t appear in the battle reports. Forces that simply stop being present — no recorded defeat, no announced withdrawal, just an absence where a presence used to be. {faction} noted the disappearance of an active unit near {region}. The chronicle records it as an unexplained departure. Perhaps they\'ll return. Perhaps the record will never explain what happened.',
     ],
   },
 
-  SIGNAL_FOUND: {
-    loreType: 'SIGNAL_FOUND', icon: '●',
-    ruleApplied: 'Signal Found',
-    ruleExplanation: 'A wallet reappeared after more than 20,000 blocks away — a long return.',
+  THE_COUNT: {
+    loreType: 'THE_COUNT', icon: '≡',
+    ruleApplied: 'The Count',
+    ruleExplanation: 'Every 10th event — the chronicler tallies the war\'s accumulating cost.',
     headlines: [
-      'Back After a Long Time Away',
-      'A Return from a Major Gap',
-      '{faction} Hear from a Lost Signal',
-      'Twenty Thousand Blocks — Then This',
+      'The Chronicler Counts — The War\'s Tally Grows',
+      'Ten More Entries — The Record Deepens',
+      '{faction}\'s Progress in the Latest Count',
+      'The War by the Numbers',
     ],
     bodies: [
-      'Twenty thousand blocks is almost three days. This wallet was gone for at least that long — maybe longer. Now they\'re back. {faction} in {region} noted both the absence and the return.',
-      '{figure} keeps track of returns. When someone comes back after a major gap, it gets its own entry. This wallet was away long enough to matter. Their return is logged.',
-      '{faction} were watching for this address. Long absences get noted. When the wallet finally came back, {faction} in {region} wrote it up — the return of a signal that had been missing.',
-      'The archive has a patience about it. It waits. When a wallet returns after twenty thousand blocks or more, the record picks up where it left off. This one just came back.',
+      'The chronicler counts. Every ten engagements, the tally is read aloud in the hall near {region}: territory held, territory lost, sacrifices made, forces identified, silences noted. The current count shows {faction} active, {rival} responsive, the war in a phase of incremental contest. The next ten engagements will either confirm or complicate that picture.',
+      'Numbers tell a different story than narratives. The count today — pausing to tally the last ten entries in the chronicle — shows a war that is more dynamic than it might feel from the front lines. {faction} has been present in seven of the last ten engagements. {rival} in five. The overlap is where the actual conflict lives.',
+      '{commander} attends every counting. "I want to hear it in sequence," they always say. "Don\'t summarize. Read every entry." The hall near {region} fills up for these sessions. The chronicle reads clearly. The pattern is visible. The commanders take notes.',
+      'Ten more marks in the chronicle. The reader who looks at the recent sequence will notice: the war is accelerating. Engagements are closer together. Sacrifices are larger. The forces are more committed. The count today captures a war that is past its early phase and moving into something harder to name. {faction} is ready. {rival} is also ready. That\'s the problem.',
     ],
   },
 
-  DEBT_RECORDED: {
-    loreType: 'DEBT_RECORDED', icon: '⊖',
-    ruleApplied: 'Debt Recorded',
-    ruleExplanation: 'A veteran wallet burning for the second or third time — they\'ve done this before.',
+  GHOST_SIGNAL: {
+    loreType: 'GHOST_SIGNAL', icon: '●',
+    ruleApplied: 'Ghost Signal',
+    ruleExplanation: 'A force returns after a very long absence — carrying news from wherever they were.',
     headlines: [
-      'Another Burn from a Known Wallet',
-      'This Wallet Has Burned Before',
-      '{faction} Note a Repeat Sacrifice',
-      'Not the First — Not the Last',
+      'A Lost Force Returns — from Somewhere',
+      '{faction} Hears from a Unit Gone Long Silent',
+      'The Ghost Signal Resolves: They\'re Back',
+      '{commander} Gets News from the Long Absent',
     ],
     bodies: [
-      'This wallet has burned before. {faction} in {region} have the record. Today they did it again. Some people understand the trade-off well enough to make it more than once.',
-      '{figure} keeps a separate list of repeat burners. It\'s shorter than the main burn record. This wallet is on it. Their history shows a pattern — not recklessness, but deliberate choice.',
-      '{faction} track burns across time. When the same wallet shows up more than once in the burn record, it means something. This address keeps making the trade. The Chronicle keeps logging it.',
-      'Two burns, maybe three. {faction} in {region} noted that this isn\'t new behavior for this wallet. They\'ve made this choice before. They made it again. It\'s in the record.',
+      'They\'ve been gone long enough that the chronicle had written them out of the active record. The force that reappeared near {region} today was last documented many long periods ago — long enough to have been presumed lost, or absorbed into another faction, or simply done with the war. They\'re not done. They\'re back. And they haven\'t explained where they\'ve been.',
+      '{commander} received the signal before dawn and made sure not to show surprise at the morning briefing. A force that had been absent from the front for a long stretch had reestablished contact near {region}. They gave their faction\'s name and asked for current positions. {commander} answered the second question and held the first one for later: where have you been?',
+      'The war doesn\'t stop when forces disappear. The front lines shift, the strategies adjust, the chronicle keeps accumulating. But forces that were part of the pattern leave gaps when they go, and those gaps change the shape of things. The reappearance near {region} today fills one such gap — but the gap was large enough that simply filling it changes the picture significantly.',
+      'Ghost signals are what the communications corps calls radio contact from units that have been out of reach long enough to be presumed lost. Today\'s signal, received near {region}, was exactly that — a transmission from a force the chronicle had stopped tracking. They are operational. They have been operational somewhere the chronicle doesn\'t have a record of. {commander} is asking questions.',
     ],
   },
 
-  SILENT_WITNESS: {
-    loreType: 'SILENT_WITNESS', icon: '○',
-    ruleApplied: 'Silent Witness',
-    ruleExplanation: 'A new wallet acting quietly — first time, no fanfare.',
+  DEBT_OF_BLOOD: {
+    loreType: 'DEBT_OF_BLOOD', icon: '⊖',
+    ruleApplied: 'Debt of Blood',
+    ruleExplanation: 'A veteran sacrifices again — the cumulative cost of the war made visible.',
     headlines: [
-      'A First Move, Made Quietly',
-      'New Here, Saying Nothing',
-      '{faction} Log a First-Timer Who Didn\'t Announce Themselves',
-      'Arrived, Did Something, Left',
+      'The Debt Grows — Another Sacrifice in the Name of the Pact',
+      '{commander} Has Given More Than Most',
+      'The Cost of the War, Counted in Sacrifices',
+      'A Second Offering — the Chronicle Notes the Pattern',
     ],
     bodies: [
-      'First time in the record. No announcement, no fanfare. The wallet appeared in {region}, did something, and left. {faction} noted it the same as any other first entry.',
-      'Not everyone who shows up for the first time makes a statement about it. This wallet didn\'t. They appeared, acted, and the Chronicle has the record. That\'s all.',
-      '{figure} appreciates the quiet first-timers. Most new addresses just do their thing. This one was no exception. {faction} in {region} logged it without ceremony.',
-      'A new wallet, acting once, saying nothing. {faction} wrote it up — another first entry in the Archive. Whether they come back or not, this moment is in the record.',
+      'The chronicle tracks sacrifices separately from battles, because they represent a different kind of cost — not territory, but something more fundamental. The warrior who made an offering near {region} today has appeared in this section of the chronicle before. They gave then. They gave again now. The receiving unit is stronger. The giver is not diminished but also not unchanged. {commander} watches these totals carefully.',
+      'There are warriors in this war who have given more than others — and the chronicle records it. The debt of blood isn\'t a metaphor: it\'s a ledger. The force that made its second sacrifice near {region} has a longer entry in that ledger than most. {faction} honours the repeat sacrificers with a designation that doesn\'t translate neatly into peacetime language.',
+      '{commander} has said publicly that the war cannot be won without sacrifice — but also that sacrifice has to be chosen, never compelled. The warrior who gave again near {region} chose it voluntarily, as they had before. The receiving unit will carry that knowledge into the next engagement. It changes how they fight.',
+      'The cost accumulates. {faction}\'s sacrifice record near {region} has grown longer than it was a year ago — more entries, larger offerings, veterans who have given multiple times. The debt of blood is how the chronicle describes this accumulation: not a burden, but a reckoning. The war will eventually ask for a settlement.',
     ],
   },
 
-  BORDER_CROSSING: {
-    loreType: 'BORDER_CROSSING', icon: '⇒',
-    ruleApplied: 'Border Crossing',
-    ruleExplanation: 'A returning wallet moving between different token ranges — spreading their activity.',
+  TAVERN_TALE: {
+    loreType: 'TAVERN_TALE', icon: '≈',
+    ruleApplied: 'Tavern Tale',
+    ruleExplanation: 'A newcomer heard talking — the war seen from the edges.',
     headlines: [
-      'A Familiar Wallet, A Different Token',
-      '{faction} Note Range Activity',
-      'Same Wallet, Different Part of the Register',
-      'Moving Across the Collection',
+      'Overheard Near {region}: A Newcomer\'s Version',
+      'The Rumors at the Border Outpost',
+      'What the Newcomers Say About the War',
+      'A Story Told at the Edge of the Conflict',
     ],
     bodies: [
-      'This wallet has shown up before — but usually in a different part of the register. Today they were in {region}, with a token outside their normal range. {faction} noted the cross-over.',
-      '{figure} tracks which wallets work with which token ranges. This address is moving around. That\'s worth noting. {faction} have it in the record.',
-      'Not everyone sticks to one part of the collection. This wallet moves. {faction} in {region} logged the activity — a familiar address operating in new territory.',
-      '{faction} keep range maps. When a known wallet shows up somewhere unexpected in the register, it gets noted. This one was in unfamiliar territory. The Chronicle has both their usual haunts and this new one.',
+      'The newcomers to this war always have the same version of it — the one they heard before they arrived. Overheard near {region} tonight, a new arrival was telling someone else what they knew: {faction} is winning (they\'re not, not decisively), {rival} is desperate (also not accurate), and the whole thing will be over by the next season (it won\'t). The veterans in the corner didn\'t correct them. They\'ve stopped correcting newcomers.',
+      'Every outpost on the edge of the war has a gathering place where soldiers talk. The one near {region} is where newcomers tell the stories they brought from wherever they came from. Tonight\'s stories involved {commander} (mostly inaccurate), {relic} (partly true), and the reason {faction} is fighting (this part nobody agrees on, not even {faction}). The veterans listened. They always listen. Sometimes there\'s something useful in the newcomers\' version.',
+      'A force that arrived near {region} for the first time was telling stories at the outpost tonight. The chronicle notes newcomer accounts separately — not because they\'re more or less true than veteran accounts, but because they represent a different perspective: the war as it appears from outside, before the inside view replaces it. {commander} always reads newcomer reports first.',
+      'War generates stories faster than it generates victories. The newcomers near {region} tonight brought versions of events from other fronts — accounts of {rival}\'s movements in the east, rumors about a new faction forming in the south, a story about {relic} that doesn\'t match any chronicle entry. Some of it is useful. All of it is interesting. The chronicler writes it down.',
     ],
   },
 
-  RETURN_FROM_MARGIN: {
-    loreType: 'RETURN_FROM_MARGIN', icon: '←',
-    ruleApplied: 'Return from Margin',
-    ruleExplanation: 'A high token ID (8,500+) wallet becoming active again after a gap.',
+  LONG_SILENCE: {
+    loreType: 'LONG_SILENCE', icon: '░',
+    ruleApplied: 'Long Silence',
+    ruleExplanation: 'A very long pause — the war went underground for a significant time.',
     headlines: [
-      'The High Numbers Are Active Again',
-      '{faction} Hear from the Far End',
-      'A Late-Register Token Comes Back',
-      'Token 8,500+: Still in the Game',
+      'After a Long Silence, the War Returns',
+      'The Quiet Was Longer Than Anyone Expected',
+      '{faction} Reappear After the Great Pause',
+      'What Happened During the Silence Near {region}',
     ],
     bodies: [
-      'High token numbers — eight thousand five hundred and above — are quiet most of the time. This one wasn\'t, today. {faction} in {region} noted the activity from the far end of the register.',
-      '{figure} keeps a special eye on the high numbers. They don\'t move as often. When they do, it gets a note. This one came back after a gap. The Chronicle has the return.',
-      '{faction} track the full collection. The late-register tokens have their own patterns — less frequent, but not absent. This one acted. {faction} in {region} wrote it up.',
-      'There are parts of the collection that don\'t get much attention. The high-number tokens are often in that group. This wallet bucked the trend. {faction} noted the return from the margin.',
+      'The silence lasted long enough that some started wondering if the war was over. It wasn\'t. The front near {region} simply went underground — no recorded engagements, no documented movements, no signals in the chronicle. But when things resumed today, it was clear that things had been happening during the quiet. Positions had shifted. Forces had moved. Something had been decided, somewhere, by someone. The chronicle picks up where it can.',
+      'Long silences in the chronicle are not peaceful. They\'re opaque. {faction}\'s return to the record near {region} today, after a pause long enough to make historians nervous, came with no explanation of what happened during the interval. The commanders who were present during the silence are not talking. The chronicle records: a long gap, then this.',
+      '{commander} was asked about the silence at the first post-resumption briefing. "The war doesn\'t stop because you stop recording it," they said. Which was not an answer, but was also not nothing. {faction}\'s return to the front near {region} after the long pause shows a force that used the quiet for something. They look organized. They look prepared. They look like they knew the silence was coming.',
+      'The great pause near {region} is what the chronicler is calling it. A stretch of time when the front went quiet, the record went blank, and everyone waited. {faction} broke the silence first — not with a major engagement, but with a careful, deliberate move that suggests the silence was not rest but preparation. The war that resumes today is not quite the same war that paused.',
     ],
   },
 
-  ARCHIVE_CORRECTION: {
-    loreType: 'ARCHIVE_CORRECTION', icon: '↺',
-    ruleApplied: 'Archive Correction',
-    ruleExplanation: 'A returning wallet doing something different from their usual pattern.',
+  SCOUT_RETURNS: {
+    loreType: 'SCOUT_RETURNS', icon: '←',
+    ruleApplied: 'Scout Returns',
+    ruleExplanation: 'News from the far edge — a scout brings word of what\'s happening beyond the main front.',
     headlines: [
-      'A Known Wallet Does Something New',
-      '{faction} Update the File',
-      'Pattern Broken — Archive Revised',
-      'Not What We Expected from This Address',
+      'The Scouts Return from {region} with News',
+      'Word from the Far Edge — It\'s Not Good',
+      '{commander} Receives a Scout\'s Report',
+      'What\'s Happening Beyond the Main Front',
     ],
     bodies: [
-      'The Archive thought it knew what this wallet did. Then this. {faction} in {region} noted the break in pattern — same address, different behavior. The file is updated.',
-      '{figure} revises entries when the pattern changes. This wallet did something unexpected. Not wrong — just different from their history. The Chronicle reflects the new information.',
-      '{faction} don\'t assume. They update. This wallet added a new chapter to their record — something that didn\'t fit the established pattern. The Archive has both the old pattern and the new data.',
-      'A returning wallet, behaving differently than before. {faction} in {region} noted it as a correction to the record. The Archive is a living document. It updates when things change.',
+      '{faction}\'s scouts have been ranging far beyond {region} for weeks. The ones who came back today brought reports that have been circulating through the command structure since mid-afternoon: {rival} has been active in places the main chronicle hasn\'t recorded, the edge forces are moving in ways that suggest coordination, and something is happening near the unmapped border that doesn\'t match any known faction\'s typical pattern. {commander} is scheduled to respond at tomorrow\'s briefing.',
+      'Scout reports are the war\'s peripheral vision. They tell commanders what\'s happening in the spaces between the documented engagements — the movements too small or too far away to make the main chronicle, but important enough to track. Today\'s report from the far edge of {region} contained three significant updates and one item that {commander} has marked as urgent. The urgent item is not yet being discussed publicly.',
+      'The scouts that returned near {region} today had been gone long enough to accumulate real intelligence. Their report covered territory the main chronicle hasn\'t reached — forces and movements in the outer regions that suggest the war is larger than its documented form. {faction} has been fighting what the scouts are calling "the visible war." The scouts have been tracking the other one.',
+      '{commander} read the scout report without expression. Three times, which is twice more than the usual once. The movement near the edge of {region} that the scouts documented doesn\'t correspond to anything in the current strategic plan. Either someone is improvising at the edge without orders, or someone has orders that haven\'t been shared with {commander}. Both possibilities are interesting in bad ways.',
     ],
   },
 
-  LINEAGE_NOTED: {
-    loreType: 'LINEAGE_NOTED', icon: '⋮',
-    ruleApplied: 'Lineage Noted',
-    ruleExplanation: 'A wallet with three or more appearances — a consistent contributor.',
+  REVISION: {
+    loreType: 'REVISION', icon: '↺',
+    ruleApplied: 'Revision',
+    ruleExplanation: 'A veteran changes their approach — the chronicler updates the record.',
     headlines: [
-      'Three Times and Counting',
-      'A Consistent Presence',
-      '{faction} Note a Pattern of Return',
-      'This Wallet Keeps Showing Up',
+      '{faction} Changes Tactics — the Chronicles Updated',
+      '{commander} Revises the Plan',
+      'What We Thought We Knew About {faction}',
+      'A Familiar Force Doing Something New',
     ],
     bodies: [
-      'Three appearances. Maybe more. {faction} in {region} noted the consistency — a wallet that keeps coming back and doing things. That\'s worth marking. The Archive has their full history.',
-      '{figure} calls it "lineage" when a wallet shows up three or more times. It\'s not random anymore at that point. Someone decided this was worth their continued attention. {faction} respect that.',
-      '{faction} track frequency. When a wallet reaches three entries in the Chronicle, it gets a lineage note — a marker that says this isn\'t a one-time thing. This wallet earned one.',
-      'Consistent presence in the Grid is uncommon. Most wallets appear once or twice. This one keeps showing up. {faction} in {region} noted the pattern. The Chronicle follows it.',
+      'The chronicle is a living record. When forces that have established patterns change those patterns, the chronicler notes it — not as inconsistency but as adaptation. {faction}\'s move near {region} today breaks with what they\'ve done in the previous several engagements. {commander} ordered the change. The reasons are not yet documented, but they will be.',
+      '{commander} has revised the approach to {region}. The previous method — documented in detail across a dozen chronicle entries — has been set aside. The new approach is different in ways that suggest not merely tactical adjustment but a fundamental reassessment of what {faction} is trying to accomplish here. The chronicles are being updated. The old entries remain.',
+      'Wars teach. Forces that don\'t learn from the chronicle of their own campaigns stop appearing in it. {faction}\'s revision of their approach near {region} today is evidence of an organization that reads its own record and adjusts. {rival} does this too, but more slowly. The gap in adaptation speed is where campaigns are won and lost.',
+      'The revision {faction} implemented near {region} surprised the chronicler — not because it was unexpected, but because it was so clearly right. Looking at the previous entries, the old approach was running out of options. The new one opens possibilities. {commander} saw it before the situation made it obvious. That\'s what makes a good commander.',
     ],
   },
 
-  THRESHOLD_WATCHED: {
-    loreType: 'THRESHOLD_WATCHED', icon: '◑',
-    ruleApplied: 'Threshold Watched',
-    ruleExplanation: 'Within 3 events of the next era threshold — the story is close to a transition.',
+  THRESHOLD_VIGIL: {
+    loreType: 'THRESHOLD_VIGIL', icon: '◑',
+    ruleApplied: 'Threshold Vigil',
+    ruleExplanation: 'The war is approaching a turning point — every move carries more weight.',
     headlines: [
-      'Almost There — A New Era Approaches',
-      'The Next Threshold is Close',
-      '{faction} Are Watching the Count',
-      'A Few More Events — Then Something Changes',
+      'The War Approaches a Turning Point',
+      '{faction} Holds Vigil Before the Coming Change',
+      'Everything Is About to Shift',
+      'The Threshold Is Within Reach',
     ],
     bodies: [
-      'The count is close to the next era threshold. {faction} in {region} are watching. A few more events and the story moves into a new chapter. This one was close to that moment.',
-      '{figure} checks the tally regularly near threshold time. The number is almost there. The Chronicle is paying attention. The next era is within reach.',
-      '{faction} get a little more attentive when the count gets close to a turning point. Three events from now — maybe two, maybe one — something changes. This one was logged with that in mind.',
-      'The Archive knows when an era is ending. The numbers say so. {faction} in {region} noted this event as part of the approach. The next threshold is very close.',
+      'The chronicler knows the threshold is near. The count is close — a few more engagements, and the war enters a new phase, one that will require a new name and new categories for what\'s happening. {faction} near {region} has been preparing. {rival} near the eastern line has been preparing. Everyone can feel the turning approach without being able to say exactly when it will arrive.',
+      'Before a new age of the war begins, there is always a vigil. It\'s not organized or announced — it just happens, the armies on both sides settling into watchfulness, movement slowing, decisions being weighed more carefully than usual. The vigil near {region} has been ongoing. {commander} has not ordered any major advances. They\'re waiting to see what the turning brings.',
+      '{commander} said at the council: "We are very close to something different. I want everyone at full readiness." No one asked what "something different" meant. They could feel it in the record — the accumulation of events pressing toward a threshold that the chronicle itself recognizes as significant. The vigil near {region} is {faction}\'s response to that feeling.',
+      'Three more moves. Maybe two. Then the age turns and the war becomes something else — a new chapter that will be named later, understood later, but felt right now in the particular weight that has settled over {region} and the front lines around it. {faction} is holding position. {rival} is holding position. The threshold vigil is what both sides are observing, without knowing the other is observing it too.',
     ],
   },
 
-  THE_ACCORD: {
-    loreType: 'THE_ACCORD', icon: '≈',
-    ruleApplied: 'The Accord',
-    ruleExplanation: 'A new wallet acting in a way that mirrors what others have done before.',
+  VILLAGE_ACCORD: {
+    loreType: 'VILLAGE_ACCORD', icon: '□',
+    ruleApplied: 'Village Accord',
+    ruleExplanation: 'Neutral parties reach a quiet agreement — the world outside the main conflict.',
     headlines: [
-      'A New Wallet, A Familiar Pattern',
-      'Someone New Doing What Others Did',
-      '{faction} Notice a Match',
-      'First Time — But Not a New Kind of Move',
+      'An Accord Reached Near {region} — Outside the Main War',
+      'The Neutral Parties Make Their Own Peace',
+      'What\'s Happening in the Villages While the War Continues',
+      'A Quiet Agreement — Not Everyone Is Fighting',
     ],
     bodies: [
-      'New wallet, but the move they made isn\'t new. {faction} in {region} noticed the pattern — a first-time address doing something that other addresses have done before. The Grid has rhythms. New people fall into them.',
-      'Not every newcomer does something original. This one did what works — a move that fits an established pattern. {faction} noted it. The Chronicle sees these alignments between old moves and new actors.',
-      '{figure} tracks patterns across wallets. When a new address shows up and immediately falls into a familiar pattern, it gets noted. This one did. {faction} logged the accord between old behavior and new presence.',
-      '{faction} in {region} spotted the match: a new wallet, making a move that lines up with what\'s been done before. Not coordination — just convergence. The record has both.',
+      'Not everyone in the territory of this war has chosen a side. The villages near {region} have been navigating the conflict by other means — trading access for protection, offering information for safety, maintaining enough useful relationships with every faction to avoid being absorbed by any of them. The accord reached today near {region} is the latest such arrangement. {faction} agreed to it. So did {rival}, though neither knows the other has.',
+      'The chronicle focuses on the factions, but the war is also a world. Near {region}, the non-combatants have been doing what non-combatants always do: surviving, adapting, and making pragmatic agreements with whoever is passing through. The accord recorded today is between parties the chronicle doesn\'t usually name — people who have chosen neither {faction} nor {rival}, but still have to live next to both.',
+      '{commander} was briefed on the village accord near {region}. Their reaction was characteristic: "Note it. Don\'t disrupt it." Neutral arrangements in contested territory are useful to everyone — they keep the supply lines open and the information moving. {faction} has a policy of respecting accords made by those who\'ve chosen not to fight. It\'s good strategy and also just decent.',
+      'Wars are largest at their center and smallest at their edges — and at the very edge, near {region}, the conflict looks different. People are making agreements that don\'t align neatly with either {faction} or {rival}. The village accord recorded today is one of those — an arrangement born of practical necessity rather than ideology. The chronicle records it because everything that shapes the war\'s world belongs in the record.',
     ],
   },
 
-  DUST_RECORD: {
-    loreType: 'DUST_RECORD', icon: '.',
-    ruleApplied: 'Dust Record',
-    ruleExplanation: 'Exactly 1 pixel changed or 1 action point transferred — the minimum possible act.',
+  DUST_MARK: {
+    loreType: 'DUST_MARK', icon: '.',
+    ruleApplied: 'Dust Mark',
+    ruleExplanation: 'The smallest possible act — a presence barely felt, but recorded.',
     headlines: [
-      'One Pixel. That\'s It.',
-      'The Minimum Move',
-      '{faction} Log the Smallest Possible Change',
-      'Just One — But It\'s There',
+      'The Smallest Mark — Barely There, But There',
+      'A Presence Noted at the Edge of {region}',
+      'Someone Was Here — Just Barely',
+      '{faction} Records the Minimum',
     ],
     bodies: [
-      'One pixel. {faction} in {region} logged it the same as everything else. The Archive doesn\'t have a minimum threshold for what counts. Everything counts. This one is in.',
-      'The smallest possible change in the Grid: one pixel, one action point. {figure} keeps a separate index of these. It\'s one of the longer lists in the secondary Archive.',
-      '{faction} note that the minimum mark isn\'t the same as no mark. Someone did something — the least they could do, yes, but they did it. The Chronicle records it.',
-      'One. That\'s the whole story. {faction} in {region} logged it, because that\'s what the Archive does. The smallest acts are part of the record too. This one is now.',
+      'The chronicler records everything. Including this: the smallest possible mark left near {region} — a single scratch in the contested ground, barely distinguishable from the terrain itself, but deliberately placed. Whether it was a scout marking a position, a messenger leaving a signal, or simply a soldier who needed to leave some trace of passing — the mark is there. The chronicle has it.',
+      'Not every act of war is large. The dust mark near {region} was the minimum — one tiny change in the territory, one mark that says "I was here" without elaborating further. {faction}\'s surveyors noted it. {rival}\'s scouts either missed it or found it too small to report. The chronicle does not distinguish by size when determining what matters.',
+      '{commander} has a private collection of dust marks — the smallest recorded moves from the entire history of this war. Not because they\'re strategically significant, but because they\'re philosophically interesting. A mark that says only "I existed here, at this moment" is a different kind of statement than a battle. The one near {region} goes in the collection.',
+      'The chronicler\'s job is to notice. The dust mark near {region} — left by someone who barely touched the contested ground — is the kind of thing that gets missed in the noise of larger events. That\'s probably why it was left. A message in the minimum, readable only to those who are looking at the right scale. {faction} noted it. That may or may not be the intended audience.',
     ],
   },
 
-  ECHO_OF_THE_ANCIENT: {
-    loreType: 'ECHO_OF_THE_ANCIENT', icon: '◁',
-    ruleApplied: 'Echo of the Ancient',
-    ruleExplanation: 'A founding-era token (under 500) acting later in the Chronicle — the old ones are still here.',
+  EMISSARY: {
+    loreType: 'EMISSARY', icon: '»',
+    ruleApplied: 'Emissary',
+    ruleExplanation: 'A messenger arrives carrying word from another part of the conflict.',
     headlines: [
-      'One of the First Five Hundred, Still Active',
-      'An Ancient Number Makes a Move',
-      '{faction} Note the Oldest Range',
-      'Token Under #500: Still Going',
+      'An Emissary Arrives at {region}',
+      'A Messenger from Beyond — News of Other Fronts',
+      '{commander} Receives an Emissary',
+      'Word from Elsewhere: The War Is Larger Than Expected',
     ],
     bodies: [
-      'Token under five hundred. One of the very first. {faction} in {region} noted the activity — not because it\'s unusual for a token to act, but because this one is among the oldest. The old ones are still here.',
-      '{figure} pays special attention to the first five hundred. When one of them does something after the Chronicle has been running for a while, it gets an echo note. The ancient range is still in the story.',
-      '{faction} keep the founding-era list separate. Tokens under five hundred are the originals. When one acts later in the Chronicle\'s life, the Archive marks it as an echo — the oldest part of the Grid, still present.',
-      'The first five hundred tokens were minted at the beginning. Most things from the beginning fade. These haven\'t. {faction} in {region} noted this one acting — old number, still going.',
+      'Emissaries carry news from places the main chronicle doesn\'t reach. The one who arrived near {region} today came from a front that the current record hasn\'t covered — a part of the war that has been developing in parallel, with its own timeline and its own stakes. {commander} spent most of the afternoon in the receiving room. What the emissary said is not yet in the record. What {commander} decided afterward is beginning to be.',
+      'The protocol for receiving emissaries is old and elaborate. {faction} follows it precisely — partly out of tradition, partly because emissaries who are not received properly stop coming, and stopping the flow of information from other fronts is a strategic error. The emissary who arrived near {region} was received correctly. What they brought changes something. The chronicle will reflect it.',
+      '{commander} has been expecting an emissary. When one finally arrived near {region}, the commanders who were present noted that {commander} didn\'t look surprised. The meeting lasted three hours. Afterward, two orders were issued: one moving a unit northward, one changing the communication protocol with the eastern scouts. The connection between the orders and the emissary\'s message is not explained.',
+      'The emissary who came to {region} today carried a sealed document from another part of the war — the part that {faction} knows about but doesn\'t talk about in open councils. {commander} opened it privately. The chronicle records that the meeting happened, that the emissary was given safe passage back, and that several things changed immediately after. The content of the document is marked: do not record.',
     ],
   },
 
-  THE_CARTOGRAPHY: {
-    loreType: 'THE_CARTOGRAPHY', icon: '⊞',
-    ruleApplied: 'The Cartography',
-    ruleExplanation: 'Token ID 2,000–3,000 — the middle-early range, consistent and undercharted.',
+  LONG_COUNT: {
+    loreType: 'LONG_COUNT', icon: '∞',
+    ruleApplied: 'Long Count',
+    ruleExplanation: 'Every 40th event — the war measures itself against the Grid\'s own architecture.',
     headlines: [
-      'The Two-Thousands Move',
-      'A Mid-Early Token Checks In',
-      '{faction} Log from the Charted Middle',
-      'Token 2K–3K: A Steady Range',
+      'The War Counts Forty — The Grid Marks the Moment',
+      '{faction} Acknowledges the Long Count',
+      'Forty Engagements — The Chronicle Measures the War',
+      'The Grid\'s Architecture, Honored in the Count',
     ],
     bodies: [
-      'The two-to-three thousand range doesn\'t get the attention the early tokens do, but it\'s one of the more consistent parts of the register. {faction} in {region} logged this one. Steady work from a steady range.',
-      '{figure} calls the two-thousands "the reliable middle." Not as old as the founders, not as far out as the high numbers. Just there, doing things. This one added to the count.',
-      '{faction} track activity by range. The two-to-three thousand segment has been showing up regularly. Today was another entry from that part of the collection. {faction} in {region} noted it.',
-      'Some ranges act in clusters. The two-thousands are fairly consistent — a steady presence across the life of the Chronicle so far. This one fits the pattern. {faction} logged it.',
+      'The Grid that the war is fought over is forty positions wide and forty deep. Every fortieth engagement in the chronicle, the war pauses to count itself against that architecture — to ask: how much of the forty-by-forty have we touched? The current answer: more than at the beginning, less than at the end. {faction}\'s position near {region} was the fortieth mark. It will be remembered as such.',
+      '{commander} has always found the long count meaningful. "The Grid isn\'t just terrain," they say. "It\'s a measure." When the chronicle reaches its fortieth entry and the war counts itself against the forty-by-forty architecture that underlies everything, {commander} takes the day seriously. Today was that day. The briefings were brief. The count was read. Everyone sat with it.',
+      'The Chronicler\'s long count tradition predates the current conflict. Every fortieth entry, the full tally of all engagements is read aloud, and the shape of the war is measured against the shape of the Grid. Near {region}, where the fortieth mark fell today, {faction}\'s commanders gathered for the reading. The war is larger than it was at the twentieth mark. Smaller than it will be at the eightieth.',
+      'Forty is not an arbitrary number in this war. It is the dimension of everything. The Grid where every battle is fought, every mark is left, every sacrifice is made — forty columns, forty rows. When the chronicle reaches forty engagements, the war is measured against its own foundation. {faction} made the fortieth mark near {region}. The long count is recorded.',
     ],
   },
 
-  EMISSARY_ARRIVES: {
-    loreType: 'EMISSARY_ARRIVES', icon: '»',
-    ruleApplied: 'Emissary Arrives',
-    ruleExplanation: 'New wallet, token ID 1,000–2,000 — a first-time address with a mid-early token.',
+  INTERLUDE: {
+    loreType: 'INTERLUDE', icon: '·—·',
+    ruleApplied: 'Interlude',
+    ruleExplanation: 'A brief rest after a cluster of fighting — camp life between battles.',
     headlines: [
-      'A New Address with an Old Token',
-      'First Time Here, Mid-Register Token',
-      '{faction} Welcome a New Face from Range 1K–2K',
-      'New Wallet, Familiar Token Range',
+      'Between Battles — Camp Life Near {region}',
+      'The Brief Rest Before the Next Push',
+      'What Happens in the Lull',
+      '{faction} Sets Up Camp and Waits',
     ],
     bodies: [
-      'New address, but the token is from the one-to-two thousand range — not the oldest, but not new either. {faction} in {region} noted the arrival. First-time wallet, mid-register token. A combination worth marking.',
-      '{figure} notes when a new wallet comes in holding a mid-early token. The address is fresh, but the token has been around. Whatever history the token has, this new holder is its next chapter.',
-      '{faction} log new addresses. They also log token ranges. When both point to something interesting — a fresh wallet with a token from the early-middle register — it gets its own entry. This is one.',
-      'New to the Chronicle, but carrying a token from the 1,000–2,000 range. {faction} in {region} wrote it up. The wallet is new. The token has been around. They\'re together now.',
+      'After a cluster of engagements, the armies near {region} settled into something that wasn\'t quite peace and wasn\'t quite war — the brief interlude that happens when both sides have spent themselves enough to pause but not enough to stop. {faction}\'s camp filled with the ordinary sounds of soldiers resting: repairs, arguments, letters being written, meals being contested. The chronicler notes the lull because it will look significant in retrospect, one way or another.',
+      '{commander} used the interlude near {region} for what they always use interludes for: thinking. The camp was quiet. The front was quiet. For a handful of days, nothing significant happened in the record. This entry is the chronicle\'s acknowledgment that the quiet happened and was real — not empty, but unrecorded in the usual way. The armies are recovering. The war is preparing for the next round.',
+      'The interlude near {region} lasted just long enough for the soldiers to remember they were people, not just combatants. Letters went out. Repairs were made to things that had been held together by urgency and were now fixed properly. {faction}\'s healers moved through the camp. {rival}, across the quiet line, was probably doing the same. Both sides needed the rest. Both sides know the rest is temporary.',
+      'Between battles, the war has texture that doesn\'t always make the chronicle. Near {region}, in the brief pause after the recent cluster of engagements, {faction}\'s camp developed routines: morning briefings that took half the time they used to, afternoon equipment maintenance, evenings that were quieter than anyone expected. {commander} was seen walking the perimeter alone at night. No one disturbed them.',
     ],
   },
 
-  THE_LONG_COUNT: {
-    loreType: 'THE_LONG_COUNT', icon: '∞',
-    ruleApplied: 'The Long Count',
-    ruleExplanation: 'Every 40th event — honoring the 40×40 Grid that every Normie lives on.',
+  LINEAGE: {
+    loreType: 'LINEAGE', icon: '⋮',
+    ruleApplied: 'Lineage',
+    ruleExplanation: 'A dynasty emerges — a force that has appeared again and again.',
     headlines: [
-      'Forty More — The Grid Counts Itself',
-      '{faction} Mark the Fortieth',
-      'Every 40 Events, the Archive Notes the Grid',
-      'A Long Count Entry — 40×40',
+      'A Dynasty in the Making — {faction} Marks Their Lineage',
+      '{commander}\'s Legacy Continues',
+      'Three Times and More — A Lineage Recognized',
+      'The Chronicle Notes a Pattern of Presence',
     ],
     bodies: [
-      'Every Normie exists on a forty-by-forty grid. Every fortieth event in the Chronicle, the Archive pauses to note that fact. {faction} in {region} marked this one. Forty more events. The Grid counts itself.',
-      'Forty columns. Forty rows. Sixteen hundred pixels per Normie. The fortieth Chronicle entry honors the architecture. {figure} keeps the Long Count list. It\'s growing.',
-      '{faction} made a point of marking the fortieth event. "The forty matters," {figure} always says. "It\'s the number the whole thing is built on." The Archive agrees. The Long Count is in.',
-      'The Grid is forty by forty. The Chronicle counts in forties. Every fortieth event gets its own entry — a quiet acknowledgment of the structure that everything sits on. This is one of those entries.',
+      'Dynasties aren\'t declared; they\'re recognized. {faction}\'s consistent presence in the chronicle — three distinct engagements and now more, each building on the last — has earned the designation. The chronicler doesn\'t use "dynasty" lightly. It requires a demonstrated pattern of sustained, purposeful action over time. {commander} has provided it. Near {region}, the lineage is officially noted.',
+      'Some forces flash through the record. Some burn constant. {faction} is the second kind — appearing again and again, each time leaving a mark that connects to the previous marks, building a legacy that the chronicle can trace from the early entries to the present. Near {region}, where their latest appearance is documented, the lineage note is added.',
+      '{commander} was told that the chronicle had designated {faction}\'s record as a lineage. They didn\'t react much. "Keep fighting" is the response of someone who intends to keep adding to the pattern, not be commemorated by it. The chronicler notes the designation anyway. The lineage is real whether or not {commander} acknowledges it.',
+      'Three appearances become a pattern. A pattern sustained across the chronicle\'s growing record becomes a lineage. {faction}\'s mark near {region} is their latest entry in a record that now runs long enough to be recognized as continuous and intentional. Other forces will come and go. {commander}\'s record is the thread that runs through everything.',
     ],
   },
 
-  PASSAGE_SEALED: {
-    loreType: 'PASSAGE_SEALED', icon: '□',
-    ruleApplied: 'Passage Sealed',
-    ruleExplanation: 'A consistent address made a distinctive final-pattern edit — a clean ending.',
+  THE_CROSSING: {
+    loreType: 'THE_CROSSING', icon: '⇒',
+    ruleApplied: 'The Crossing',
+    ruleExplanation: 'Armies cross into unfamiliar territory — the war\'s geography expands.',
     headlines: [
-      'A Clean Ending from a Known Wallet',
-      '{faction} Note a Deliberate Close',
-      'That Looks Like a Goodbye',
-      'A Consistent Address, A Final-Looking Move',
+      'The Armies Cross into New Ground',
+      '{faction} Moves Beyond Their Usual Territory',
+      'The War Expands — A Crossing Noted',
+      'Known Forces in Unknown Places',
     ],
     bodies: [
-      'This wallet has been consistent. What they did today looked like a conclusion — a clean move that had a "done" feel to it. {faction} in {region} noted it. Whether they come back or not, this looks like a close.',
-      '{figure} can spot when something has a final quality. This edit did. The wallet has a history. This move fits the end of a pattern. The Archive has it logged as a possible seal.',
-      '{faction} don\'t assume anyone is done. But they note when something looks like an ending. This move, from this address, had that quality. {faction} in {region} logged it accordingly.',
-      'Consistent wallets sometimes make a move that feels final. This one did. {faction} noted it — not as a confirmed end, but as something that could be. The record has the full arc.',
+      'The war doesn\'t stay where you put it. {faction}\'s movement through {region} today took them beyond the territory they usually operate in — across a boundary, literal or implied, that previous entries in the chronicle had treated as their edge. The crossing changes the map. It also changes what {rival} has to defend.',
+      '{commander} ordered the crossing without announcing it publicly. {faction}\'s advance into territory outside their usual range near {region} was noted by the chronicler but not, apparently, anticipated by {rival}. The geometry of the war has expanded. The edges have moved outward. Forces that thought themselves behind the front are now on it.',
+      'The chronic geography of this war — which faction operates where, which territories are contested and which are held — shifted today when {faction} crossed into {region} from the direction that usually means peace. The crossing itself was the statement. {commander} didn\'t send a declaration. They sent a unit. The declaration followed.',
+      'When armies cross boundaries they haven\'t crossed before, the war becomes a different shape. {faction}\'s crossing near {region} today marks the latest expansion of the conflict\'s territory — another zone that was once theoretical and is now real. {rival} has been tracking {faction}\'s peripheral movements. Today they became central movements. The maps are being redrawn.',
     ],
   },
 
-  THE_TRANSLATION: {
-    loreType: 'THE_TRANSLATION', icon: '↔',
-    ruleApplied: 'The Translation',
-    ruleExplanation: 'Activity near the edges of two different ranges — bridging parts of the collection.',
+  MARKET_ROAD: {
+    loreType: 'MARKET_ROAD', icon: '⊡',
+    ruleApplied: 'Market Road',
+    ruleExplanation: 'The war\'s trade and supply — how armies sustain themselves.',
     headlines: [
-      'A Bridge Across the Register',
-      '{faction} Note Activity at Two Ranges',
-      'Connecting Distant Parts of the Collection',
-      'A Translation Between Ranges',
+      'The Supply Routes Hold Near {region}',
+      '{faction} Secures the Road Through {region}',
+      'Trade Follows War — A Market Road Established',
+      '{commander} Prioritizes the Supply Line',
     ],
     bodies: [
-      'Activity at the edges of two different ranges. {faction} in {region} noted the pattern — events that seem to bridge distant parts of the collection. Not coordinated, probably. But worth marking.',
-      '{figure} maps the collection by range. When activity shows up at the boundaries between segments, it gets a translation note. Something is moving across the usual divides.',
-      '{faction} track range patterns. When the borders between segments light up — different token ranges active near the same time — the Archive writes it up as a translation. This is one.',
-      'The collection has natural groupings. When events happen at the edges of those groupings, {faction} in {region} note it. A translation between ranges. The Chronicle connects the dots.',
+      'Armies run on more than conviction. {faction}\'s recent stabilization of the supply route near {region} is unglamorous but essential — the kind of move that doesn\'t make for dramatic chronicle entries but determines whether the dramatic ones are possible. The road is open. Supplies are moving. The war continues to be funded.',
+      '{commander} keeps a separate map of supply lines. "Win the logistics," they say, "and you\'ll eventually win everything else." The market road secured near {region} today represents the kind of victory that doesn\'t appear in battle tallies but shows up in the length of campaigns. {faction} can sustain. {rival} is beginning to struggle to.',
+      'The territory around {region} has value beyond its position on the front. The market road that passes through it connects {faction}\'s forward positions to their supply base — and controlling it means {rival} cannot easily interdict the flow. {commander} assigned three units specifically to the road. Two are still there. The road is still open.',
+      'Wars are supply problems wearing tactical clothing. The movement near {region} today — {faction} securing the passage that connects their position to the rear — is the kind of entry that historians overlook and quartermasters remember. The road is held. The supplies will flow. The campaign will continue.',
+    ],
+  },
+
+  WATCH_FIRE: {
+    loreType: 'WATCH_FIRE', icon: '◌',
+    ruleApplied: 'Watch Fire',
+    ruleExplanation: 'Sentinels keeping watch — the war\'s patient, unglamorous maintenance.',
+    headlines: [
+      'The Watch Fires Burn Near {region}',
+      '{faction} Holds Position Through the Night',
+      'Sentinels at the Edge',
+      'The Long Watch — Nothing Happened, Which Is the Point',
+    ],
+    bodies: [
+      'The watch fires near {region} burned through the night without incident — which is exactly what they\'re supposed to do. {faction}\'s sentinels held their positions, tracked movements on the other side of the line, and reported nothing unusual. In a war full of unusual events, the unremarkable watches are the frame that makes everything else possible.',
+      '{commander} has a name for the watch fire entries in the chronicle: "the patient record." These are the nights when nothing happened because someone was paying attention. {faction}\'s sentinels near {region} maintained their position, kept the fires burning, tracked the terrain. {rival} didn\'t move. Neither did {faction}. The war waited.',
+      'The watch fires are the war\'s oldest technology. Near {region}, where {faction}\'s sentinels have been keeping vigil since the campaign began, the fires burn at intervals that signal to other positions across the line: occupied, aware, not sleeping. {rival}\'s scouts have been counting the fires. They know what the count means. So does {commander}.',
+      'Everything in the chronicle is connected to everything else. The watch fire entry for tonight near {region} — unremarkable, ordinary, the sentinels awake and the line quiet — is the connective tissue between the battle entries that surround it. Without the watch fires, no one holds anything. The chronicle records them because the war requires them.',
     ],
   },
 
 }
 
+// ── Rule selection ────────────────────────────────────────────────────────────
+
 function isPrime(n: number): boolean {
-  if (n < 2) return false; if (n === 2) return true; if (n % 2 === 0) return false
+  if (n < 2) return false
+  if (n === 2) return true
+  if (n % 2 === 0) return false
   for (let i = 3; i * i <= n; i += 2) { if (n % i === 0) return false }
   return true
 }
 
 function isRareTxHash(h: string): boolean {
-  const last4 = h.slice(-4)
-  return /^(.)\1{3}$/.test(last4)
+  return /^(.)\1{3}$/.test(h.slice(-4))
 }
 
 function selectRule(
@@ -848,143 +924,109 @@ function selectRule(
   index: number,
   allEvents: IndexedEvent[],
   cumCount: number,
-  prev: IndexedEvent | null
+  prev: IndexedEvent | null,
 ): string {
   const tokenId = Number(event.tokenId)
   const count = Number(event.count)
   const priorSameOwner = allEvents.slice(0, index).filter(e => e.owner === event.owner)
   const isVeteran = priorSameOwner.length > 0
+  const seed = seedN(event.tokenId, event.blockNumber)
 
-  // ── TIER 1: Structural milestones ─────────────────────────────────────────
-  if (cumCount > 0 && cumCount % 40 === 0) return 'THE_LONG_COUNT'
-  if (cumCount > 0 && cumCount % 25 === 0) return 'PROPHECY_SPOKEN'
-  if (cumCount > 0 && cumCount % 10 === 0) return 'THE_RECKONING'
-  if (ERAS.findIndex(e => e.threshold === cumCount) > 0) return 'NEW_ERA_DAWN'
+  // ── TIER 1: Structural milestones (highest priority) ──────────────────────
+  if (cumCount > 0 && cumCount % 40 === 0) return 'LONG_COUNT'
+  if (cumCount > 0 && cumCount % 25 === 0) return 'PROPHECY'
+  if (cumCount > 0 && cumCount % 10 === 0) return 'THE_COUNT'
+  if (ERAS.findIndex(e => e.threshold === cumCount) > 0) return 'AGE_TURNS'
   const nextEra = ERAS.find(e => e.threshold > cumCount)
-  if (nextEra && nextEra.threshold - cumCount <= 3) return 'THRESHOLD_WATCHED'
+  if (nextEra && nextEra.threshold - cumCount <= 3) return 'THRESHOLD_VIGIL'
 
-  // ── TIER 2: Rare chain patterns ────────────────────────────────────────────
-  if (isRareTxHash(event.transactionHash)) return 'ARTIFACT_DISCOVERY'
-  if (prev && prev.blockNumber === event.blockNumber) return 'CONVERGENCE_POINT'
+  // ── TIER 2: Rare on-chain patterns ────────────────────────────────────────
+  if (isRareTxHash(event.transactionHash)) return 'RELIC_UNEARTHED'
+  if (prev && prev.blockNumber === event.blockNumber) return 'SIMULTANEOUS'
 
-  // ── TIER 3: Time gaps ──────────────────────────────────────────────────────
-  if (prev && event.blockNumber - prev.blockNumber > 50000n) return 'THE_FORGETTING'
-  if (prev && event.blockNumber - prev.blockNumber > 10000n) return 'LULL_BETWEEN_AGES'
+  // ── TIER 3: Time gaps ─────────────────────────────────────────────────────
+  if (prev && event.blockNumber - prev.blockNumber > 50000n) return 'LONG_SILENCE'
+  if (prev && event.blockNumber - prev.blockNumber > 10000n) return 'CEASEFIRE'
   if (prev && event.blockNumber - prev.blockNumber > 3000n && event.blockNumber - prev.blockNumber < 6000n) {
-    if (seedN(event.tokenId, event.blockNumber) % 5 === 0) return 'THE_INTERLUDE'
+    if (seed % 4 === 0) return 'INTERLUDE'
   }
 
   // ── TIER 4: Veteran return patterns ───────────────────────────────────────
-  if (isVeteran && priorSameOwner.length >= 1) {
-    const lastSeen = priorSameOwner[priorSameOwner.length - 1]
-    const gap = event.blockNumber - lastSeen.blockNumber
-    if (gap > 20000n) return 'SIGNAL_FOUND'
-    if (gap < 500n) return 'COUNCIL_CONVENES'
-  }
-
-  // ── TIER 5: Token ranges ───────────────────────────────────────────────────
-  if (tokenId < 500 && index > 10) return 'ECHO_OF_THE_ANCIENT'
-  if (tokenId < 1000) return 'FOUNDATION_STONE'
-  if (tokenId >= 1000 && tokenId < 2000 && !isVeteran) return 'EMISSARY_ARRIVES'
-  if (tokenId >= 2000 && tokenId < 3000 && seedN(event.tokenId, event.blockNumber, 11) % 4 === 0) return 'THE_CARTOGRAPHY'
-  if (tokenId >= 5000 && tokenId <= 6000) {
-    return seedN(event.tokenId, event.blockNumber, 3) % 3 === 0 ? 'THE_UNMAPPED' : 'SIGNAL_LOST'
-  }
-  if (tokenId > 8500 && seedN(event.tokenId, event.blockNumber, 9) % 3 === 0 && index > 5) return 'RETURN_FROM_MARGIN'
-  if (tokenId > 8000) return 'RECORD_OF_THE_DEEP'
-
-  // ── TIER 6: Prime token IDs ────────────────────────────────────────────────
-  if (isPrime(tokenId)) return 'ORACLES_OBSERVATION'
-
-  // ── TIER 7: Burns ─────────────────────────────────────────────────────────
-  if (event.type === 'BurnRevealed') {
-    if (count >= 10) return 'POWER_INFUSION'
-    if (count === 1) return 'DUST_RECORD'
-    if (isVeteran && priorSameOwner.length >= 2) return 'DEBT_RECORDED'
-    if (isVeteran) return 'RITE_OF_RECOGNITION'
-    return 'ETHEREAL_INFUSION'
-  }
-
-  // ── TIER 8: Pixel scale ────────────────────────────────────────────────────
-  if (count >= 200) return 'GRAND_MIGRATION'
-  if (count >= 50 && count % 50 === 0) return 'FACTION_DECLARATION'
-  if (count >= 50) return 'TERRITORIAL_CLAIM'
-  if (count === 1) return 'DUST_RECORD'
-
-  // ── TIER 9: Veteran address patterns ──────────────────────────────────────
   if (isVeteran) {
-    const roll = seedN(event.tokenId, event.blockNumber, 23) % 6
-    if (roll === 0) return 'FACTION_RISE'
-    if (roll === 1) return 'BORDER_CROSSING'
-    if (roll === 2 && priorSameOwner.length >= 3) return 'LINEAGE_NOTED'
-    if (roll === 3) return 'ARCHIVE_CORRECTION'
-    return 'SCHOLARS_WORK'
+    const last = priorSameOwner[priorSameOwner.length - 1]
+    const gap = event.blockNumber - last.blockNumber
+    if (gap > 20000n) return 'GHOST_SIGNAL'
+    if (gap < 500n) return 'WAR_COUNCIL'
   }
 
-  // ── TIER 10: New addresses ─────────────────────────────────────────────────
-  const roll = seedN(event.tokenId, event.blockNumber, 29) % 5
-  if (roll === 0) return 'SILENT_WITNESS'
-  if (roll === 1) return 'BORDER_CROSSING'
-  if (roll === 2) return 'THE_ACCORD'
-  return 'WANDERERS_PASSAGE'
+  // ── TIER 5: Token-range lore ──────────────────────────────────────────────
+  if (tokenId < 500 && index > 10) return 'OLD_LEGEND'
+  if (tokenId < 1000) return 'ANCIENT_STIRS'
+  if (tokenId >= 1000 && tokenId < 2000 && !isVeteran) return 'EMISSARY'
+  if (tokenId >= 2000 && tokenId < 3000) {
+    return seed % 3 === 0 ? 'THE_MAPMAKERS' : 'MARKET_ROAD'
+  }
+  if (tokenId >= 5000 && tokenId <= 6000) return 'HOLLOW_HEART'
+  if (tokenId > 8500 && index > 5) return 'SCOUT_RETURNS'
+  if (tokenId > 8000) return 'EDGE_LORD'
+
+  // ── TIER 6: Prime token IDs ───────────────────────────────────────────────
+  if (isPrime(tokenId)) return 'THE_SEER'
+
+  // ── TIER 7: Burns — sacrifice rules ───────────────────────────────────────
+  if (event.type === 'BurnRevealed') {
+    if (count >= 10) return 'GREAT_SACRIFICE'
+    if (count === 1) return 'DUST_MARK'
+    if (isVeteran && priorSameOwner.length >= 2) return 'DEBT_OF_BLOOD'
+    if (isVeteran) return 'BLOOD_PACT'
+    return 'OFFERING'
+  }
+
+  // ── TIER 8: Pixel scale — battle size ────────────────────────────────────
+  if (count >= 200) return 'GREAT_BATTLE'
+  if (count >= 50 && count % 50 === 0) return 'FORMAL_DECLARATION'
+  if (count >= 50) return 'SKIRMISH'
+  if (count === 1) return 'DUST_MARK'
+
+  // ── TIER 9: Veteran patterns ──────────────────────────────────────────────
+  if (isVeteran) {
+    const roll = seedN(event.tokenId, event.blockNumber, 23) % 7
+    if (roll === 0) return 'POWER_CONSOLIDATES'
+    if (roll === 1) return 'THE_CROSSING'
+    if (roll === 2 && priorSameOwner.length >= 3) return 'LINEAGE'
+    if (roll === 3) return 'REVISION'
+    if (roll === 4) return 'DESERTION'
+    return 'VETERAN_STRIKES'
+  }
+
+  // ── TIER 10: New arrivals ─────────────────────────────────────────────────
+  const newRoll = seedN(event.tokenId, event.blockNumber, 29) % 5
+  if (newRoll === 0) return 'TAVERN_TALE'
+  if (newRoll === 1) return 'VILLAGE_ACCORD'
+  if (newRoll === 2) return 'WATCH_FIRE'
+  return 'NEW_ARRIVAL'
+
+  // Fallback
+  // return 'BORDER_RAID'
 }
 
-// FACTION_RISE and PASSAGE_SEALED need their own inline rules since they map to existing lore types
-const FACTION_RISE_RULE: LoreRule = {
-  loreType: 'FACTION_RISE', icon: '▲',
-  ruleApplied: 'Faction Rise',
-  ruleExplanation: 'A veteran wallet acting consistently — the same address keeps showing up and doing things.',
-  headlines: [
-    'Same Wallet, Still Here',
-    '{faction} Note a Consistent Presence',
-    'This Address Keeps Coming Back',
-    'A Familiar Name, Another Entry',
-  ],
-  bodies: [
-    '{faction} have seen this address before. More than once. Today\'s entry adds to the pattern. Some wallets show up and disappear. This one keeps going. {faction} in {region} noted the consistency.',
-    'The Archive values consistency. Not everyone who starts keeps going. This wallet has. {figure} logged the latest entry from a familiar address — part of a pattern that shows no sign of stopping.',
-    'Three entries, maybe four. More on the way. {faction} in {region} have been following this address for a while. Whatever they\'re doing in the Grid, they\'re committed to it.',
-    '{figure} says you can tell a lot about someone by whether they come back. This wallet comes back. {faction} noted the latest entry — same address, still active, still in the Chronicle.',
-  ],
-}
-
-const PASSAGE_SEALED_RULE: LoreRule = {
-  loreType: 'PASSAGE_SEALED', icon: '□',
-  ruleApplied: 'Passage Sealed',
-  ruleExplanation: 'A consistent address, a distinctive close — something that looked like a conclusion.',
-  headlines: [
-    'A Clean Ending from a Known Wallet',
-    '{faction} Note a Deliberate Close',
-    'That Looks Like a Goodbye',
-    'A Consistent Address Makes a Final-Looking Move',
-  ],
-  bodies: [
-    'This wallet has been consistent. What they did today looked like a conclusion. {faction} in {region} noted it. Whether they come back or not, this looks like a close.',
-    '{figure} can tell when something has a final quality. This one did. The Archive has the full arc of this address. Today might be the last chapter. It\'s logged either way.',
-    '{faction} don\'t assume anyone is done. But they note when something looks like an ending. This move had that quality. {faction} in {region} logged it accordingly.',
-    'Consistent wallets sometimes make a move that feels final. This did. {faction} noted it — not confirmed, but possible. The record has everything that came before.',
-  ],
-}
+// ── Entry generation ──────────────────────────────────────────────────────────
 
 export function generateStoryEntries(events: IndexedEvent[], startCount = 0): StoryEntry[] {
   return events.map((event, index) => {
     const cumCount = startCount + index + 1
     const prev = index > 0 ? events[index - 1] : null
     const ruleKey = selectRule(event, index, events, cumCount, prev)
-
-    let rule: LoreRule
-    if (ruleKey === 'FACTION_RISE') rule = FACTION_RISE_RULE
-    else if (ruleKey === 'PASSAGE_SEALED') rule = PASSAGE_SEALED_RULE
-    else rule = RULES[ruleKey] ?? RULES['SUBTLE_INSCRIPTION']
+    const rule = RULES[ruleKey] ?? RULES['BORDER_RAID']
 
     const era = getEra(cumCount)
     const ctx = buildCtx(event.tokenId, event.blockNumber, era)
-    const s = seedN(event.tokenId, event.blockNumber)
+    const s  = seedN(event.tokenId, event.blockNumber)
     const s2 = seedN(event.tokenId, event.blockNumber, 3)
-    const headline = fill(pick(rule.headlines, s), ctx)
-    const body = fill(pick(rule.bodies, s2), ctx)
+    const headline = fill(pick(rule.headlines, s),  ctx)
+    const body     = fill(pick(rule.bodies,     s2), ctx)
 
-    const featuredTypes = ['PROPHECY_SPOKEN', 'NEW_ERA_DAWN', 'ARTIFACT_DISCOVERY', 'THE_LONG_COUNT', 'GRAND_MIGRATION', 'CONVERGENCE_POINT']
+    const featuredTypes = new Set(['GREAT_BATTLE', 'PROPHECY', 'AGE_TURNS', 'RELIC_UNEARTHED', 'LONG_COUNT', 'SIMULTANEOUS', 'GREAT_SACRIFICE', 'LONG_SILENCE'])
 
     return {
       id: `${event.transactionHash}-${event.tokenId.toString()}`,
@@ -994,7 +1036,7 @@ export function generateStoryEntries(events: IndexedEvent[], startCount = 0): St
       headline,
       body,
       icon: rule.icon,
-      featured: featuredTypes.includes(ruleKey) || event.count > 200n,
+      featured: featuredTypes.has(ruleKey) || event.count > 200n,
       sourceEvent: {
         type: event.type,
         tokenId: event.type === 'BurnRevealed' && event.targetTokenId !== undefined
@@ -1010,21 +1052,23 @@ export function generateStoryEntries(events: IndexedEvent[], startCount = 0): St
   })
 }
 
+// ── Genesis / world-primer entries ───────────────────────────────────────────
+
 export const PRIMER_ENTRIES: StoryEntry[] = [
   {
-    id: 'primer-genesis', eventType: 'genesis', loreType: 'GENESIS', era: 'The First Days',
-    headline: 'The Grid Wakes Up',
-    body: 'Ten thousand Normies exist on Ethereum. Each one a face, each one on a 40×40 grid. Some of their owners have started doing things — editing pixels, burning tokens, passing action points between them. The Chronicle is watching. This is everything that\'s happened so far.',
+    id: 'primer-genesis', eventType: 'genesis', loreType: 'GENESIS', era: 'The Quiet Before',
+    headline: 'The Grid Exists. The War Has Not Yet Begun.',
+    body: 'Ten thousand faces occupy the Grid — a contested canvas forty positions wide and forty deep. Each face is a territory, each territory a potential battleground. The factions that will fight over them have not yet made their first moves. The chronicler has opened the record. The ink is ready. The war begins when the first mark is made.',
     icon: '◈', featured: true,
-    sourceEvent: { type: 'genesis', tokenId: 'All 10,000', blockNumber: 'Genesis', txHash: 'N/A', count: '10000', ruleApplied: 'World Genesis', ruleExplanation: 'Normies are 10,000 fully on-chain generative faces on Ethereum mainnet. The Grid is 40×40 — 1,600 pixels per Normie, stored entirely on-chain.' },
+    sourceEvent: { type: 'genesis', tokenId: 'All 10,000', blockNumber: 'Genesis', txHash: 'N/A', count: '10000', ruleApplied: 'Genesis', ruleExplanation: 'Normies are 10,000 fully on-chain pixel faces on Ethereum. The Grid is 40×40 — 1,600 pixels per Normie, all stored on-chain. Every real edit and burn shapes this story.' },
   },
   {
-    id: 'primer-orders', eventType: 'genesis', loreType: 'GENESIS', era: 'The First Days',
-    headline: 'Four Types, One Grid',
-    body: 'The 10,000 Normies come in four types: Humans, Cats, Aliens, and Agents. The Chronicle tracks them all the same way — every edit, every burn, every transfer of action points goes into the record. The story is just getting started.',
+    id: 'primer-factions', eventType: 'genesis', loreType: 'GENESIS', era: 'The Quiet Before',
+    headline: 'Four Lineages, One Grid — The Factions Take Shape',
+    body: 'Before the first battle, the factions identify themselves. Four lineages have emerged from the ten thousand: the Humans, adaptive and numerous; the Cats, sovereign and unpredictable; the Aliens, patient and cosmic in their thinking; the Agents, built for precision and purpose. They will fight. They will sacrifice. They will mark the Grid with their colors. The chronicle will record everything.',
     icon: '▦', featured: false,
-    sourceEvent: { type: 'genesis', tokenId: 'All 10,000', blockNumber: 'Genesis', txHash: 'N/A', count: '10000', ruleApplied: 'World Genesis', ruleExplanation: 'The four Normie types — Human, Cat, Alien, Agent — are the four pillars of the collection. Each one is part of the same story.' },
+    sourceEvent: { type: 'genesis', tokenId: 'All 10,000', blockNumber: 'Genesis', txHash: 'N/A', count: '10000', ruleApplied: 'Genesis', ruleExplanation: 'The four Normie types — Human, Cat, Alien, Agent — are the four lineages of the Grid.' },
   },
 ]
 
-export { RULES, ERAS }
+export { RULES }
