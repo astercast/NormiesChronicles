@@ -1,292 +1,483 @@
 'use client'
-import { useState, useMemo, useEffect, useRef } from 'react'
-import { StoryCard } from '@/components/StoryCard'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import type { StoryEntry } from '@/lib/storyGenerator'
 
-const PAGE_SIZE = 15
+// ── Story detail modal ────────────────────────────────────────────────────────
+function EntryModal({ entry, onClose }: { entry: StoryEntry; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
 
-function LoadingState({ status }: { status: 'loading' | 'indexing' }) {
   return (
-    <div className="py-24 flex flex-col items-center gap-6">
-      {/* scanning bar */}
-      <div className="w-48 h-px overflow-hidden" style={{ background: 'var(--border)' }}>
-        <div className="scan-bar h-full w-12" style={{ background: 'var(--text)' }} />
-      </div>
-
-      <div className="text-center">
-        {status === 'indexing' ? (
-          <>
-            <p className="font-mono text-sm font-bold mb-2" style={{ color: 'var(--text)' }}>
-              indexing the grid
-              <span className="dot-1 inline-block ml-0.5">.</span>
-              <span className="dot-2 inline-block">.</span>
-              <span className="dot-3 inline-block">.</span>
-            </p>
-            <p className="font-mono text-xs mb-1" style={{ color: 'var(--muted)' }}>
-              reading every on-chain event from Ethereum mainnet
-            </p>
-            <p className="font-mono text-xs" style={{ color: 'var(--muted)' }}>
-              first load takes up to 60s — the grid will appear shortly
-            </p>
-          </>
-        ) : (
-          <>
-            <p className="font-mono text-sm font-bold mb-2" style={{ color: 'var(--text)' }}>
-              reading the grid
-              <span className="dot-1 inline-block ml-0.5">.</span>
-              <span className="dot-2 inline-block">.</span>
-              <span className="dot-3 inline-block">.</span>
-            </p>
-            <p className="font-mono text-xs" style={{ color: 'var(--muted)' }}>
-              fetching chronicle entries
-            </p>
-          </>
-        )}
-      </div>
-
-      {/* skeleton cards */}
-      <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="p-4 h-36"
-            style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-            <div className="h-2 w-24 mb-3 rounded-sm" style={{ background: 'var(--border)' }} />
-            <div className="h-3 w-full mb-1.5 rounded-sm" style={{ background: 'var(--border)' }} />
-            <div className="h-3 w-4/5 mb-4 rounded-sm" style={{ background: 'var(--border)' }} />
-            <div className="h-2 w-full mb-1 rounded-sm" style={{ background: 'var(--border)', opacity: 0.5 }} />
-            <div className="h-2 w-3/4 rounded-sm" style={{ background: 'var(--border)', opacity: 0.5 }} />
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.6)' }}
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full max-w-lg p-6 overflow-y-auto"
+        style={{
+          background: 'var(--bg)',
+          border: '1px solid var(--border)',
+          maxHeight: '80vh',
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* era + type */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-2xs uppercase tracking-widest" style={{ color: 'var(--muted)' }}>
+              {entry.era}
+            </span>
+            <span className="font-mono text-2xs" style={{ color: 'var(--muted)' }}>·</span>
+            <span className="font-mono text-2xs uppercase tracking-widest" style={{ color: 'var(--muted)' }}>
+              {entry.loreType.replace(/_/g, ' ').toLowerCase()}
+            </span>
           </div>
-        ))}
+          <button onClick={onClose} className="font-mono text-xs transition-opacity hover:opacity-50"
+            style={{ color: 'var(--muted)' }}>
+            esc ×
+          </button>
+        </div>
+
+        <h2 className="font-mono text-sm font-bold leading-snug mb-4" style={{ color: 'var(--text)' }}>
+          {entry.headline}
+        </h2>
+
+        <p className="font-mono text-xs leading-relaxed mb-6" style={{ color: 'var(--text)', lineHeight: '1.8' }}>
+          {entry.body}
+        </p>
+
+        {entry.eventType !== 'genesis' && (
+          <div className="pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+            <p className="font-mono text-2xs uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>
+              on-chain source
+            </p>
+            <div className="space-y-1.5">
+              {[
+                ['event', entry.sourceEvent.type],
+                ['token', entry.sourceEvent.tokenId],
+                ['block', entry.sourceEvent.blockNumber],
+                ['count', entry.sourceEvent.count],
+                ['rule', entry.sourceEvent.ruleApplied],
+              ].map(([k, v]) => (
+                <div key={k} className="flex gap-4">
+                  <span className="font-mono text-2xs w-12 shrink-0" style={{ color: 'var(--muted)' }}>{k}</span>
+                  <span className="font-mono text-2xs" style={{ color: 'var(--text)' }}>{v}</span>
+                </div>
+              ))}
+              <div className="flex gap-4">
+                <span className="font-mono text-2xs w-12 shrink-0" style={{ color: 'var(--muted)' }}>tx</span>
+                <a
+                  href={`https://etherscan.io/tx/${entry.sourceEvent.txHash}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="font-mono text-2xs break-all underline underline-offset-4 transition-opacity hover:opacity-60"
+                  style={{ color: 'var(--text)' }}
+                >
+                  {entry.sourceEvent.txHash.slice(0, 10)}...{entry.sourceEvent.txHash.slice(-6)}
+                </a>
+              </div>
+            </div>
+            <p className="font-mono text-2xs mt-3 leading-relaxed" style={{ color: 'var(--muted)' }}>
+              {entry.sourceEvent.ruleExplanation}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
+// ── Chronicle feed rendered as flowing prose ──────────────────────────────────
+function ChronicleEntry({
+  entry,
+  onSelect,
+}: {
+  entry: StoryEntry
+  onSelect: (e: StoryEntry) => void
+}) {
+  const isGenesis = entry.eventType === 'genesis'
+  const isFeatured = entry.featured
+
+  if (isGenesis) {
+    return (
+      <div className="mb-8 pb-8" style={{ borderBottom: '1px solid var(--border)' }}>
+        <p className="font-mono text-2xs uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>
+          {entry.era} · world primer
+        </p>
+        <h2
+          className="font-mono text-base font-bold mb-2 leading-snug cursor-pointer transition-opacity hover:opacity-60"
+          style={{ color: 'var(--text)' }}
+          onClick={() => onSelect(entry)}
+        >
+          {entry.headline}
+        </h2>
+        <p className="font-mono text-xs leading-relaxed" style={{ color: 'var(--muted)', lineHeight: '1.8' }}>
+          {entry.body}
+        </p>
+      </div>
+    )
+  }
+
+  if (isFeatured) {
+    return (
+      <div className="mb-8 pb-8" style={{ borderBottom: '1px solid var(--border)' }}>
+        <div className="flex items-center gap-3 mb-2">
+          <span className="font-mono text-2xs uppercase tracking-widest" style={{ color: 'var(--muted)' }}>
+            {entry.era}
+          </span>
+          <span style={{ color: 'var(--muted)' }} className="font-mono text-2xs">·</span>
+          <span className="font-mono text-2xs uppercase tracking-widest" style={{ color: 'var(--text)', letterSpacing: '0.15em' }}>
+            {entry.loreType.replace(/_/g, ' ').toLowerCase()}
+          </span>
+        </div>
+        <h2
+          className="font-mono font-bold mb-3 leading-snug cursor-pointer transition-opacity hover:opacity-60"
+          style={{ color: 'var(--text)', fontSize: 'clamp(0.95rem, 2vw, 1.1rem)' }}
+          onClick={() => onSelect(entry)}
+        >
+          {entry.headline}
+        </h2>
+        <p className="font-mono text-xs leading-relaxed" style={{ color: 'var(--text)', lineHeight: '1.85' }}>
+          {entry.body.slice(0, 220)}
+          {entry.body.length > 220 && (
+            <>
+              {'... '}
+              <button
+                onClick={() => onSelect(entry)}
+                className="underline underline-offset-4 transition-opacity hover:opacity-60"
+                style={{ color: 'var(--muted)' }}
+              >
+                continue reading
+              </button>
+            </>
+          )}
+        </p>
+      </div>
+    )
+  }
+
+  // Standard entry — inline prose style
+  return (
+    <div className="mb-5 pb-5" style={{ borderBottom: '1px solid var(--border)' }}>
+      <div className="flex items-baseline gap-3 flex-wrap mb-1">
+        <span className="font-mono text-2xs uppercase tracking-widest shrink-0" style={{ color: 'var(--muted)' }}>
+          {entry.loreType.replace(/_/g, ' ').toLowerCase()}
+        </span>
+        <span className="font-mono text-2xs shrink-0" style={{ color: 'var(--border)' }}>·</span>
+        <span className="font-mono text-2xs shrink-0" style={{ color: 'var(--muted)' }}>
+          {entry.era}
+        </span>
+      </div>
+      <button
+        className="text-left w-full group"
+        onClick={() => onSelect(entry)}
+      >
+        <p
+          className="font-mono text-xs leading-relaxed transition-opacity group-hover:opacity-60"
+          style={{ color: 'var(--text)', lineHeight: '1.75' }}
+        >
+          <span className="font-bold">{entry.headline}.</span>{' '}
+          <span style={{ color: 'var(--muted)' }}>
+            {entry.body.slice(0, 120)}{entry.body.length > 120 ? '...' : ''}
+          </span>
+        </p>
+      </button>
+    </div>
+  )
+}
+
+// ── Loading state ─────────────────────────────────────────────────────────────
+function LoadingState({ status, eventsSoFar }: { status: string; eventsSoFar: number }) {
+  return (
+    <div className="py-20 flex flex-col items-center gap-6">
+      <div className="w-48 h-px overflow-hidden" style={{ background: 'var(--border)' }}>
+        <div className="scan-bar h-full w-12" style={{ background: 'var(--text)' }} />
+      </div>
+      <div className="text-center">
+        <p className="font-mono text-sm font-bold mb-2" style={{ color: 'var(--text)' }}>
+          indexing the grid
+          <span className="dot-1 inline-block ml-0.5">.</span>
+          <span className="dot-2 inline-block">.</span>
+          <span className="dot-3 inline-block">.</span>
+        </p>
+        {eventsSoFar > 0 && (
+          <p className="font-mono text-xs mb-1" style={{ color: 'var(--text)' }}>
+            {eventsSoFar.toLocaleString()} events found so far
+          </p>
+        )}
+        <p className="font-mono text-xs mb-1" style={{ color: 'var(--muted)' }}>
+          {status}
+        </p>
+        <p className="font-mono text-xs" style={{ color: 'var(--muted)' }}>
+          scanning ethereum from block 19,500,000 — this takes a few minutes on first load
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
 export function ChroniclesClient() {
   const [entries, setEntries] = useState<StoryEntry[]>([])
   const [meta, setMeta] = useState<{ totalEvents: number; dynamicEntries: number; lastUpdated: string } | null>(null)
   const [loadStatus, setLoadStatus] = useState<'loading' | 'indexing' | 'done' | 'error'>('loading')
+  const [indexStatus, setIndexStatus] = useState('scanning ethereum mainnet...')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
+  const [selectedEntry, setSelectedEntry] = useState<StoryEntry | null>(null)
 
-  // prevent multiple concurrent index calls
   const indexingRef = useRef(false)
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const mountedRef = useRef(true)
 
-  const fetchStory = async () => {
+  const PAGE_SIZE = 40
+
+  const triggerIndex = useCallback(async () => {
+    if (indexingRef.current) return
+    indexingRef.current = true
+    try {
+      const res = await fetch('/api/index', { method: 'POST' })
+      const data = await res.json()
+      if (!mountedRef.current) return
+      if (data.events) {
+        setIndexStatus(
+          data.needsMore
+            ? `found ${data.events.toLocaleString()} events — scanning older blocks...`
+            : `indexed ${data.events.toLocaleString()} events — finishing up...`
+        )
+      }
+    } catch { /* swallow */ } finally {
+      indexingRef.current = false
+    }
+  }, [])
+
+  const fetchStory = useCallback(async () => {
     try {
       const res = await fetch('/api/story', { cache: 'no-store' })
       if (!res.ok) throw new Error(`${res.status}`)
       const data = await res.json()
+      if (!mountedRef.current) return false
 
-      const hasEntries = data.entries && data.entries.length > 0
+      const hasRealEntries = data.meta?.totalEvents > 0
 
-      if (hasEntries) {
-        setEntries(data.entries)
-        setMeta(data.meta ?? null)
+      if (hasRealEntries && !data.indexing) {
+        setEntries(data.entries ?? [])
+        setMeta(data.meta)
         setLoadStatus('done')
-        if (pollRef.current) clearTimeout(pollRef.current)
-        return true // done
+        return true // done polling
       }
 
-      // No entries yet — kick off indexing if not already running
+      // Has some entries but still backfilling — show what we have, keep polling
+      if (data.meta?.totalEvents > 0) {
+        setEntries(data.entries ?? [])
+        setMeta(data.meta)
+        setLoadStatus('indexing')
+        // Keep indexing in background
+        triggerIndex()
+        return false
+      }
+
+      // Nothing yet
       setLoadStatus('indexing')
-      if (!indexingRef.current) {
-        indexingRef.current = true
-        fetch('/api/index', { method: 'POST' })
-          .then(() => { indexingRef.current = false })
-          .catch(() => { indexingRef.current = false })
-      }
-
-      return false // not done yet
-    } catch (err) {
-      console.error('[fetch story]', err)
-      setLoadStatus('error')
-      return true // stop polling
+      triggerIndex()
+      return false
+    } catch {
+      if (mountedRef.current) setLoadStatus('error')
+      return true
     }
-  }
+  }, [triggerIndex])
 
   useEffect(() => {
+    mountedRef.current = true
     let cancelled = false
 
     const poll = async () => {
       if (cancelled) return
       const done = await fetchStory()
       if (!done && !cancelled) {
-        pollRef.current = setTimeout(poll, 4000)
+        pollRef.current = setTimeout(poll, 5000)
       }
     }
 
     poll()
-
     return () => {
       cancelled = true
+      mountedRef.current = false
       if (pollRef.current) clearTimeout(pollRef.current)
     }
-  }, [])
-
-  const currentEra = entries.find(e => e.eventType !== 'genesis')?.era ?? null
+  }, [fetchStory])
 
   const filtered = useMemo(() => {
     if (!search.trim()) return entries
     const q = search.toLowerCase()
-    return entries.filter(x =>
-      x.headline.toLowerCase().includes(q) ||
-      x.body.toLowerCase().includes(q) ||
-      x.era.toLowerCase().includes(q)
+    return entries.filter(e =>
+      e.headline.toLowerCase().includes(q) ||
+      e.body.toLowerCase().includes(q) ||
+      e.era.toLowerCase().includes(q)
     )
   }, [entries, search])
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const pageEntries = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
-
-  const isLoading = loadStatus === 'loading' || loadStatus === 'indexing'
+  const currentEra = entries.find(e => e.eventType !== 'genesis')?.era ?? null
+  const isLoading = loadStatus === 'loading'
 
   return (
-    <main className="min-h-screen pt-11">
-      {/* info bar */}
-      <div className="border-b" style={{ borderColor: 'var(--border)' }}>
-        <div className="max-w-5xl mx-auto px-6 py-4">
-          <p className="font-mono text-xs" style={{ color: 'var(--muted)' }}>
-            10,000 normies · ethereum mainnet · all history on-chain
+    <>
+      {selectedEntry && (
+        <EntryModal entry={selectedEntry} onClose={() => setSelectedEntry(null)} />
+      )}
+
+      <main className="min-h-screen pt-11">
+
+        {/* info bar */}
+        <div className="border-b" style={{ borderColor: 'var(--border)' }}>
+          <div className="max-w-2xl mx-auto px-6 py-3">
+            <p className="font-mono text-2xs" style={{ color: 'var(--muted)' }}>
+              10,000 normies · ethereum mainnet · all history on-chain · cc0
+            </p>
+          </div>
+        </div>
+
+        {/* hero */}
+        <div className="max-w-2xl mx-auto px-6 pt-10 pb-6">
+          <h1
+            className="font-mono font-bold leading-[0.9] mb-6"
+            style={{ fontSize: 'clamp(3.5rem, 10vw, 6rem)', color: 'var(--text)' }}
+          >
+            normies<br />chronicles
+          </h1>
+          <p className="font-mono text-xs leading-relaxed" style={{ color: 'var(--muted)', maxWidth: '32rem' }}>
+            a living record of the grid — every on-chain event shapes the world,
+            every transformation writes history. fiction influenced by real decisions.
           </p>
-        </div>
-      </div>
 
-      <div className="max-w-5xl mx-auto px-6 pt-10 pb-8">
-        {/* big title */}
-        <h1
-          className="font-mono font-bold leading-none mb-6"
-          style={{ fontSize: 'clamp(3.5rem, 10vw, 7rem)', color: 'var(--text)' }}
-        >
-          normies<br />chronicles
-        </h1>
-
-        <p className="font-mono text-xs mb-1" style={{ color: 'var(--muted)', maxWidth: '40rem' }}>
-          a living record of the grid. every on-chain event shapes the world. every transformation writes history.
-        </p>
-        <p className="font-mono text-xs mb-8" style={{ color: 'var(--muted)', maxWidth: '40rem' }}>
-          fiction influenced by real decisions.
-        </p>
-
-        {/* stats — only show when loaded */}
-        {loadStatus === 'done' && meta && (
-          <div className="flex flex-wrap gap-6 mb-2 fade-up">
-            {[
-              ['total entries', entries.length.toString()],
-              ['on-chain events', meta.totalEvents.toString()],
-              ...(currentEra ? [['current era', currentEra]] : []),
-            ].map(([label, val]) => (
-              <div key={label} className="font-mono">
-                <p className="text-2xs uppercase tracking-widest mb-1" style={{ color: 'var(--muted)' }}>{label}</p>
-                <p className="text-sm font-bold" style={{ color: 'var(--text)' }}>{val}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* search — always visible, disabled while loading */}
-      <div
-        className="sticky top-11 z-40 border-b border-t"
-        style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
-      >
-        <div className="max-w-5xl mx-auto px-6">
-          <input
-            type="text"
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(0) }}
-            placeholder={isLoading ? 'loading entries...' : 'search entries...'}
-            disabled={isLoading}
-            className="w-full bg-transparent font-mono text-xs py-3 focus:outline-none disabled:cursor-not-allowed"
-            style={{ color: 'var(--text)' }}
-          />
-        </div>
-      </div>
-
-      {/* content */}
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        {isLoading && <LoadingState status={loadStatus as 'loading' | 'indexing'} />}
-
-        {loadStatus === 'error' && (
-          <div className="py-24 text-center">
-            <p className="font-mono text-sm font-bold mb-2" style={{ color: 'var(--text)' }}>
-              the grid is silent
-            </p>
-            <p className="font-mono text-xs mb-4" style={{ color: 'var(--muted)' }}>
-              could not load entries — try refreshing
-            </p>
-            <button
-              onClick={() => { setLoadStatus('loading'); fetchStory() }}
-              className="font-mono text-xs underline underline-offset-4 transition-opacity hover:opacity-60"
-              style={{ color: 'var(--text)' }}
-            >
-              retry →
-            </button>
-          </div>
-        )}
-
-        {loadStatus === 'done' && pageEntries.length === 0 && search && (
-          <div className="py-24 text-center">
-            <p className="font-mono text-sm font-bold mb-2" style={{ color: 'var(--text)' }}>
-              no records match
-            </p>
-            <p className="font-mono text-xs" style={{ color: 'var(--muted)' }}>
-              the archive found nothing for "{search}"
-            </p>
-          </div>
-        )}
-
-        {loadStatus === 'done' && pageEntries.length > 0 && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {pageEntries.map((entry, i) => (
-                <StoryCard key={entry.id} entry={entry} index={i} />
+          {/* stats row */}
+          {meta && (
+            <div className="flex flex-wrap gap-8 mt-6">
+              {[
+                ['entries', entries.length.toString()],
+                ['on-chain events', meta.totalEvents.toString()],
+                ...(currentEra ? [['current era', currentEra]] : []),
+                ...(loadStatus === 'indexing' ? [['status', 'backfilling history…']] : []),
+              ].map(([k, v]) => (
+                <div key={k}>
+                  <p className="font-mono text-2xs uppercase tracking-widest mb-0.5" style={{ color: 'var(--muted)' }}>{k}</p>
+                  <p className="font-mono text-xs font-bold" style={{ color: 'var(--text)' }}>{v}</p>
+                </div>
               ))}
             </div>
-
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-6 mt-12">
-                <button
-                  onClick={() => { setPage(p => Math.max(0, p - 1)); window.scrollTo(0, 0) }}
-                  disabled={page === 0}
-                  className="font-mono text-xs disabled:opacity-30 disabled:cursor-not-allowed transition-opacity hover:opacity-60"
-                  style={{ color: 'var(--text)' }}
-                >
-                  ← prev
-                </button>
-                <span className="font-mono text-xs" style={{ color: 'var(--muted)' }}>
-                  {page + 1} / {totalPages}
-                </span>
-                <button
-                  onClick={() => { setPage(p => Math.min(totalPages - 1, p + 1)); window.scrollTo(0, 0) }}
-                  disabled={page === totalPages - 1}
-                  className="font-mono text-xs disabled:opacity-30 disabled:cursor-not-allowed transition-opacity hover:opacity-60"
-                  style={{ color: 'var(--text)' }}
-                >
-                  next →
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      <footer className="border-t mt-12" style={{ borderColor: 'var(--border)' }}>
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <p className="font-mono text-xs" style={{ color: 'var(--muted)' }}>
-            normies chronicles · ethereum · cc0
-          </p>
-          <a
-            href="https://x.com/aster0x"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-mono text-xs transition-opacity hover:opacity-60"
-            style={{ color: 'var(--muted)' }}
-          >
-            @aster0x
-          </a>
+          )}
         </div>
-      </footer>
-    </main>
+
+        {/* search */}
+        <div
+          className="sticky top-11 z-40 border-b border-t"
+          style={{ borderColor: 'var(--border)', background: 'var(--bg)' }}
+        >
+          <div className="max-w-2xl mx-auto px-6">
+            <input
+              type="text"
+              value={search}
+              onChange={e => { setSearch(e.target.value); setPage(0) }}
+              placeholder={isLoading ? 'loading entries...' : 'search entries...'}
+              disabled={isLoading}
+              className="w-full bg-transparent font-mono text-xs py-3 focus:outline-none disabled:cursor-not-allowed"
+              style={{ color: 'var(--text)' }}
+            />
+          </div>
+        </div>
+
+        {/* chronicle body */}
+        <div className="max-w-2xl mx-auto px-6 py-10">
+
+          {isLoading && <LoadingState status={indexStatus} eventsSoFar={0} />}
+
+          {loadStatus === 'indexing' && entries.length === 0 && (
+            <LoadingState status={indexStatus} eventsSoFar={meta?.totalEvents ?? 0} />
+          )}
+
+          {loadStatus === 'error' && (
+            <div className="py-20 text-center">
+              <p className="font-mono text-sm font-bold mb-2" style={{ color: 'var(--text)' }}>the grid is silent</p>
+              <p className="font-mono text-xs mb-4" style={{ color: 'var(--muted)' }}>could not load entries — try refreshing</p>
+              <button
+                onClick={() => { setLoadStatus('loading'); fetchStory() }}
+                className="font-mono text-xs underline underline-offset-4 transition-opacity hover:opacity-60"
+                style={{ color: 'var(--text)' }}>
+                retry →
+              </button>
+            </div>
+          )}
+
+          {/* still indexing but have partial data — show it with a note */}
+          {loadStatus === 'indexing' && entries.length > 0 && (
+            <div className="mb-8 py-3 px-4" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+              <p className="font-mono text-2xs" style={{ color: 'var(--muted)' }}>
+                ◎ scanning older blocks — {meta?.totalEvents.toLocaleString()} events loaded so far, more arriving shortly
+              </p>
+            </div>
+          )}
+
+          {pageEntries.length > 0 && (
+            <>
+              <div>
+                {pageEntries.map((entry) => (
+                  <ChronicleEntry
+                    key={entry.id}
+                    entry={entry}
+                    onSelect={setSelectedEntry}
+                  />
+                ))}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-10 pt-6" style={{ borderTop: '1px solid var(--border)' }}>
+                  <button
+                    onClick={() => { setPage(p => Math.max(0, p - 1)); window.scrollTo(0, 0) }}
+                    disabled={page === 0}
+                    className="font-mono text-xs disabled:opacity-20 transition-opacity hover:opacity-60"
+                    style={{ color: 'var(--text)' }}
+                  >
+                    ← earlier
+                  </button>
+                  <span className="font-mono text-xs" style={{ color: 'var(--muted)' }}>
+                    {page + 1} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => { setPage(p => Math.min(totalPages - 1, p + 1)); window.scrollTo(0, 0) }}
+                    disabled={page === totalPages - 1}
+                    className="font-mono text-xs disabled:opacity-20 transition-opacity hover:opacity-60"
+                    style={{ color: 'var(--text)' }}
+                  >
+                    later →
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {loadStatus === 'done' && pageEntries.length === 0 && search && (
+            <div className="py-20 text-center">
+              <p className="font-mono text-sm font-bold mb-2" style={{ color: 'var(--text)' }}>no records match</p>
+              <p className="font-mono text-xs" style={{ color: 'var(--muted)' }}>nothing found for "{search}"</p>
+            </div>
+          )}
+        </div>
+
+        <footer className="border-t" style={{ borderColor: 'var(--border)' }}>
+          <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
+            <p className="font-mono text-xs" style={{ color: 'var(--muted)' }}>normies chronicles · ethereum · cc0</p>
+            <a href="https://x.com/aster0x" target="_blank" rel="noopener noreferrer"
+              className="font-mono text-xs transition-opacity hover:opacity-60" style={{ color: 'var(--muted)' }}>
+              @aster0x
+            </a>
+          </div>
+        </footer>
+      </main>
+    </>
   )
 }
