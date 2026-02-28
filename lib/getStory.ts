@@ -56,14 +56,24 @@ function serialize(events: IndexedEvent[]): SerializedEvent[] {
 async function readBlob(): Promise<{ cache: BlobCache; ageMs: number } | null> {
   try {
     const { blobs } = await list({ prefix: BLOB_KEY })
+    console.log('[readBlob] found blobs:', blobs.length, blobs.map(b => b.pathname))
     if (!blobs.length) return null
-    const res = await fetch(blobs[0].downloadUrl, { cache: 'no-store' })
-    if (!res.ok) return null
+    const blob = blobs[0]
+    console.log('[readBlob] fetching:', blob.downloadUrl?.slice(0, 60))
+    // Try downloadUrl first, fall back to url
+    const urlToFetch = blob.downloadUrl ?? blob.url
+    const res = await fetch(urlToFetch, { cache: 'no-store' })
+    console.log('[readBlob] fetch status:', res.status)
+    if (!res.ok) {
+      console.error('[readBlob] fetch failed:', res.status, res.statusText)
+      return null
+    }
     const cache = await res.json() as BlobCache
-    const ageMs = Date.now() - new Date(blobs[0].uploadedAt).getTime()
+    console.log('[readBlob] events in cache:', cache.events?.length)
+    const ageMs = Date.now() - new Date(blob.uploadedAt).getTime()
     return { cache, ageMs }
   } catch (err) {
-    console.error('[readBlob]', err)
+    console.error('[readBlob] error:', err)
     return null
   }
 }
