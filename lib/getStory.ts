@@ -5,11 +5,7 @@ import { publicClient, DEPLOY_BLOCK } from './viemClient'
 import type { IndexedEvent } from './eventIndexer'
 
 const BLOB_KEY = 'normies-chronicles-cache.json'
-const CACHE_TTL_MS = 5 * 60 * 1000
-
-// How many blocks to scan per /api/index call.
-// ~500 chunks × 2 parallel getLogs at ~80ms each ≈ 40s. Safe under 60s.
-const BATCH_BLOCKS = 500_000n
+const CACHE_TTL_MS = 10 * 60 * 1000 // 10 minutes
 
 interface SerializedEvent {
   type: 'PixelsTransformed' | 'BurnRevealed'
@@ -18,22 +14,15 @@ interface SerializedEvent {
   count: string
   blockNumber: string
   transactionHash: string
-  targetTokenId?: string  // BurnRevealed: token receiving action points
-  totalPixels?: string    // PixelsTransformed: running total after this edit
-}
-interface BlobCache {
-  events: SerializedEvent[]
-  // lastBlock = furthest block we've indexed (used for incremental updates)
-  lastBlock: string
-  // indexedFrom = how far back we've gone (null means full history done)
-  indexedFrom: string | null
-  lastUpdated: string
+  targetTokenId?: string
+  totalPixels?: string
 }
 
-// Local dev in-memory cache
-let memEvents: IndexedEvent[] = []
-let memLastBlock = 0n
-let memIndexing = false
+interface BlobCache {
+  events: SerializedEvent[]
+  lastBlock: string
+  lastUpdated: string
+}
 
 function deserialize(events: SerializedEvent[]): IndexedEvent[] {
   return events.map(e => {
@@ -73,7 +62,10 @@ async function readBlob(): Promise<{ cache: BlobCache; ageMs: number } | null> {
     const cache = await res.json() as BlobCache
     const ageMs = Date.now() - new Date(blobs[0].uploadedAt).getTime()
     return { cache, ageMs }
-  } catch { return null }
+  } catch (err) {
+    console.error('[readBlob]', err)
+    return null
+  }
 }
 
 async function writeBlob(cache: BlobCache) {
@@ -83,18 +75,16 @@ async function writeBlob(cache: BlobCache) {
       allowOverwrite: true,
       contentType: 'application/json',
     })
-  } catch (err) { console.error('[blob] write failed', err) }
+  } catch (err) {
+    console.error('[writeBlob]', err)
+  }
 }
 
-function buildResponse(events: IndexedEvent[], lastUpdated: string, status: {
-  indexing: boolean
-  indexedFrom: string | null
-}) {
+function buildResponse(events: IndexedEvent[], lastUpdated: string, indexing: boolean) {
   const entries = generateStoryEntries(events, 0)
   return {
     entries: [...PRIMER_ENTRIES, ...entries],
-    indexing: status.indexing,
-    indexedFrom: status.indexedFrom,
+    indexing,
     meta: {
       totalEvents: events.length,
       dynamicEntries: entries.length,
@@ -106,131 +96,70 @@ function buildResponse(events: IndexedEvent[], lastUpdated: string, status: {
 // ── /api/story — always returns immediately ───────────────────────────────────
 export async function getStoryEntries() {
   try {
-    const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN
-
-    if (useBlob) {
-      const result = await readBlob()
-      if (result) {
-        const { cache } = result
-        const events = deserialize(cache.events)
-        const stillIndexingHistory = cache.indexedFrom !== null
-        return buildResponse(events, cache.lastUpdated, {
-          indexing: stillIndexingHistory,
-          indexedFrom: cache.indexedFrom,
-        })
-      }
-      // No blob — signal client to trigger /api/index
-      return buildResponse([], new Date().toISOString(), { indexing: true, indexedFrom: null })
+    const result = await readBlob()
+    if (result) {
+      const events = deserialize(result.cache.events)
+      // Always return what we have — indexing:false means client shows it as done
+      return buildResponse(events, result.cache.lastUpdated, false)
     }
-
-    // Local dev
-    if (memLastBlock > 0n) {
-      return buildResponse(memEvents, new Date().toISOString(), {
-        indexing: memIndexing,
-        indexedFrom: null,
-      })
-    }
-    if (!memIndexing) startLocalIndex()
-    return buildResponse([], new Date().toISOString(), { indexing: true, indexedFrom: null })
-
+    // No cache yet — return primers, signal client to call /api/index
+    return buildResponse([], new Date().toISOString(), true)
   } catch (err) {
     console.error('[getStoryEntries]', err)
-    return buildResponse([], new Date().toISOString(), { indexing: false, indexedFrom: null })
+    return buildResponse([], new Date().toISOString(), true)
   }
 }
 
-// ── /api/index — called repeatedly by client until indexedFrom === null ───────
+// ── /api/index — does the full index, saves to blob ──────────────────────────
 export async function runFullIndex() {
-  const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN
-  if (!useBlob) return { status: 'no_blob' }
-
   try {
+    console.log('[runFullIndex] start')
     const latest = await publicClient.getBlockNumber()
+    console.log('[runFullIndex] latest block:', latest.toString())
+
+    // Check existing cache first
     const existing = await readBlob()
+    console.log('[runFullIndex] existing cache:', existing ? `${existing.cache.events.length} events, age ${existing.ageMs}ms` : 'none')
 
-    if (!existing) {
-      // Very first call — scan the most recent BATCH_BLOCKS, save, signal more needed
-      const batchFrom = latest > BATCH_BLOCKS + DEPLOY_BLOCK
-        ? latest - BATCH_BLOCKS
-        : DEPLOY_BLOCK
-      const events = await getCanvasEvents(batchFrom, latest)
-      await writeBlob({
-        events: serialize(events),
-        lastBlock: latest.toString(),
-        indexedFrom: batchFrom > DEPLOY_BLOCK ? batchFrom.toString() : null,
-        lastUpdated: new Date().toISOString(),
-      })
-      return {
-        status: 'first_batch',
-        events: events.length,
-        batchFrom: batchFrom.toString(),
-        needsMore: batchFrom > DEPLOY_BLOCK,
+    if (existing) {
+      const ageMs = existing.ageMs
+      if (ageMs < CACHE_TTL_MS) {
+        const lastBlock = BigInt(existing.cache.lastBlock)
+        if (lastBlock >= latest - 5n) {
+          console.log('[runFullIndex] up to date')
+          return { status: 'up_to_date', events: existing.cache.events.length }
+        }
+        console.log('[runFullIndex] incremental from', lastBlock.toString())
+        const newEvents = await getCanvasEvents(lastBlock + 1n, latest)
+        console.log('[runFullIndex] new events:', newEvents.length)
+        if (newEvents.length > 0) {
+          const allEvents = [...deserialize(existing.cache.events), ...newEvents]
+            .sort((a, b) => a.blockNumber < b.blockNumber ? -1 : 1)
+          await writeBlob({
+            events: serialize(allEvents),
+            lastBlock: latest.toString(),
+            lastUpdated: new Date().toISOString(),
+          })
+          return { status: 'incremental', events: allEvents.length, newEvents: newEvents.length }
+        }
+        return { status: 'up_to_date', events: existing.cache.events.length }
       }
     }
 
-    const cache = existing.cache
-    const indexedFrom = cache.indexedFrom ? BigInt(cache.indexedFrom) : null
-
-    // If still have older history to scan — go one batch further back
-    if (indexedFrom !== null && indexedFrom > DEPLOY_BLOCK) {
-      const batchTo = indexedFrom - 1n
-      const batchFrom = batchTo > BATCH_BLOCKS + DEPLOY_BLOCK
-        ? batchTo - BATCH_BLOCKS + 1n
-        : DEPLOY_BLOCK
-      const olderEvents = await getCanvasEvents(batchFrom, batchTo)
-      const allEvents = [...deserialize(cache.events), ...olderEvents]
-        .sort((a, b) => a.blockNumber < b.blockNumber ? -1 : 1)
-      await writeBlob({
-        events: serialize(allEvents),
-        lastBlock: cache.lastBlock,
-        indexedFrom: batchFrom > DEPLOY_BLOCK ? batchFrom.toString() : null,
-        lastUpdated: new Date().toISOString(),
-      })
-      return {
-        status: 'backfill_batch',
-        events: allEvents.length,
-        newEvents: olderEvents.length,
-        batchFrom: batchFrom.toString(),
-        needsMore: batchFrom > DEPLOY_BLOCK,
-      }
-    }
-
-    // History fully indexed — do incremental update for new blocks
-    const lastBlock = BigInt(cache.lastBlock)
-    if (lastBlock >= latest - 5n) {
-      return { status: 'up_to_date', events: cache.events.length }
-    }
-    const newEvents = await getCanvasEvents(lastBlock + 1n, latest)
-    if (newEvents.length > 0) {
-      const allEvents = [...deserialize(cache.events), ...newEvents]
-        .sort((a, b) => a.blockNumber < b.blockNumber ? -1 : 1)
-      await writeBlob({
-        events: serialize(allEvents),
-        lastBlock: latest.toString(),
-        indexedFrom: null,
-        lastUpdated: new Date().toISOString(),
-      })
-      return { status: 'incremental', events: allEvents.length, newEvents: newEvents.length }
-    }
-    return { status: 'up_to_date', events: cache.events.length }
-
-  } catch (err) {
-    console.error('[runFullIndex]', err)
-    throw err
-  }
-}
-
-async function startLocalIndex() {
-  if (memIndexing) return
-  memIndexing = true
-  try {
-    const latest = await publicClient.getBlockNumber()
+    // No cache or stale — full index from deploy block
+    console.log('[runFullIndex] full scan from', DEPLOY_BLOCK.toString(), 'to', latest.toString())
     const events = await getCanvasEvents(DEPLOY_BLOCK, latest)
-    memEvents = events
-    memLastBlock = latest
+    console.log('[runFullIndex] found', events.length, 'events, writing blob...')
+    await writeBlob({
+      events: serialize(events),
+      lastBlock: latest.toString(),
+      lastUpdated: new Date().toISOString(),
+    })
+    console.log('[runFullIndex] blob written OK')
+    return { status: 'full_index', events: events.length, needsMore: false }
+
   } catch (err) {
-    console.error('[localIndex]', err)
-  } finally {
-    memIndexing = false
+    console.error('[runFullIndex] error:', err)
+    throw err
   }
 }

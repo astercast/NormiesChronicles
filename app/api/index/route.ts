@@ -6,10 +6,16 @@ export const dynamic = 'force-dynamic'
 
 export async function POST() {
   try {
-    const result = await runFullIndex()
+    const result = await Promise.race([
+      runFullIndex(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('index timeout after 55s')), 55_000)
+      ),
+    ])
     return NextResponse.json(result)
   } catch (err) {
-    console.error('[/api/index]', err)
-    return NextResponse.json({ error: 'index failed' }, { status: 500 })
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[/api/index] error:', msg)
+    return NextResponse.json({ error: msg, events: 0 }, { status: 500 })
   }
 }

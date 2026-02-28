@@ -235,26 +235,15 @@ export function ChroniclesClient() {
 
   const PAGE_SIZE = 40
 
-  // Calls /api/index in a loop until needsMore === false
-  const runIndexLoop = useCallback(async () => {
+  const triggerIndex = useCallback(async () => {
     if (indexingRef.current) return
     indexingRef.current = true
     try {
-      let needsMore = true
-      let iteration = 0
-      while (needsMore && mountedRef.current && iteration < 20) {
-        iteration++
-        const res = await fetch('/api/index', { method: 'POST' })
-        if (!res.ok) break
+      const res = await fetch('/api/index', { method: 'POST' })
+      if (res.ok) {
         const data = await res.json()
-        if (!mountedRef.current) break
         const count = data.events ?? 0
-        needsMore = !!data.needsMore
-        setIndexStatus(
-          needsMore
-            ? `found ${count.toLocaleString()} events — scanning older blocks...`
-            : `indexed ${count.toLocaleString()} events`
-        )
+        if (mountedRef.current) setIndexStatus(`indexed ${count.toLocaleString()} events`)
       }
     } catch { /* swallow */ } finally {
       indexingRef.current = false
@@ -268,33 +257,25 @@ export function ChroniclesClient() {
       const data = await res.json()
       if (!mountedRef.current) return false
 
-      const hasRealEntries = (data.meta?.totalEvents ?? 0) > 0
+      const hasEvents = (data.meta?.totalEvents ?? 0) > 0
 
-      if (hasRealEntries && !data.indexing) {
+      if (hasEvents) {
+        // We have real data — show it and stop polling
         setEntries(data.entries ?? [])
         setMeta(data.meta)
         setLoadStatus('done')
-        return true // done polling
+        return true
       }
 
-      // Has some events but still backfilling older history — show what we have, keep indexing
-      if (hasRealEntries) {
-        setEntries(data.entries ?? [])
-        setMeta(data.meta)
-        setLoadStatus('indexing')
-        runIndexLoop() // guarded by indexingRef — safe to call repeatedly
-        return false
-      }
-
-      // Nothing yet — kick off full index loop (once, guarded by indexingRef)
+      // No data yet — trigger indexing (once) and keep polling
       setLoadStatus('indexing')
-      runIndexLoop()
+      triggerIndex()
       return false
     } catch {
       if (mountedRef.current) setLoadStatus('error')
       return true
     }
-  }, [runIndexLoop])
+  }, [triggerIndex])
 
   useEffect(() => {
     mountedRef.current = true
