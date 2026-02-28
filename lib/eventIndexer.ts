@@ -16,16 +16,19 @@ export interface IndexedEvent {
   transactionHash: string
 }
 
-// Paginated getLogs — same pattern as NormiesArchive
 export async function getCanvasEvents(
   fromBlock: bigint = DEPLOY_BLOCK,
-  toBlock?: bigint
+  toBlock?: bigint,
+  onProgress?: (fetched: number, total: number) => void
 ): Promise<IndexedEvent[]> {
   const latest = toBlock ?? (await publicClient.getBlockNumber())
+  const totalChunks = Number((latest - fromBlock) / BLOCK_CHUNK) + 1
   const events: IndexedEvent[] = []
+  let chunksDone = 0
 
   for (let start = fromBlock; start <= latest; start += BLOCK_CHUNK) {
     const end = start + BLOCK_CHUNK - 1n > latest ? latest : start + BLOCK_CHUNK - 1n
+
     try {
       const [transforms, burns] = await Promise.all([
         publicClient.getLogs({
@@ -41,6 +44,7 @@ export async function getCanvasEvents(
           toBlock: end,
         }),
       ])
+
       for (const log of transforms) {
         if (log.args.tokenId !== undefined) {
           events.push({
@@ -53,6 +57,7 @@ export async function getCanvasEvents(
           })
         }
       }
+
       for (const log of burns) {
         if (log.args.tokenId !== undefined) {
           events.push({
@@ -66,17 +71,13 @@ export async function getCanvasEvents(
         }
       }
     } catch (err) {
-      console.error(`[indexer] chunk ${start}-${end} failed`, err)
+      console.error(`[indexer] chunk ${start}-${end} failed:`, err)
+      // Continue — don't let one bad chunk kill everything
     }
+
+    chunksDone++
+    onProgress?.(chunksDone, totalChunks)
   }
 
-  return events.sort((a, b) =>
-    a.blockNumber < b.blockNumber ? -1 : a.blockNumber > b.blockNumber ? 1 : 0
-  )
-}
-
-export async function getRecentEvents(lookbackBlocks = 2000n): Promise<IndexedEvent[]> {
-  const latest = await publicClient.getBlockNumber()
-  const fromBlock = latest > lookbackBlocks ? latest - lookbackBlocks : DEPLOY_BLOCK
-  return getCanvasEvents(fromBlock, latest)
+  return events.sort((a, b) => (a.blockNumber < b.blockNumber ? -1 : 1))
 }

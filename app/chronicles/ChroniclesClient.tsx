@@ -107,6 +107,7 @@ export function ChroniclesClient() {
 
         <p className="font-mono text-xs mb-8" style={{ color: 'var(--muted)', maxWidth: '40rem' }}>
           a living record of the grid. every on-chain event shapes the world. every transformation writes history.
+          fiction influenced by real decisions.
         </p>
 
         {/* stats */}
