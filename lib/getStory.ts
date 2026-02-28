@@ -68,7 +68,7 @@ async function readBlob(): Promise<{ cache: BlobCache; ageMs: number } | null> {
   try {
     const { blobs } = await list({ prefix: BLOB_KEY })
     if (!blobs.length) return null
-    const res = await fetch(blobs[0].url, { cache: 'no-store' })
+    const res = await fetch(blobs[0].downloadUrl, { cache: 'no-store' })
     if (!res.ok) return null
     const cache = await res.json() as BlobCache
     const ageMs = Date.now() - new Date(blobs[0].uploadedAt).getTime()
@@ -79,7 +79,7 @@ async function readBlob(): Promise<{ cache: BlobCache; ageMs: number } | null> {
 async function writeBlob(cache: BlobCache) {
   try {
     await put(BLOB_KEY, JSON.stringify(cache), {
-      access: 'public',
+      access: 'private',
       allowOverwrite: true,
       contentType: 'application/json',
     })

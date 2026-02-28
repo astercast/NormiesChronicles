@@ -22,7 +22,7 @@ export async function GET() {
   // Try writing
   try {
     const blob = await put('chronicles-test.json', JSON.stringify({ test: true, ts: Date.now() }), {
-      access: 'public',
+      access: 'private',
       allowOverwrite: true,
       contentType: 'application/json',
     })
