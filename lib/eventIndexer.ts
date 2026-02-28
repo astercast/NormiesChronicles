@@ -9,9 +9,11 @@ import {
 
 export interface IndexedEvent {
   type: 'PixelsTransformed' | 'BurnRevealed'
-  tokenId: bigint
+  tokenId: bigint        // for PixelsTransformed: the token being edited; for BurnRevealed: the burned token
+  targetTokenId?: bigint // BurnRevealed only: the token receiving the action points
   owner: string
-  count: bigint
+  count: bigint          // PixelsTransformed: pixelCount this edit; BurnRevealed: burnedCount (AP transferred)
+  totalPixels?: bigint   // PixelsTransformed only: running total pixel count after this edit
   blockNumber: bigint
   transactionHash: string
 }
@@ -52,6 +54,7 @@ export async function getCanvasEvents(
             tokenId: log.args.tokenId,
             owner: log.args.owner ?? '0x',
             count: log.args.pixelCount ?? 0n,
+            totalPixels: log.args.totalPixelCount ?? 0n,
             blockNumber: log.blockNumber ?? 0n,
             transactionHash: log.transactionHash ?? '',
           })
@@ -59,10 +62,11 @@ export async function getCanvasEvents(
       }
 
       for (const log of burns) {
-        if (log.args.tokenId !== undefined) {
+        if (log.args.burnedTokenId !== undefined) {
           events.push({
             type: 'BurnRevealed',
-            tokenId: log.args.tokenId,
+            tokenId: log.args.burnedTokenId,
+            targetTokenId: log.args.targetTokenId,
             owner: log.args.owner ?? '0x',
             count: log.args.burnedCount ?? 0n,
             blockNumber: log.blockNumber ?? 0n,
@@ -72,7 +76,6 @@ export async function getCanvasEvents(
       }
     } catch (err) {
       console.error(`[indexer] chunk ${start}-${end} failed:`, err)
-      // Continue — don't let one bad chunk kill everything
     }
 
     chunksDone++

@@ -1001,7 +1001,9 @@ export function generateStoryEntries(events: IndexedEvent[], startCount = 0): St
       featured: featuredTypes.includes(ruleKey) || event.count > 200n,
       sourceEvent: {
         type: event.type,
-        tokenId: `#${event.tokenId.toString()}`,
+        tokenId: event.type === 'BurnRevealed' && event.targetTokenId !== undefined
+          ? `#${event.tokenId.toString()} → #${event.targetTokenId.toString()}`
+          : `#${event.tokenId.toString()}`,
         blockNumber: event.blockNumber.toLocaleString(),
         txHash: event.transactionHash,
         count: event.count.toString(),

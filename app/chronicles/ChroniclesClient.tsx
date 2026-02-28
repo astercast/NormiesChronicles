@@ -235,18 +235,25 @@ export function ChroniclesClient() {
 
   const PAGE_SIZE = 40
 
-  const triggerIndex = useCallback(async () => {
+  // Calls /api/index in a loop until needsMore === false
+  const runIndexLoop = useCallback(async () => {
     if (indexingRef.current) return
     indexingRef.current = true
     try {
-      const res = await fetch('/api/index', { method: 'POST' })
-      const data = await res.json()
-      if (!mountedRef.current) return
-      if (data.events) {
+      let needsMore = true
+      let iteration = 0
+      while (needsMore && mountedRef.current && iteration < 20) {
+        iteration++
+        const res = await fetch('/api/index', { method: 'POST' })
+        if (!res.ok) break
+        const data = await res.json()
+        if (!mountedRef.current) break
+        const count = data.events ?? 0
+        needsMore = !!data.needsMore
         setIndexStatus(
-          data.needsMore
-            ? `found ${data.events.toLocaleString()} events — scanning older blocks...`
-            : `indexed ${data.events.toLocaleString()} events — finishing up...`
+          needsMore
+            ? `found ${count.toLocaleString()} events — scanning older blocks...`
+            : `indexed ${count.toLocaleString()} events`
         )
       }
     } catch { /* swallow */ } finally {
@@ -261,7 +268,7 @@ export function ChroniclesClient() {
       const data = await res.json()
       if (!mountedRef.current) return false
 
-      const hasRealEntries = data.meta?.totalEvents > 0
+      const hasRealEntries = (data.meta?.totalEvents ?? 0) > 0
 
       if (hasRealEntries && !data.indexing) {
         setEntries(data.entries ?? [])
@@ -270,25 +277,24 @@ export function ChroniclesClient() {
         return true // done polling
       }
 
-      // Has some entries but still backfilling — show what we have, keep polling
-      if (data.meta?.totalEvents > 0) {
+      // Has some events but still backfilling older history — show what we have, keep indexing
+      if (hasRealEntries) {
         setEntries(data.entries ?? [])
         setMeta(data.meta)
         setLoadStatus('indexing')
-        // Keep indexing in background
-        triggerIndex()
+        runIndexLoop() // guarded by indexingRef — safe to call repeatedly
         return false
       }
 
-      // Nothing yet
+      // Nothing yet — kick off full index loop (once, guarded by indexingRef)
       setLoadStatus('indexing')
-      triggerIndex()
+      runIndexLoop()
       return false
     } catch {
       if (mountedRef.current) setLoadStatus('error')
       return true
     }
-  }, [triggerIndex])
+  }, [runIndexLoop])
 
   useEffect(() => {
     mountedRef.current = true
@@ -298,7 +304,7 @@ export function ChroniclesClient() {
       if (cancelled) return
       const done = await fetchStory()
       if (!done && !cancelled) {
-        pollRef.current = setTimeout(poll, 5000)
+        pollRef.current = setTimeout(poll, 8000)
       }
     }
 

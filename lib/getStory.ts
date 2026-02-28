@@ -18,6 +18,8 @@ interface SerializedEvent {
   count: string
   blockNumber: string
   transactionHash: string
+  targetTokenId?: string  // BurnRevealed: token receiving action points
+  totalPixels?: string    // PixelsTransformed: running total after this edit
 }
 interface BlobCache {
   events: SerializedEvent[]
@@ -34,12 +36,19 @@ let memLastBlock = 0n
 let memIndexing = false
 
 function deserialize(events: SerializedEvent[]): IndexedEvent[] {
-  return events.map(e => ({
-    ...e,
-    tokenId: BigInt(e.tokenId),
-    count: BigInt(e.count),
-    blockNumber: BigInt(e.blockNumber),
-  }))
+  return events.map(e => {
+    const result: IndexedEvent = {
+      type: e.type,
+      tokenId: BigInt(e.tokenId),
+      owner: e.owner,
+      count: BigInt(e.count),
+      blockNumber: BigInt(e.blockNumber),
+      transactionHash: e.transactionHash,
+    }
+    if (e.targetTokenId !== undefined) result.targetTokenId = BigInt(e.targetTokenId)
+    if (e.totalPixels !== undefined) result.totalPixels = BigInt(e.totalPixels)
+    return result
+  })
 }
 
 function serialize(events: IndexedEvent[]): SerializedEvent[] {
@@ -50,6 +59,8 @@ function serialize(events: IndexedEvent[]): SerializedEvent[] {
     count: e.count.toString(),
     blockNumber: e.blockNumber.toString(),
     transactionHash: e.transactionHash,
+    ...(e.targetTokenId !== undefined && { targetTokenId: e.targetTokenId.toString() }),
+    ...(e.totalPixels !== undefined && { totalPixels: e.totalPixels.toString() }),
   }))
 }
 
