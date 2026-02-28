@@ -1,34 +1,61 @@
-@import url('https://fonts.googleapis.com/css2?family=VT323&family=Space+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+:root {
+  --bg:      #e8e8e4;
+  --surface: #ddddd8;
+  --border:  #c8c8c2;
+  --muted:   #888880;
+  --text:    #2a2a28;
+}
+
+.dark {
+  --bg:      #141412;
+  --surface: #1e1e1c;
+  --border:  #2e2e2a;
+  --muted:   #666660;
+  --text:    #d4d4cc;
+}
+
 body {
   font-family: 'Space Mono', monospace;
-  background: #0a0a0a;
-  color: #ccc;
+  background: var(--bg);
+  color: var(--text);
   min-height: 100vh;
   font-size: 13px;
+  transition: background 0.2s, color 0.2s;
 }
 
 a { color: inherit; text-decoration: none; }
 
-.font-pixel { font-family: 'VT323', monospace; }
-.font-mono  { font-family: 'Space Mono', monospace; }
-
-/* scanlines */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px);
-}
-
+/* scrollbar */
 ::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: #0a0a0a; }
-::-webkit-scrollbar-thumb { background: #222; }
-::-webkit-scrollbar-thumb:hover { background: #444; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); }
+
+/* loading dots animation */
+@keyframes blink {
+  0%, 100% { opacity: 0.2; }
+  50%       { opacity: 1; }
+}
+.dot-1 { animation: blink 1.4s ease-in-out infinite; }
+.dot-2 { animation: blink 1.4s ease-in-out 0.2s infinite; }
+.dot-3 { animation: blink 1.4s ease-in-out 0.4s infinite; }
+
+/* scanning bar animation */
+@keyframes scan {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.scan-bar { animation: scan 1.8s ease-in-out infinite; }
+
+/* fade in */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.35s ease forwards; }
