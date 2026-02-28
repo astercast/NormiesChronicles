@@ -1,23 +1,34 @@
 'use client'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { StoryCard } from '@/components/StoryCard'
 import type { StoryEntry } from '@/lib/storyGenerator'
 
 const PAGE_SIZE = 15
 
-interface Props {
-  initialData: {
-    entries: StoryEntry[]
-    meta: { totalEvents: number; dynamicEntries: number; lastUpdated: string }
-  }
-}
-
-export function ChroniclesClient({ initialData }: Props) {
+export function ChroniclesClient() {
+  const [entries, setEntries] = useState<StoryEntry[]>([])
+  const [meta, setMeta] = useState<{ totalEvents: number; dynamicEntries: number; lastUpdated: string } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
 
-  const entries: StoryEntry[] = initialData?.entries ?? []
-  const meta = initialData?.meta
+  useEffect(() => {
+    fetch('/api/story')
+      .then(r => {
+        if (!r.ok) throw new Error('failed')
+        return r.json()
+      })
+      .then(data => {
+        setEntries(data.entries ?? [])
+        setMeta(data.meta ?? null)
+        setLoading(false)
+      })
+      .catch(() => {
+        setError(true)
+        setLoading(false)
+      })
+  }, [])
 
   const currentEra = entries.find(e => e.eventType !== 'genesis')?.era ?? 'The Void Before'
 
@@ -41,25 +52,25 @@ export function ChroniclesClient({ initialData }: Props) {
         <div className="max-w-5xl mx-auto px-4 py-12">
           <p className="font-mono text-xs text-muted mb-3">current era</p>
           <h1 className="font-pixel text-6xl md:text-8xl text-bright mb-1">normies chronicles</h1>
-          <p className="font-pixel text-3xl text-accent mb-6">{currentEra}</p>
+          <p className="font-pixel text-3xl text-accent mb-6">
+            {loading ? '...' : currentEra}
+          </p>
           <p className="font-mono text-xs text-muted max-w-xl leading-relaxed mb-8">
             a living record of the grid. every on-chain event shapes the world.
             every transformation writes history.
           </p>
-          {meta && (
-            <div className="flex flex-wrap gap-8">
-              {[
-                ['entries', entries.length.toString()],
-                ['on-chain events', meta.totalEvents.toString()],
-                ['lore records', meta.dynamicEntries.toString()],
-              ].map(([label, val]) => (
-                <div key={label}>
-                  <p className="font-mono text-xs text-muted">{label}</p>
-                  <p className="font-pixel text-3xl text-bright">{val}</p>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="flex flex-wrap gap-8">
+            {[
+              ['entries', loading ? '—' : entries.length.toString()],
+              ['on-chain events', loading ? '—' : (meta?.totalEvents ?? 0).toString()],
+              ['lore records', loading ? '—' : (meta?.dynamicEntries ?? 0).toString()],
+            ].map(([label, val]) => (
+              <div key={label}>
+                <p className="font-mono text-xs text-muted">{label}</p>
+                <p className="font-pixel text-3xl text-bright">{val}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -76,39 +87,57 @@ export function ChroniclesClient({ initialData }: Props) {
         </div>
       </div>
 
-      {/* grid */}
+      {/* content */}
       <div className="max-w-5xl mx-auto px-4 py-8">
-        {pageEntries.length === 0 ? (
+        {loading && (
+          <div className="py-24 text-center">
+            <p className="font-pixel text-3xl text-dim mb-2">indexing the grid</p>
+            <p className="font-mono text-xs text-muted">reading on-chain events — this may take a moment on first load...</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="py-24 text-center">
+            <p className="font-pixel text-3xl text-dim mb-2">the grid is silent</p>
+            <p className="font-mono text-xs text-muted">could not load entries — try refreshing</p>
+          </div>
+        )}
+
+        {!loading && !error && pageEntries.length === 0 && (
           <div className="py-24 text-center">
             <p className="font-pixel text-3xl text-dim mb-2">the archive is silent</p>
             <p className="font-mono text-xs text-muted">no records match your query</p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {pageEntries.map(entry => (
-              <StoryCard key={entry.id} entry={entry} />
-            ))}
-          </div>
         )}
 
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-4 mt-12">
-            <button
-              onClick={() => setPage(p => Math.max(0, p - 1))}
-              disabled={page === 0}
-              className="font-mono text-xs text-muted hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              ← prev
-            </button>
-            <span className="font-mono text-xs text-dim">{page + 1} / {totalPages}</span>
-            <button
-              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-              disabled={page === totalPages - 1}
-              className="font-mono text-xs text-muted hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              next →
-            </button>
-          </div>
+        {!loading && !error && pageEntries.length > 0 && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {pageEntries.map(entry => (
+                <StoryCard key={entry.id} entry={entry} />
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4 mt-12">
+                <button
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  className="font-mono text-xs text-muted hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  ← prev
+                </button>
+                <span className="font-mono text-xs text-dim">{page + 1} / {totalPages}</span>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                  disabled={page === totalPages - 1}
+                  className="font-mono text-xs text-muted hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  next →
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
