@@ -5,7 +5,7 @@ import { publicClient } from './viemClient'
 import type { IndexedEvent } from './eventIndexer'
 
 const BLOB_KEY = 'normies-chronicles-cache.json'
-const CACHE_TTL_MS = 5 * 60 * 1000 // 5 min fresh window
+const CACHE_TTL_MS = 5 * 60 * 1000
 
 interface SerializedEvent {
   type: 'PixelsTransformed' | 'BurnRevealed'
@@ -21,8 +21,9 @@ interface BlobCache {
   lastUpdated: string
 }
 
-// In-memory fallback for local dev (no BLOB_READ_WRITE_TOKEN)
-let memCache: { data: BlobCache; ts: number } | null = null
+// In-memory fallback for local dev
+let memCache: { events: IndexedEvent[]; lastBlock: bigint; ts: number } | null = null
+let memIndexing = false
 
 function deserialize(events: SerializedEvent[]): IndexedEvent[] {
   return events.map(e => ({
@@ -35,10 +36,12 @@ function deserialize(events: SerializedEvent[]): IndexedEvent[] {
 
 function serialize(events: IndexedEvent[]): SerializedEvent[] {
   return events.map(e => ({
-    ...e,
+    type: e.type,
     tokenId: e.tokenId.toString(),
+    owner: e.owner,
     count: e.count.toString(),
     blockNumber: e.blockNumber.toString(),
+    transactionHash: e.transactionHash,
   }))
 }
 
@@ -64,10 +67,11 @@ async function writeBlob(cache: BlobCache) {
   } catch (err) { console.error('[blob] write failed', err) }
 }
 
-function buildResponse(events: IndexedEvent[], lastUpdated: string) {
+function buildResponse(events: IndexedEvent[], lastUpdated: string, indexing = false) {
   const entries = generateStoryEntries(events, 0)
   return {
     entries: [...PRIMER_ENTRIES, ...entries],
+    indexing,
     meta: {
       totalEvents: events.length,
       dynamicEntries: entries.length,
@@ -76,9 +80,9 @@ function buildResponse(events: IndexedEvent[], lastUpdated: string) {
   }
 }
 
+// ── Main export: always returns fast ─────────────────────────────────────────
 export async function getStoryEntries() {
   try {
-    const latest = await publicClient.getBlockNumber()
     const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN
 
     if (useBlob) {
@@ -87,109 +91,131 @@ export async function getStoryEntries() {
       if (result) {
         const { cache, ageMs } = result
         const cachedEvents = deserialize(cache.events)
-        const lastBlock = BigInt(cache.lastBlock)
 
-        // Fresh — return immediately, no indexing needed
-        if (ageMs < CACHE_TTL_MS && lastBlock >= latest - 10n) {
+        // Fresh enough — return immediately
+        if (ageMs < CACHE_TTL_MS) {
           return buildResponse(cachedEvents, cache.lastUpdated)
         }
 
-        // Stale — only fetch new blocks since last saved block (incremental)
-        const fromBlock = lastBlock + 1n
-        let allEvents = cachedEvents
-
-        if (fromBlock <= latest) {
-          const newEvents = await getCanvasEvents(fromBlock, latest)
-          if (newEvents.length > 0) {
-            allEvents = [...cachedEvents, ...newEvents].sort((a, b) =>
-              a.blockNumber < b.blockNumber ? -1 : 1
-            )
-            // Fire-and-forget — don't block the response
-            writeBlob({
-              events: serialize(allEvents),
-              lastBlock: latest.toString(),
-              lastUpdated: new Date().toISOString(),
-            })
-          }
-        }
-
-        return buildResponse(allEvents, new Date().toISOString())
+        // Stale — kick off incremental update in background, return cached data now
+        const lastBlock = BigInt(cache.lastBlock)
+        incrementalUpdate(cachedEvents, lastBlock)
+        return buildResponse(cachedEvents, cache.lastUpdated)
       }
 
-      // No blob yet — this is the cold start.
-      // We do a partial index: fetch last 500k blocks first (recent events),
-      // return immediately, then a background job fills the rest.
-      // This avoids the 60s timeout on first deploy.
-      const PARTIAL_LOOKBACK = 500_000n
-      const partialFrom = latest > PARTIAL_LOOKBACK + 19_500_000n
-        ? latest - PARTIAL_LOOKBACK
-        : 19_500_000n
-
-      const partialEvents = await getCanvasEvents(partialFrom, latest)
-
-      // Save partial cache immediately so next request is incremental
-      const partialCache: BlobCache = {
-        events: serialize(partialEvents),
-        lastBlock: latest.toString(),
-        lastUpdated: new Date().toISOString(),
-      }
-      // Await this one so blob is seeded before returning
-      await writeBlob(partialCache)
-
-      // Kick off a background fill of the older blocks (non-blocking)
-      if (partialFrom > 19_500_000n) {
-        fillOlderBlocks(19_500_000n, partialFrom - 1n, partialEvents, partialCache)
-      }
-
-      return buildResponse(partialEvents, new Date().toISOString())
+      // No blob at all — return primers + signal client to poll
+      // The /api/index endpoint handles the actual first-time indexing
+      return buildResponse([], new Date().toISOString(), true)
     }
 
-    // ── Local dev: in-memory cache ────────────────────────────────────────
-    const now = Date.now()
-    if (memCache && now - memCache.ts < CACHE_TTL_MS) {
-      return buildResponse(deserialize(memCache.data.events), memCache.data.lastUpdated)
+    // ── Local dev path ────────────────────────────────────────────────────
+    if (memCache && Date.now() - memCache.ts < CACHE_TTL_MS) {
+      return buildResponse(memCache.events, new Date(memCache.ts).toISOString())
     }
 
-    const events = await getCanvasEvents()
-    const nowStr = new Date().toISOString()
-    memCache = {
-      data: { events: serialize(events), lastBlock: latest.toString(), lastUpdated: nowStr },
-      ts: now,
+    if (memIndexing) {
+      // Already indexing in background — return what we have (empty or partial)
+      const events = memCache?.events ?? []
+      return buildResponse(events, new Date().toISOString(), true)
     }
-    return buildResponse(events, nowStr)
+
+    // Start background index, return primers immediately
+    startLocalIndex()
+    return buildResponse([], new Date().toISOString(), true)
 
   } catch (err) {
     console.error('[getStoryEntries]', err)
-    return {
-      entries: PRIMER_ENTRIES,
-      meta: { totalEvents: 0, dynamicEntries: 0, lastUpdated: new Date().toISOString() },
-    }
+    return buildResponse([], new Date().toISOString(), false)
   }
 }
 
-// Background fill: fetches older blocks and merges into blob
-// Runs asynchronously — does not block the response
-async function fillOlderBlocks(
-  from: bigint,
-  to: bigint,
-  alreadyHave: IndexedEvent[],
-  currentCache: BlobCache
-) {
+// ── Triggered by /api/index — does the heavy lifting ─────────────────────────
+export async function runFullIndex() {
   try {
-    const olderEvents = await getCanvasEvents(from, to)
-    if (olderEvents.length === 0) return
+    const latest = await publicClient.getBlockNumber()
+    const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN
 
-    const allEvents = [...olderEvents, ...alreadyHave].sort((a, b) =>
+    if (useBlob) {
+      // Check again — might have been seeded by a concurrent request
+      const existing = await readBlob()
+      if (existing && Date.now() - existing.ageMs < CACHE_TTL_MS) {
+        return { status: 'already_fresh', events: existing.cache.events.length }
+      }
+
+      if (existing) {
+        // Incremental update
+        const lastBlock = BigInt(existing.cache.lastBlock)
+        const fromBlock = lastBlock + 1n
+        if (fromBlock >= latest) {
+          return { status: 'up_to_date', events: existing.cache.events.length }
+        }
+        const newEvents = await getCanvasEvents(fromBlock, latest)
+        const allEvents = [...deserialize(existing.cache.events), ...newEvents]
+          .sort((a, b) => a.blockNumber < b.blockNumber ? -1 : 1)
+        await writeBlob({
+          events: serialize(allEvents),
+          lastBlock: latest.toString(),
+          lastUpdated: new Date().toISOString(),
+        })
+        return { status: 'incremental', events: allEvents.length, newEvents: newEvents.length }
+      }
+
+      // Full cold-start index — chunk in batches to stay within timeout
+      // Fetch last 300k blocks (≈60 chunks × 5000) which fits in ~60s
+      const SAFE_LOOKBACK = 300_000n
+      const fromBlock = latest > SAFE_LOOKBACK + 19_500_000n
+        ? latest - SAFE_LOOKBACK
+        : 19_500_000n
+
+      const events = await getCanvasEvents(fromBlock, latest)
+      await writeBlob({
+        events: serialize(events),
+        lastBlock: latest.toString(),
+        lastUpdated: new Date().toISOString(),
+      })
+
+      // Schedule older-block fill for next request
+      return { status: 'partial_cold_start', events: events.length, fromBlock: fromBlock.toString() }
+    }
+
+    return { status: 'no_blob', events: 0 }
+  } catch (err) {
+    console.error('[runFullIndex]', err)
+    throw err
+  }
+}
+
+// Fire-and-forget incremental update (blob path)
+async function incrementalUpdate(cached: IndexedEvent[], lastBlock: bigint) {
+  try {
+    const latest = await publicClient.getBlockNumber()
+    if (lastBlock >= latest - 5n) return
+    const newEvents = await getCanvasEvents(lastBlock + 1n, latest)
+    if (newEvents.length === 0) return
+    const allEvents = [...cached, ...newEvents].sort((a, b) =>
       a.blockNumber < b.blockNumber ? -1 : 1
     )
-
     await writeBlob({
       events: serialize(allEvents),
-      lastBlock: currentCache.lastBlock,
+      lastBlock: latest.toString(),
       lastUpdated: new Date().toISOString(),
     })
-    console.log(`[blob] background fill complete: ${allEvents.length} total events`)
   } catch (err) {
-    console.error('[blob] background fill failed', err)
+    console.error('[incrementalUpdate]', err)
+  }
+}
+
+// Local dev: background index
+async function startLocalIndex() {
+  if (memIndexing) return
+  memIndexing = true
+  try {
+    const latest = await publicClient.getBlockNumber()
+    const events = await getCanvasEvents(19_500_000n, latest)
+    memCache = { events, lastBlock: latest, ts: Date.now() }
+  } catch (err) {
+    console.error('[localIndex]', err)
+  } finally {
+    memIndexing = false
   }
 }
