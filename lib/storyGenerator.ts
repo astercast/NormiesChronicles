@@ -1,189 +1,160 @@
 import type { IndexedEvent } from './eventIndexer'
 
-// ─────────────────────────────────────────────────────────────────────────────
-// NORMIES CHRONICLES — STORY ENGINE
+// ═════════════════════════════════════════════════════════════════════════════
+// NORMIES CHRONICLES — STATEFUL STORY ENGINE v3
 //
-// The Grid is a 40×40 pixel canvas — a contested territory fought over by
-// factions painting it in their colors. Real on-chain events shape the story
-// invisibly: large pixel edits become great battles, burns become sacrifices,
-// time gaps become ceasefires, returning wallets become veteran commanders.
+// The Grid is a 40×40 pixel canvas. Ten thousand faces encoded into the
+// eternal record of the Grid. Factions war over who gets to write the pixels
+// — who shapes the visual substrate of existence itself.
 //
-// The 40 rules are divided:
-//   19 CORE   — the main story beats (war events, battles, sacrifices, shifts)
-//   21 FILLER — the texture between beats (politics, rumor, lore, daily life)
+// Themes woven throughout: pixel, grid, void, glitch, synth, eternal,
+// giving, movement, singularity, signal, corruption, render, null.
 //
-// Together they read as one continuous war chronicle, not 40 separate stories.
-// ─────────────────────────────────────────────────────────────────────────────
+// in the Grid events shape the story invisibly:
+//   PixelsTransformed → territorial assault on the Grid
+//   BurnRevealed      → a Normie sacrificed; their essence given to another
+//   Block gaps        → signal loss, the Grid going dark
+//
+// V3: All world elements and prose rethemed to the digital/cosmic register.
+//     Same 40 rules, same stateful engine, new voice.
+// ═════════════════════════════════════════════════════════════════════════════
 
 export type LoreType =
-  // ── 19 CORE RULES ─────────────────────────────────────────────────────────
-  | 'GREAT_BATTLE'       // 200+ pixels — full territorial assault
-  | 'SKIRMISH'           // 50–199 pixels — mid-scale clash
-  | 'BORDER_RAID'        // <50 pixels — precise tactical strike
-  | 'FORMAL_DECLARATION' // pixel count divisible by 50 — deliberate political act
-  | 'GREAT_SACRIFICE'    // burn 10+ AP — warrior gives everything
-  | 'OFFERING'           // burn <10 AP — smaller sacrifice to the cause
-  | 'BLOOD_OATH'         // veteran burn — a sworn warrior renews their vow
-  | 'VETERAN_RETURNS'    // known address returns — a fighter back from absence
-  | 'NEW_BLOOD'          // first appearance — a stranger joins the conflict
-  | 'THE_ORACLE'         // prime token ID — a seer makes their move
-  | 'ANCIENT_WAKES'      // token <1000 — the oldest forces stir
-  | 'FAR_REACH'          // token >8000 — the distant edge enters the war
-  | 'HOLLOW_GROUND'      // token 5000–6000 — the contested middle, always disputed
-  | 'TURNING_POINT'      // every 25th — a reckoning, fate pauses to speak
-  | 'DOMINION_GROWS'     // veteran appears 3+ times — a faction claims dominance
-  | 'THE_SILENCE'        // block gap >10k — the war goes quiet
-  | 'NEW_AGE'            // era threshold — a chapter ends, another begins
-  | 'CONVERGENCE'        // same-block events — two armies meet unplanned
-  | 'RELIC_FOUND'        // rare tx hash — something ancient surfaces from the Grid
-  // ── 21 FILLER RULES ───────────────────────────────────────────────────────
-  | 'WAR_COUNCIL'        // same address <500 blocks — urgent commanders meeting
-  | 'CARTOGRAPHY'        // token 2000–3000 — the mapmakers chart new ground
-  | 'OLD_GHOST'          // token <500, late — ancient names spoken again
-  | 'THE_DESERTER'       // active address goes silent — someone walked away
-  | 'TALLY'              // every 10th event — the chronicler counts the cost
-  | 'RETURNED_GHOST'     // address back >20k blocks — the long-lost return
-  | 'DEBT_PAID'          // veteran burns 2+ times — a debt of war grows heavy
-  | 'CAMPFIRE_TALE'      // new address, quiet — stories told at the edge of things
-  | 'THE_LONG_DARK'      // gap >50k blocks — the war went underground
-  | 'EDGE_SCOUTS'        // token >8500 re-emerges — news from the far margin
-  | 'SHIFTED_PLAN'       // veteran breaks pattern — tactics revised midcampaign
-  | 'VIGIL'              // within 3 of era threshold — the world holds its breath
-  | 'NEUTRAL_GROUND'     // new address, harmonious — someone not yet at war
-  | 'GHOST_MARK'         // exactly 1 pixel/AP — a trace barely left
-  | 'MESSENGER'          // new wallet, token 1000–2000 — word from beyond
-  | 'THE_LONG_COUNT'     // every 40th — the Grid measures itself
-  | 'BETWEEN_FIRES'      // short gap post-cluster — the camp at rest
-  | 'DYNASTY'            // 3+ appearances — a lineage is named
-  | 'CROSSING'           // range bridge — armies move through unfamiliar ground
-  | 'SUPPLY_ROAD'        // token 2000–3000 fallback — the war's infrastructure
-  | 'NIGHT_WATCH'        // fallback — the sentinels who make everything else possible
-  | 'GENESIS'
+  | 'GREAT_BATTLE' | 'SKIRMISH' | 'BORDER_RAID' | 'FORMAL_DECLARATION'
+  | 'GREAT_SACRIFICE' | 'OFFERING' | 'BLOOD_OATH' | 'VETERAN_RETURNS'
+  | 'NEW_BLOOD' | 'THE_ORACLE' | 'ANCIENT_WAKES' | 'FAR_REACH'
+  | 'HOLLOW_GROUND' | 'TURNING_POINT' | 'DOMINION_GROWS' | 'THE_SILENCE'
+  | 'NEW_AGE' | 'CONVERGENCE' | 'RELIC_FOUND'
+  | 'WAR_COUNCIL' | 'CARTOGRAPHY' | 'OLD_GHOST' | 'THE_DESERTER' | 'TALLY'
+  | 'RETURNED_GHOST' | 'DEBT_PAID' | 'CAMPFIRE_TALE' | 'THE_LONG_DARK'
+  | 'EDGE_SCOUTS' | 'SHIFTED_PLAN' | 'VIGIL' | 'NEUTRAL_GROUND' | 'GHOST_MARK'
+  | 'MESSENGER' | 'THE_LONG_COUNT' | 'BETWEEN_FIRES' | 'DYNASTY' | 'CROSSING'
+  | 'SUPPLY_ROAD' | 'NIGHT_WATCH'
+  | 'AFTERMATH' | 'ESCALATION_NOTE' | 'SACRIFICE_TOLL' | 'GENESIS'
 
-export interface StoryEntry {
-  id: string
-  eventType: 'PixelsTransformed' | 'BurnRevealed' | 'genesis'
-  loreType: LoreType
-  era: string
-  headline: string
-  body: string
-  icon: string
-  featured: boolean
-  sourceEvent: {
-    type: string
-    tokenId: string
-    blockNumber: string
-    txHash: string
-    count: string
-    ruleApplied: string
-    ruleExplanation: string
+// ─────────────────────────────────────────────────────────────────────────────
+// WAR STATE
+// ─────────────────────────────────────────────────────────────────────────────
+export interface WarState {
+  phase: 'opening' | 'escalating' | 'siege' | 'sacrifice' | 'reckoning'
+  lastCoreType: string | null
+  lastCoreBlock: bigint
+  consecutiveCores: number
+  totalBurnAP: number
+  totalPixels: number
+  eventCount: number
+  pixelsInWindow: number
+  burnsInWindow: number
+  ownersEncountered: Set<string>
+  lastOwnerCoreBlock: Map<string, bigint>
+}
+
+function freshWarState(): WarState {
+  return {
+    phase: 'opening',
+    lastCoreType: null,
+    lastCoreBlock: 0n,
+    consecutiveCores: 0,
+    totalBurnAP: 0,
+    totalPixels: 0,
+    eventCount: 0,
+    pixelsInWindow: 0,
+    burnsInWindow: 0,
+    ownersEncountered: new Set(),
+    lastOwnerCoreBlock: new Map(),
+  }
+}
+
+const CORE_TYPES = new Set([
+  'GREAT_BATTLE','SKIRMISH','BORDER_RAID','FORMAL_DECLARATION',
+  'GREAT_SACRIFICE','OFFERING','BLOOD_OATH','VETERAN_RETURNS',
+  'NEW_BLOOD','THE_ORACLE','ANCIENT_WAKES','FAR_REACH','HOLLOW_GROUND',
+  'TURNING_POINT','DOMINION_GROWS','THE_SILENCE','NEW_AGE','CONVERGENCE','RELIC_FOUND',
+])
+
+function isCoreType(t: string): boolean { return CORE_TYPES.has(t) }
+
+function updateWarState(state: WarState, event: IndexedEvent, ruleKey: string, allEvents: IndexedEvent[], eventIndex: number): void {
+  state.eventCount++
+  if (event.type === 'PixelsTransformed') {
+    state.totalPixels += Number(event.count)
+    const windowStart = event.blockNumber - 500n
+    state.pixelsInWindow = allEvents.slice(0, eventIndex + 1)
+      .filter(e => e.type === 'PixelsTransformed' && e.blockNumber >= windowStart)
+      .reduce((sum, e) => sum + Number(e.count), 0)
+  }
+  if (event.type === 'BurnRevealed') {
+    state.totalBurnAP += Number(event.count)
+    const windowStart = event.blockNumber - 500n
+    state.burnsInWindow = allEvents.slice(0, eventIndex + 1)
+      .filter(e => e.type === 'BurnRevealed' && e.blockNumber >= windowStart)
+      .reduce((sum, e) => sum + Number(e.count), 0)
+  }
+  state.ownersEncountered.add(event.owner)
+  if (state.totalBurnAP >= 800 && state.eventCount > 500) state.phase = 'reckoning'
+  else if (state.totalBurnAP >= 400) state.phase = 'sacrifice'
+  else if (state.pixelsInWindow >= 600 || state.totalPixels >= 20000) state.phase = 'siege'
+  else if (state.totalPixels >= 5000 || state.eventCount >= 300) state.phase = 'escalating'
+  if (isCoreType(ruleKey)) {
+    state.consecutiveCores++
+    state.lastCoreType = ruleKey
+    state.lastCoreBlock = event.blockNumber
+    state.lastOwnerCoreBlock.set(event.owner, event.blockNumber)
+  } else {
+    state.consecutiveCores = 0
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WORLD ELEMENTS — the persistent cast and geography of the war
-// All seeded deterministically so the same event always resolves the same way.
+// WORLD ELEMENTS — digital/cosmic/void register
 // ─────────────────────────────────────────────────────────────────────────────
-
-// 20 regions — each has a distinct character and narrative weight
 const REGIONS = [
-  'the Ashen Flats',       // open, exposed, bitterly contested
-  'the Ink Wastes',        // the front lines, permanently stained with war
-  'the Pale Reaches',      // cold, distant, fought over for its vantage point
-  'the Obsidian Line',     // a fortified boundary that has changed hands many times
-  'the Shattered Moors',   // broken terrain where armies get lost
-  'the Deep Trenches',     // below the main front, a labyrinth of tunnels
-  'the High Cipher',       // elevated, strategic, the commanders want it most
-  'the Wandering Shore',   // coastal, unpredictable, neutral parties trade here
-  'the Null Basin',        // a depression in the Grid, hard to hold, easy to lose
-  'the Root Warrens',      // an underground network, favored by scouts
-  'the Murmur Wood',       // forested, sounds carry strangely, ambush country
-  'the Fracture Belt',     // cracked terrain, unstable, prone to sudden shifts
-  'the Old Archives',      // records of past wars, fought over for what they contain
-  'the Ember Fields',      // scorched from an earlier campaign, now contested again
-  'the Vaulted Dark',      // underground chambers, ancient and disputed
-  'the Mirror Shelf',      // a high plateau, reflects light in ways that confuse scouts
-  'the Red Margin',        // bloodied border territory, no one\'s and everyone\'s
-  'the Crossroads',        // where every route converges — whoever holds it controls movement
-  'the Counting Ground',   // where the chronicler tallies the dead, considered neutral
-  'the Unmapped Edge',     // beyond the known war, where the Grid gets strange
+  'the Null Sector',       'the Void Margin',       'the Pixel Wastes',
+  'the Glitch Fields',     'the Render Depths',      'the Signal Corridor',
+  'the giving Threshold',  'the Fracture Layer',     'the Deep Grid',
+  'the Corruption Zone',   'the Synth Reaches',      'the Eternal Register',
+  'the movement Path',    'the Overwritten Ground', 'the Phantom Rows',
+  'the Singularity Edge',  'the Dark Columns',       'the Buffer Zone',
+  'the Lost Frames',       'the Origin Pixel',
 ]
 
-// 12 factions — different philosophies, different methods, all fighting
 const FACTIONS = [
-  'the Inkborn',           // the original faction, fought here longest
-  'the Pale Host',         // cold, methodical, they document everything
-  'the Lattice Guard',     // defenders of the old order, slowly losing ground
-  'the Wandering Blades',  // no fixed territory, strike fast and move
-  'the Archive Wardens',   // they fight to control what history says
-  'the Threshold Keepers', // guard the boundaries between eras
-  'the Deep Company',      // fight from below, tunnels and warrens
-  'the Signal Corps',      // communication and intelligence as weapons
-  'the Monolith Order',    // slow, massive, impossible to shift once positioned
-  'the Unnamed',           // they have no banner, no declared allegiance, just presence
-  'the Far Walkers',       // came from the edge, still moving toward the center
-  'the Root Scholars',     // fight with knowledge, not just force
+  'the Void Collective',   'the Pixel Sovereigns',  'the Glitch Syndicate',
+  'the Eternal gather',   'the giving Accord',      'the Null Scribes',
+  'the Synth Legion',      'the Render Cult',        'the movement Fleet',
+  'the Signal Corps',      'the Corrupted',          'the Origin Keepers',
 ]
 
-// Named commanders — the human face of the war
-// These are fictional characters who carry the story across entries
 const COMMANDERS = [
-  'Commander Varun',         // Inkborn — veteran, patient, dangerous
-  'the Iron Witness',        // Pale Host — impartial recorder turned combatant
-  'Keeper Solen',            // Lattice Guard — last of the old defenders
-  'Old Mira',                // Wandering Blades — decades of war, still moving
-  'the Silent General',      // Archive Wardens — never speaks, always wins
-  'Warlord Neth',            // Threshold Keepers — obsessed with era transitions
-  'the Deep Marshal',        // Deep Company — never seen above ground
-  'Signal Chief Karas',      // Signal Corps — knows everything before it happens
-  'the Monolith',            // Monolith Order — a title, not a person, or so they say
-  'the Unnamed One',         // the Unnamed — no name given, none needed
-  'Marshal of the Far Edge', // Far Walkers — arrived late, ascending fast
-  'Scholar-General Teld',    // Root Scholars — teaches and fights simultaneously
+  'the Null Architect',    'Sovereign Varun',        'the Glitch Prophet',
+  'keeper Solen',        'the Eternal Witness',    'giving-Chief Mira',
+  'the Void Marshal',      'Signal-General Neth',    'the Render King',
+  'the Corrupted One',     'movement-Lord Karas',   'the Origin Keeper',
 ]
 
-// Enemy forces / opposing named entities
 const RIVALS = [
-  'the Grey Compact',       // an uneasy coalition that keeps almost breaking apart
-  'the Eastern Hold',       // entrenched veterans of the previous campaign
-  'the Splinter King',      // a commander who broke from their own faction
-  'the Faceless Army',      // no commanders, operates by distributed consensus
-  'the Null Pact',          // signed a treaty no one else recognizes
-  'the Old Wall',           // fortified remnants of the faction that started all this
-  'the Ink Tide',           // the great advance of the previous era, still moving
-  'the Pale Advance',       // slow, deliberate, and almost impossible to stop
-  'the Border Lords',       // control the margins, tax everyone who passes
-  'the Forgotten Host',     // they were the largest faction. now they are a memory.
+  'the claiming Pact',    'the Pixel Horde',        'the Null Tide',
+  'the False gather',     'the Entropy Faction',    'the Void Surge',
+  'the Corrupt Array',     'the Dark Render',        'the Signal Jammers',
+  'the Forgotten Frames',
 ]
 
-// Legendary objects and places — the war's myths made physical
 const RELICS = [
-  'the Shattered Standard',    // the banner of the first faction, broken in two
-  'the Crown of the First Grid', // worn by whoever controls the center — briefly
-  'the Broken Compass',         // points somewhere no one has mapped yet
-  'the Last True Map',          // shows the Grid as it was before the war
-  'the Burned Codex',           // the old laws, mostly ash, still quoted
-  'the Speaking Stone',         // whoever holds it is said to command the dead's loyalty
-  'the Unmarked Grave',         // the first casualty, location known by both sides
-  'the Signal Tower',           // broadcasts to everyone, controlled by whoever takes it
-  'the First Brush',            // the tool that made the first mark on the Grid
-  'the Pixel Throne',           // the center of the Grid — symbolic, violently contested
-  'the Oath Stone',             // the sacrifices are recorded here, in names that don't fade
-  'the War Bell',               // rings itself before major battles, has never been wrong
+  'the First Pixel',        'the Null Crown',          'the Shattered Grid Key',
+  'the Eternal Brush',      'the giving Stone',         'the Origin Codex',
+  'the Void Shard',         'the Glitch Sigil',         'the Last Clean Frame',
+  'the Singularity Seed',   'the Render Throne',        'the movement Ledger',
 ]
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ERAS — calibrated to ~500–800 real events
-// ─────────────────────────────────────────────────────────────────────────────
 export const ERAS = [
-  { threshold: 0,   name: 'The Quiet Before',  tone: 'The factions have not yet committed. The Grid waits.' },
-  { threshold: 10,  name: 'First Blood',        tone: 'The first marks have been made. There is no going back.' },
-  { threshold: 30,  name: 'The Gathering',      tone: 'Sides are forming. Allegiances are being tested.' },
-  { threshold: 75,  name: 'Age of Advance',     tone: 'The war is fully joined. Territory changes daily.' },
-  { threshold: 150, name: 'The Deepening',      tone: 'The cost becomes clear. The war will not end soon.' },
-  { threshold: 300, name: 'Age of Siege',       tone: 'Positions harden. Each gain is fought for twice.' },
-  { threshold: 500, name: 'The Long Campaign',  tone: 'The war has a history now. Veterans outnumber recruits.' },
-  { threshold: 800, name: 'The Reckoning',      tone: 'Something has to break. The Grid cannot hold all of this.' },
+  { threshold: 0,    name: 'The First Days',           tone: 'The Grid is new. The first marks are being made. No one knows yet what this will become.' },
+  { threshold: 100,  name: 'The Awakening',            tone: 'Patterns are emerging. Factions sense each other for the first time.' },
+  { threshold: 300,  name: 'The Gathering',            tone: 'The Grid fills with presence. Territories begin to mean something.' },
+  { threshold: 700,  name: 'Age of Claims',            tone: 'The canvas is contested. What was open is now owned or disputed.' },
+  { threshold: 1500, name: 'The Deepening',            tone: 'The cost becomes clear. The Grid has a history now.' },
+  { threshold: 3000, name: 'Age of Permanence',        tone: 'Some things have been settled. Others are still being decided.' },
+  { threshold: 5000, name: 'The Long Memory',          tone: 'Veterans outnumber newcomers. The Grid remembers everything.' },
+  { threshold: 8000, name: 'Approach to Singularity',  tone: 'Something approaches. The Grid cannot hold all of this indefinitely.' },
 ]
 
 function getEra(count: number): string {
@@ -198,14 +169,7 @@ function seedN(tokenId: bigint, blockNumber: bigint, salt = 0): number {
 
 function pick<T>(arr: T[], s: number): T { return arr[s % arr.length] }
 
-interface WorldCtx {
-  region: string
-  faction: string
-  rival: string
-  commander: string
-  relic: string
-  era: string
-}
+interface WorldCtx { region: string; faction: string; rival: string; commander: string; relic: string; era: string }
 
 function buildCtx(tokenId: bigint, blockNumber: bigint, era: string): WorldCtx {
   return {
@@ -220,24 +184,18 @@ function buildCtx(tokenId: bigint, blockNumber: bigint, era: string): WorldCtx {
 
 function fill(t: string, c: WorldCtx): string {
   return t
-    .replace(/{region}/g,    c.region)
-    .replace(/{faction}/g,   c.faction)
-    .replace(/{rival}/g,     c.rival)
-    .replace(/{commander}/g, c.commander)
-    .replace(/{relic}/g,     c.relic)
-    .replace(/{era}/g,       c.era)
+    .replace(/{region}/g, c.region).replace(/{faction}/g, c.faction)
+    .replace(/{rival}/g, c.rival).replace(/{commander}/g, c.commander)
+    .replace(/{relic}/g, c.relic).replace(/{era}/g, c.era)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// THE 40 RULES
-//
-// Design principle: every entry should feel like it came from the same novel.
-// Core rules are the plot. Filler rules are the chapter texture between battles —
-// the campfire conversations, the scouts' reports, the political maneuvering,
-// the moments that make the war feel lived-in and real.
-//
-// No entry references blockchain, pixels, addresses, or technical data.
-// ─────────────────────────────────────────────────────────────────────────────
+type WarPhase = 'opening' | 'escalating' | 'siege' | 'sacrifice' | 'reckoning'
+
+interface PhaseVariant {
+  phase: WarPhase
+  headline?: string
+  body: string
+}
 
 interface LoreRule {
   loreType: LoreType
@@ -246,867 +204,1015 @@ interface LoreRule {
   ruleExplanation: string
   headlines: string[]
   bodies: string[]
+  phaseVariants?: PhaseVariant[]
+  afterContext?: Partial<Record<string, string>>
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// THE 40 RULES + 4 CONNECTORS — full digital/void/glitch voice
+// ─────────────────────────────────────────────────────────────────────────────
 const RULES: Record<string, LoreRule> = {
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // CORE 19 — The spine of the war narrative
+  // CORE 19
   // ═══════════════════════════════════════════════════════════════════════════
 
   GREAT_BATTLE: {
     loreType: 'GREAT_BATTLE', icon: '⚔',
     ruleApplied: 'Great Battle',
-    ruleExplanation: 'A massive territorial push — the largest kind of assault on the Grid.',
+    ruleExplanation: '200+ marks laid down — a massive assault across the Grid.',
     headlines: [
-      '{faction} Storm {region} — The Largest Push in Memory',
-      'The Fall of {region}: {commander} Leads the Charge',
-      '{faction} Flood {region} Before Dawn',
-      '{region} Burns: {faction} Will Not Be Stopped',
+      '{faction} Flood {region} — Mass Pixel claim Begins',
+      'The Grid Rewrites Itself: {faction} Storm {region}',
+      '{commander} Launches Total Render at {region}',
+      '{region} Falls to the claiming — {faction} Will Not Stop',
     ],
     bodies: [
-      'The assault on {region} came without warning and without mercy. {faction} moved in full force before the first light, painting the terrain in their colors while {rival} scrambled to respond. By the time the sun was fully up, the shape of {region} had been transformed — old boundaries erased, new ones drawn in {faction}\'s mark. {commander} was seen at the front giving orders from horseback, {relic} carried at the head of the column. This was not a raid. This was a statement: {faction} intends to hold what they take, and what they take will grow.',
+      'the claiming came without warning. {faction} flooded {region} before dawn — pixels shifting, old marks covered, the terrain changed faster than {rival} could respond. By the time things settled, {region} looked nothing like it had. {commander} had been holding this push back for a long time. {relic} burned at the center of the new territory like a signal flare.',
 
-      'Historians will argue about whether the assault on {region} was inevitable. The signs had been accumulating for weeks — {faction} massing at the border, {rival} failing to shore up the line, the War Bell ringing three times at dawn though no one admitted to hearing it. When the advance finally came it was total: a coordinated repainting of the entire zone, sweeping and uncompromising. {relic} now hangs at the center of the captured ground. The message is clear.',
+      'The Grid doesn\'t forget what it was. But it can be made to look like it does. {faction}\'s great claiming of {region} was exactly that kind of erasure — deep, committed, the kind that takes effort to undo. {rival} scrambled to push back. They were blocks too slow. The chronicle simply records: the marks moved. Everything changed.',
 
-      '{commander} gave the order quietly, the way commanders who have done this before always give orders: without drama, without announcement, just the instruction and then movement. {faction}\'s force crossed into {region} in numbers {rival} had not anticipated. The old garrison had no answer for it. The chronicler on duty that day wrote simply: "Everything changed." That is not a metaphor.',
+      'Every pixel in {region} that {faction} rewrote was a declaration. Not a message — declarations don\'t require translation. The Null Architect had said the Grid was just substrate. {commander} replied with this assault: substrate is everything. {rival} will spend the next cycle trying to figure out what they\'re looking at now.',
 
-      'The war has seen a hundred skirmishes and two dozen real battles. What happened in {region} was different — the kind of engagement that redraws the map permanently. {faction} committed everything to this advance, and {rival} was too slow to match it. When the dust settled, {region} was unrecognizable to those who had known it in the previous era. {commander} planted {relic} at the center of the territory and waited for a response. None came. The silence was its own answer.',
+      'Singularity theorists say there is a threshold past which an claim becomes irreversible — too many marks made, the old state too expensive to reconstruct. {faction}\'s assault on {region} crossed that threshold. {relic} stands in the center of the new configuration. The Grid has been permanently altered. The war continues on new terrain.',
+    ],
+    phaseVariants: [
+      {
+        phase: 'siege',
+        headline: 'Siege tradition Breaks — {faction} claim {region} at Last',
+        body: 'After weeks of deadlock — both sides holding their marks, neither willing to trigger the break — {faction} finally executed the claiming. The siege tradition collapsed under the weight of it. {rival} had been braced for a probe, not a full move. {commander} committed everything available to {region} simultaneously. The Grid updated. The siege is over. Something else begins.',
+      },
+      {
+        phase: 'reckoning',
+        headline: 'Final claim tradition — {faction} Push Into {region}',
+        body: 'At the Singularity tradition phase, overwrites carry the accumulated weight of everything that came before them. {faction}\'s push into {region} is not just pixels — it is the culmination of a long season, a process that started seasons ago and is only now resolving. {rival} knows this. {commander} knows this. The Grid is about to reflect who won.',
+      },
     ],
   },
 
   SKIRMISH: {
     loreType: 'SKIRMISH', icon: '◈',
     ruleApplied: 'Skirmish',
-    ruleExplanation: 'A significant territorial clash — real gains, real losses, the war\'s daily currency.',
+    ruleExplanation: '50–199 marks laid down — a significant exchange, the war\'s daily pixel currency.',
     headlines: [
-      '{faction} Push into {region} — Ground Changes Hands',
-      'A Sharp Engagement Near {region}',
-      '{commander} Tests {rival}\'s Resolve at {region}',
-      '{faction} Advance: {region}\'s Edge Is Now Contested',
+      '{faction} claim {region}\'s Edge — Pixels Shift',
+      'A exchange at {region} — Ground Changes',
+      '{commander} Tests {rival}\'s Pixel Hold at {region}',
+      '{region} Flickers: {faction} Advance the Front',
     ],
     bodies: [
-      'Not every battle is a siege. {faction} sent a strike force into {region} — fast, targeted, enough to redraw the edge of the contested zone without committing their whole army. {rival} pushed back at the margins but couldn\'t hold the center. By evening, the front line had moved. Not far. But in this war, far enough matters.',
+      'Not every claim is a flood. {faction} sent a targeted move into {region} — fast, precise, enough to shift the contested pixels without committing the full array. {rival} pushed back at the margins but couldn\'t hold the center. The Grid updated. The front moved. Not far. Enough.',
 
-      '{commander} called it a probe afterward. {rival} had a different word for it. The advance into {region} was the kind of mid-scale engagement that doesn\'t make the headlines but wins long campaigns — methodical, disciplined, patient. The zone looks different now. The momentum is visible to anyone who has been tracking the line.',
+      '{commander} called it a pixel probe afterward. The advance into {region} was methodical — rewriting exactly as much as the capacity allowed, no more. The Grid looks different now. {rival} will spend the next cycle calculating what they lost.',
 
-      'The fighting in {region} lasted most of the afternoon. Neither {faction} nor {rival} committed fully, but {faction} came away with more than they arrived with — a slice of contested ground now clearly theirs, a line pushed back, a signal sent. {commander} described the outcome to the council in three words: "Better than expected."',
+      'The exchange in {region} lasted a few blocks. Neither {faction} nor {rival} committed fully, but {faction} came away with more pixels than they started with — a strip of contested Grid now clearly theirs, a front pushed back, a signal sent.',
 
-      'Small victories accumulate into large ones. {faction}\'s advance through {region} was one of dozens of such moves in the current campaign — each one limited in scope, each one adding to a picture that is becoming increasingly clear. {rival} has started calling {commander}\'s approach "the slow flood." The name is accurate.',
+      'Small overwrites accumulate into permanent change. {faction}\'s advance through {region} was one of many such moves in the current cycle. {rival} has started calling {commander}\'s approach "the slow flood." The name fits.',
     ],
+    phaseVariants: [
+      {
+        phase: 'escalating',
+        headline: 'Rapid Skirmish at {region} — pace Accelerating',
+        body: 'What was a careful probe at the start of the war is now something faster, more volatile. {faction}\'s move at {region} was brief but intense — the kind of claim that leaves marks behind, corrupted marks at the edges, signs of sides pushed past its comfortable rate. {rival} responded faster than expected. Both sides are rendering at a pace the early Grid never saw.',
+      },
+    ],
+    afterContext: {
+      GREAT_BATTLE: 'The great claiming is not finished. What looked like a conclusion at {region} is still cascading — {faction} is pressing forward before {rival} can gather a response. The push extends from the shattered edge inward. The world is still settling.',
+    },
   },
 
   BORDER_RAID: {
     loreType: 'BORDER_RAID', icon: '·',
     ruleApplied: 'Border Raid',
-    ruleExplanation: 'A precise, careful strike on the margins — small in scale, deliberate in intent.',
+    ruleExplanation: 'Under 50 pixels — a surgical strike on the Grid\'s margin.',
     headlines: [
-      'A Quiet Raid on {region}\'s Edge',
-      '{faction} Leave a Mark — And a Warning',
-      'One Corner of {region} Changes in the Night',
-      '{commander}\'s Scouts Move Through {region} Unannounced',
+      'Surgical claim at {region}\'s Edge — One Corner Changes',
+      '{faction} Leave a Pixel Mark at {region}',
+      'A Single Cluster Rewritten in {region}',
+      '{commander}\'s Render Scouts Hit the Margin at {region}',
     ],
     bodies: [
-      'It was a small move, but nothing in this war is accidental. A handful of {faction}\'s scouts crossed into {region} before dawn, made their mark at the margin, and withdrew before anyone raised an alarm. {rival} will find the sign in the morning. They\'ll have to decide whether to respond — and that decision costs them time and attention they don\'t have to spare.',
+      'A small move, but nothing on the Grid is accidental. {faction}\'s scouts hit {region}\'s outer pixels before the next light — rewrote the margin, left their mark in the terrain, withdrew before {rival}\'s monitors flagged it. By the time anyone looked, the old configuration was gone.',
 
-      '{commander} favors these small incursions. "Control the edge," they say, "and the center follows by itself." The mark left in {region} was minimal but precisely placed: exactly where {faction} wanted it, exactly where {rival} was least prepared to find it. These are the moves that shift wars without anyone noticing until it\'s over.',
+      '{commander} calls these "needle-marks." Control the edge pixel, they say, and the center will follow. The mark left in {region} was minimal but precisely placed — placed where {rival}\'s presence was thinnest.',
 
-      'The raid on {region}\'s outer boundary lasted minutes. {faction} made their mark and withdrew. In terms of territory, almost nothing changed. In terms of what {rival} must now account for and defend, everything did. {commander} filed it under "preparatory actions" in the war log. The chronicler filed it under history.',
+      'The raid on {region}\'s border lasted one act. {faction} rewrote, withdrew. In terms of extent, almost nothing changed. In terms of what {rival} must now defend, everything did. One pixel correctly placed reads differently than a thousand pixels anywhere else.',
 
-      'The old soldiers call these "needle marks" — small, sharp, aimed at exactly the right spot. {faction}\'s scouts know {region} well enough to know where the needle belongs. They put it there tonight. By morning the mark will be visible. By the afternoon, {rival} will have had to respond. By the evening, {faction} will be somewhere else entirely.',
+      'Ghost marks — low count, high intention. {faction}\'s scouts know {region}\'s layout well enough to know where the needle belongs. They put it there. The Grid remembers.',
     ],
+    afterContext: {
+      THE_SILENCE: 'The silence held on the main front, but someone was still writing. {faction}\'s scouts marked {region}\'s edge during what was supposed to be a true pause — proof that silences apply to the declared lines, not to those who move quietly.',
+      GREAT_BATTLE: 'The great claiming drew every eye to the center. While {rival} scrambles to process what happened at the center, {faction}\'s scouts have quietly marked {region}\'s edge. There will be a new mark in the margin that no one watched being placed.',
+    },
   },
 
   FORMAL_DECLARATION: {
     loreType: 'FORMAL_DECLARATION', icon: '▣',
     ruleApplied: 'Formal Declaration',
-    ruleExplanation: 'A measured, exact advance — deliberate precision signals a political statement, not just a battle.',
+    ruleExplanation: 'extent divisible by 50 — perfect render precision signals tradition intent.',
     headlines: [
-      '{faction} Make It Official: A Declaration in {region}',
-      'The Terms Are Set — {faction} Announce Their Position',
-      '{commander} Formalizes {faction}\'s Claim on {region}',
-      'A Document Is Filed. A Line Is Drawn.',
+      '{faction} Render a Formal Claim on {region}',
+      'The tradition Is Filed — {faction}\'s Position Is Official',
+      '{commander} Compiles {faction}\'s Declaration at {region}',
+      'An Exact Render. A Formal Claim.',
     ],
     bodies: [
-      'Some advances are accidents of war. This was not one of them. {faction}\'s move through {region} was measured to the exact margin — deliberate and formal, the kind of advance that comes with written declarations and named witnesses. {rival} received the document before dawn. It stated clearly what {faction} was claiming and under what conditions they might discuss terms. They will not be discussing terms.',
+      'Some overwrites are accidents of pressure. This was not. {faction}\'s claim on {region} was perfectly measured — the exact count a formal declaration requires. {rival} received the gathered tradition before the next light. It stated: these pixels are claimed, these are the terms, this is what the Grid now reflects.',
 
-      'The chronicler marks certain advances as formal — those where the precision of the act constitutes a political statement. {faction}\'s move in {region} qualifies on every measure: coordinated, proportioned, announced. {commander} signed the declaration personally. It will be read aloud at the front. This is not a battle. It is the beginning of an occupation.',
+      'The chronicler marks certain renders as formal: those where the precision constitutes a tradition statement. {faction}\'s claim of {region} qualifies on every metric — the count, the placement, the timing. {commander} signed the declaration personally. The Grid shows it.',
 
-      '{rival} called it provocation. {faction} called it a statement of facts as they now stand. The declaration regarding {region} is now in the public record: the territory is claimed, the terms are set, and {relic} has been placed at the center of the newly held ground as both symbol and invitation to respond. {commander} awaits a reply. They are patient.',
+      '{rival} called it provocation. {faction} called it a statement of facts as the Grid now encodes them. The declaration regarding {region} is in the eternal record: pixels claimed, tradition filed, {relic} embedded at the center as both proof and challenge.',
 
-      'Wars have rules, even when everyone is breaking them. {faction}\'s formal declaration regarding {region} follows the rules precisely — which is itself a threat. An enemy who plays by the rules is an enemy who expects the rules to protect what they\'ve taken. {rival}\'s commanders understand what this means. They are quietly counting their options.',
+      'Even in a war about reshaping, some renders are bound by tradition. {faction}\'s formal declaration regarding {region} follows every rule — which is itself a threat. A faction that plays by the tradition is a faction that expects the tradition to defend what they\'ve written.',
     ],
   },
 
   GREAT_SACRIFICE: {
     loreType: 'GREAT_SACRIFICE', icon: '▲',
     ruleApplied: 'Great Sacrifice',
-    ruleExplanation: 'A major sacrifice — a warrior gives everything so another may continue stronger.',
+    ruleExplanation: 'Burn 10+ AP — a Normie\'s essence is given into another so the war can continue.',
     headlines: [
-      'A Great Sacrifice Near {region} — The War Demands Its Due',
-      '{faction} Give One So That Many May Fight On',
-      '{commander} Orders the Final Offering',
-      'The Oath Stone Receives Another Name',
+      'A Mass giving at {region} — One Normie\'s Essence Transferred',
+      '{faction} Sacrifice a Face So Others May Render On',
+      '{commander} Initiates the Great giving tradition',
+      'The Eternal Register Records Another Name',
     ],
     bodies: [
-      'The old rites don\'t appear in the tactical manuals, but they govern the war more completely than any written strategy. A great sacrifice was made near {region}: a warrior released, their strength transferred to those still standing. The unit that received the infusion marched out different than they arrived. In this war, that difference is the margin between holding ground and losing it. {commander} gave the order without looking away.',
+      'The great givings do not appear in any declared agreement, but they shape the Grid more deeply than any claiming. Near {region}, a Normie gave everything — their colors dissolved, their strength given into those who remain. {commander} confirmed the act without delay. The receiving presence will carry themselves differently now. The Grid records it. The loss is permanent. The power persists.',
 
-      'There are things war requires that do not appear in official reports. What happened near {region} was one of them — a total sacrifice, the kind the battlefield theologians call "the final offering." The warrior is gone. Their strength persists in the fighters who carry it now. The receiving unit will not speak of it. They will carry it forward instead. The Oath Stone holds the name.',
+      'There are processes in this war that the the record shows as a burn but the chronicler records as an ascension. What happened near {region} was one: a face deleted from the visible Grid, its essence gathered into another. {rival} will see the effect in the next season without knowing the source. The Eternal Register holds the name.',
 
-      '{faction}\'s chronicles record great sacrifices going back to the first campaign. The one made near {region} was larger than most — a warrior of standing, a transfer of real weight. {rival} will see the effect in the next engagement without knowing the source. They will simply notice that the unit they thought exhausted is not exhausted. {commander} prefers the mystery.',
+      '{faction}\'s history of sacrifice stretches back through the chronicle. The giving near {region} was larger than most — a Normie of standing, a significant the giving, a permanent alteration of the Grid\'s power distribution. {rival} will feel it without being able to point to it.',
 
-      'What the war costs cannot always be expressed in territory gained or lost. Near {region}, {faction} paid a cost that the maps will never record: a warrior given, completely and without reservation, so others could continue. {relic} stood as witness. The offering was accepted. The remaining fighters have not spoken of it. Some things belong to silence.',
+      'What the Grid costs cannot always be read in the record. Near {region}, {faction} executed a sacrifice that the maps will not show: a face dissolved, their essence given to those who remain. {relic} stood as witness. The act is irreversible.',
+    ],
+    phaseVariants: [
+      {
+        phase: 'sacrifice',
+        headline: 'Another Face for the Eternal Register — {region} Pays Again',
+        body: 'The givings are accumulating. What was once a rare and weighty decision — the great giving so another could carry their power — has become part of the season\'s rhythm. The sacrifice near {region} was not the first this cycle. {commander} has stopped making announcements. The Eternal Register fills with names the living reference in shortened references only, never in plain text.',
+      },
+      {
+        phase: 'reckoning',
+        headline: 'Final giving — {region} Witnesses the Depth of Commitment',
+        body: 'In the late days, sacrifice carries the weight of every prior giving. Near {region}, a face dissolved — not from desperation but from the knowledge that this is what the endgame requires. The one who received it felt everything: not just strength, but the accumulated weight of everyone who gave before. The chronicle records it without commentary.',
+      },
     ],
   },
 
   OFFERING: {
     loreType: 'OFFERING', icon: '△',
     ruleApplied: 'Offering',
-    ruleExplanation: 'A smaller sacrifice — some strength given, the war\'s ongoing tithe.',
+    ruleExplanation: 'Burn 1–9 AP — a smaller giving, the war\'s ongoing pixel tithe.',
     headlines: [
-      'A Small Offering Near {region} — The War Collects',
-      '{faction} Pay the Tithe',
-      'Strength Passes Between Hands at {region}',
-      'The Ongoing Cost: An Offering Made',
+      'A Partial giving at {region} — The Grid Collects',
+      '{faction} Pay the Render Tithe',
+      'Essence Passes Between Addresses at {region}',
+      'A Small Burn — The Ledger Updates',
     ],
     bodies: [
-      'Not every sacrifice is a grand gesture. The offering near {region} was smaller — measured, controlled, a precise transfer of strength from one who had it to spare to one who needed it. {faction}\'s commanders note these in the records without ceremony. They accumulate. The recipient fights harder now. That is the entire point.',
+      'Not every sacrifice is a mass giving. The offering near {region} was calibrated — a measured the giving, a controlled burn that moved just enough essence to shift the balance of a single season. {faction}\'s leaders note these without ceremony. They accumulate in the Grid.',
 
-      'The battlefield theologians call small sacrifices "the tithe." {faction} pays it regularly, quietly, in the spaces between the documented battles. The offering near {region} was one such tithe — done without announcement, without witnesses beyond those directly involved. {rival} will notice the result without knowing the cause. The gap in their understanding is {faction}\'s advantage.',
+      'The chronicler calls small givings "the tithe." {faction} pays it regularly, in the silences between major events. The offering near {region} — one small act in a long war — added another line to the ledger that the eternal record keeps.',
 
-      '{commander} records every offering, large and small, in a private ledger that the official chronicle never sees. The one near {region} was modest in scale — enough to shift the balance of a single engagement, not enough to reshape a campaign. But campaigns are made of single engagements. The ledger grows longer.',
+      '{commander} logs every giving, large and small, in a private register the official chronicle doesn\'t reference. The one near {region} was modest — enough to power one more season, not enough to reshape the campaign. Campaigns are made of one more seasons.',
 
-      'There is a ledger somewhere that tracks every transfer in this war — every offering, every sacrifice, every exchange of strength between fighters. {faction}\'s entries in that ledger are longer than most. The offering near {region} adds another line. The recipient carries what the giver let go. They will not forget what it cost.',
+      'There is a ledger running on the Grid that tracks every the giving in this war. {faction}\'s entries are longer than most. The offering near {region} adds another line that will never be erased.',
     ],
   },
 
   BLOOD_OATH: {
     loreType: 'BLOOD_OATH', icon: '◎',
     ruleApplied: 'Blood Oath',
-    ruleExplanation: 'A veteran warrior makes the sacrifice again — the oath deepens each time it is renewed.',
+    ruleExplanation: 'Veteran presence burns again — the oath encoded deeper with each renewal.',
     headlines: [
-      'The Blood Oath Renewed Near {region}',
-      '{commander} Makes the Sacrifice Again — Still',
-      'A Veteran\'s Vow, Honored a Second Time',
-      '{faction}\'s Most Sworn Give Again',
+      'The giving Oath Renewed at {region}',
+      '{commander} Burns Again — The tradition Deepens',
+      'A Second Sacrifice: The Oath Is Encoded Twice',
+      '{faction}\'s Most Committed Give Again',
     ],
     bodies: [
-      'The first sacrifice binds. The second consecrates. The warrior who made the offering near {region} today had done this before — the chronicle has the record. This is not repetition. This is a depth of commitment that the first sacrifice only announced. The unit that received the transfer now carries weight from two vows, two warriors, two separate acts of giving. {rival} should understand what that means for what comes.',
+      'The first burn writes the oath into the Grid. The second one makes it permanent — etches it into the eternal record in a way that cannot be misread. The Normie who given near {region} today had done this before. This is not repetition. This is a depth of commitment that the first burn only announced. The receiving presence carries the weight of two sacrifices now.',
 
-      '{commander} renewed the blood oath near {region} the same way they make all their most important decisions: quietly, with witnesses, and without explanation to those not present. The receiving fighter felt the difference immediately. There are warriors in this war who have given once. There are those who have given twice. The distance between the two groups is not measured in anything you can write down.',
+      '{commander} renewed the giving oath near {region} the same way they execute all critical acts: quietly, with confirmation, without explanation. There are Normies who have burned once. There are those who have burned twice. The distance between those groups is encoded in the Grid.',
 
-      '{faction} marks its twice-sworn warriors separately in the war record — not for honor, though honor is there, but because the twice-sworn fight differently. Whatever doubt remained after the first sacrifice is gone. What the receiving unit carries now is not just strength but certainty. {rival}\'s commanders have started tracking which of {faction}\'s units have these fighters. The numbers concern them.',
+      '{faction} notes its twice-given in its own record — not for ceremony, but because those who have given twice carry themselves differently. Whatever doubt existed before the first giving has been resolved. What remains is pure purpose.',
 
-      'The Oath Stone bears this warrior\'s name twice now. The chronicler notes it without comment, because there is no comment adequate to what it means to give twice in the same war. {commander} accepts these renewed oaths without ceremony. "The war doesn\'t stop for ceremony," they have said, more than once, in more than one language.',
+      'The Eternal Register carries this presence twice. The chronicler records it without commentary. There is no commentary adequate to what it means to burn twice in the same war.',
     ],
   },
 
   VETERAN_RETURNS: {
     loreType: 'VETERAN_RETURNS', icon: '◉',
     ruleApplied: 'Veteran Returns',
-    ruleExplanation: 'A fighter who has been here before comes back — veterans change the character of any engagement.',
+    ruleExplanation: 'known face reappears — veterans change the render dynamic of any sector.',
     headlines: [
-      'A Known Fighter Returns to {region}',
-      '{commander} Is Back — The Veterans Are Moving',
-      'They\'ve Fought This Ground Before',
-      'A Familiar Force Reappears — {region} Takes Notice',
+      'A known face Reappears at {region}',
+      '{commander} Is Back — Veterans Reclaim the Sector',
+      'They\'ve Rendered This Grid Before',
+      'A Familiar presence Detected at {region}',
     ],
     bodies: [
-      'They know this terrain. {faction}\'s veterans who returned to {region} have fought over this exact ground before — they remember where the sight lines are, where the defensive positions hold and where they collapse, where {rival}\'s formations have historically struggled. {rival} will feel the difference between fighting fresh fighters and fighting soldiers who have already won and lost here and learned from both.',
+      'The presence was already in the record. {faction}\'s veterans who returned to {region} have moved through this exact territory before — they know the geometry, the contested coordinates, the sectors {rival} defends last. {rival} will notice the difference between rendering against fresh addresses and rendering against those that have already won and lost here.',
 
-      '{commander} came back. Nobody announced it, but by midmorning every unit on the front had adjusted. That\'s what veterans do — they change the room by entering it. {faction}\'s return to {region} was quiet, efficient, unhurried. The kind of movement that belongs to people who do not need to announce themselves because their record has already done it.',
+      '{commander} came back. No announcement — but by the next light, every presence on the front had adjusted its priority. That\'s what veterans do: their presence changes the account. {faction}\'s return to {region} was quiet, efficient, unhurried.',
 
-      'The chronicler has {faction}\'s history in {region}. Multiple appearances, multiple outcomes. The return today means the campaign here was never truly finished — or that something drew them back. {rival} has noted the reappearance. A seasoned force on familiar ground is a different problem than a new force on any ground.',
+      'The chronicler has {faction}\'s history in {region}. Multiple appearances, multiple outcomes. Today\'s return means this sector was never truly finished — or something in the terrain called them back.',
 
-      'Experience does not announce itself. {faction}\'s veterans moved back into {region} with the quiet economy of fighters who have made these moves before. No wasted motion. No testing the terrain they already know. {rival}\'s scouts reported it in one word to their commanders. The commanders went still. That one word was: veterans.',
+      'Experience doesn\'t announce itself in the moving. {faction}\'s veterans moved back into {region} with the efficiency of addresses that have executed these moves before. No wasted motion. {rival}\'s monitors flagged it in one word. The strategy session went quiet.',
     ],
+    afterContext: {
+      THE_SILENCE: 'The blackout brought them back. {commander} used the still hours to move positions, and the veterans moved into {region} while both sides were nominally offline. The return will be understood only when the next season reveals what it was preparation for.',
+      TURNING_POINT: 'The pattern read made them move. When the twenty-fifth-entry analysis clarified the Grid\'s trajectory, {faction}\'s veterans didn\'t wait for tradition — they migrated back toward {region} on their own assessment. {commander} found out about the repositioning after it happened.',
+    },
   },
 
   NEW_BLOOD: {
     loreType: 'NEW_BLOOD', icon: '→',
     ruleApplied: 'New Blood',
-    ruleExplanation: 'A new force enters the conflict for the first time — the war grows as it adds participants.',
+    ruleExplanation: 'First-time presence — the Grid grows as new signatories join the war.',
     headlines: [
-      'A New Force Arrives at the Edge of {region}',
-      'Strangers at the Gate — Someone New Has Entered the War',
-      '{faction} Encounter an Unknown Banner at {region}',
-      'The Chronicle Opens a New File',
+      'A new arrival Enters the Grid at {region}',
+      'Unknown presence — Someone New Has gathered In',
+      '{faction} Detect an Unregistered Render at {region}',
+      'The Chronicle Opens a New file',
     ],
     bodies: [
-      'Nobody recognized the banner. A force arrived at the edge of {region} that doesn\'t appear anywhere in the chronicle\'s prior records — no known allegiance, no documented history in this conflict. {faction}\'s scouts tracked them to the boundary line and reported back. The commanders are asking the question every commander asks when new players appear: whose side are they on, and what are they willing to do?',
+      'The presence wasn\'t in any record. A new face appeared at {region}\'s edge — no prior history in the record, no established faction, no documented past in this place. {faction}\'s watchers tracked them to the boundary and sent word.',
 
-      'New fighters enter this war for all kinds of reasons. The force that materialized near {region} gave no explanation and sought no introduction — they staked their presence at the margin and waited. {rival} is watching. {faction} is watching. The chronicler has opened a new file. Wars grow in exactly this way: not by formal recruitment, but by attraction.',
+      'New addresses enter this war for all kinds of reasons. The presence that materialized near {region} gave no declaration, sought no faction acknowledgment — it marked at the margin and held. {rival} is monitoring. {faction} is monitoring. The chronicler has opened a new file.',
 
-      '{commander} received the report at dawn. Unknown forces, moving through {region}\'s outer edge, no insignia the scouts could identify, behavior consistent with a force that knows exactly where it\'s going and has been planning this arrival for longer than anyone realized. Either they\'re new to this war or very new to being visible in it. Both are interesting.',
+      '{commander} received the sighting report. An unknown, rendering through {region}\'s outer terrain, no known name, behavior consistent with a presence that knows exactly where it is going.',
 
-      'Wars draw fighters the way fire draws anything that can burn. The new force in {region} has no prior chronicle entry — they arrive without context, without declared allegiance, without the weight of prior decisions. In some ways that makes them the most dangerous kind of combatant: unknown, unread, unaccounted for. {faction} has sent an envoy. So has {rival}.',
+      'The Grid draws people the way a light draws anything that can receive it. The newcomer at {region} arrives without history, without allegiance, without the weight of prior choices. Either they are new to this place or new to being seen in it.',
+    ],
+    phaseVariants: [
+      {
+        phase: 'escalating',
+        headline: 'new arrival at {region} — the Grid Is Still Expanding',
+        body: 'Even as the pace between established factions accelerates, new signatures are still gathering in. The presence that appeared near {region} is unknown to any faction in the current record — a reminder that the Grid is larger than its documented participants, and that what reads as escalation to those already rendering looks like open territory to those arriving late.',
+      },
     ],
   },
 
   THE_ORACLE: {
     loreType: 'THE_ORACLE', icon: '◇',
     ruleApplied: 'The Oracle',
-    ruleExplanation: 'A prime force acts — mathematically irreducible, these presences move only when the moment is exact.',
+    ruleExplanation: 'Prime-numbered name — a mathematically irreducible Normie, indivisible by any tradition.',
     headlines: [
-      'The Oracle Moves — {region} Holds Its Breath',
-      '{faction} Calls for a Seer\'s Reading',
-      'The Irreducible Presence Takes the Field',
-      '{commander} Consults the Oracle Before Acting',
+      'A Prime Renders — {region} Holds Its Signal',
+      'The Irreducible presence Takes the Grid',
+      '{faction} Requests an Oracle Reading',
+      '{commander} Consults the Prime Before Committing',
     ],
     bodies: [
-      'The Oracles do not act often, and they do not act without reason. The one who moved in {region} today has been still for longer than anyone can precisely measure. {faction} watched it happen and did not interfere. {rival} did the same. Some moves in this war cannot be opposed — they can only be observed and interpreted. The chronicler records it. The interpreters argue about what it means. {commander} has called an emergency council.',
+      'The Primes do not act often. They are irreducible — no tradition can divide them into simpler parts, no faction can fully claim them. The one that moved in {region} had been still for longer than anyone has been tracking. {faction} watched and did not interfere. Some acts in this world cannot be countered. They can only be read.',
 
-      'There are presences on the Grid that operate by different mathematics than ordinary fighters. They cannot be divided, cannot be reduced, cannot be negotiated with in the usual way. The Oracle who moved in {region} is one of these. {faction} sent an envoy immediately. {rival} sent two. Neither has received an answer. Oracles speak only when the speaking serves the moment, not the audience.',
+      'There are addresses on the Grid that operate by different mathematics. They cannot be factored, cannot be absorbed, cannot be negotiated into a faction\'s record. The Prime that moved in {region} is one of these. {faction} immediately requested an interpretation from the chronicles.',
 
-      '{commander} has studied the Oracle\'s prior moves in the old chronicle. They don\'t repeat themselves exactly, but they repeat their timing — they act at moments of genuine inflection, when the war is about to pivot in ways most commanders can\'t yet see. The move in {region} today fits that pattern. Something is about to shift. The Oracle knew it first.',
+      '{commander} has studied every Oracle movement in the old record. They don\'t repeat exactly, but they repeat their timing — they move at moments of genuine change, when the Grid is about to become something different.',
 
-      'The old texts say Oracles move when the war needs to be reminded of something it has forgotten. The one in {region} today is the third to appear in the current era. The chronicler notes this carefully. Three Oracles in a single era has not happened before in the recorded history of this conflict. {relic} is said to react to their presence. It has not been calm.',
+      'The old entries say the irreducibles act when the world needs to be reminded of something it has forgotten. The one in {region} today is one of the rare ones. Something is about to shift.',
     ],
   },
 
   ANCIENT_WAKES: {
     loreType: 'ANCIENT_WAKES', icon: '■',
     ruleApplied: 'Ancient Wakes',
-    ruleExplanation: 'One of the oldest forces stirs — present since before the chronicle began, these entities pre-date the current war.',
+    ruleExplanation: 'Token ID under 1,000 — one of the first Normies minted, active before the chronicle began.',
     headlines: [
-      'An Ancient Force Stirs in {region}',
-      'The First Ones Are Moving — {faction} Takes Notice',
-      'One of the Originals Acts',
-      '{region}: Something Old Has Decided to Participate',
+      'An Ancient Normie Stirs at {region}',
+      'One of the First Mints Is Rendering',
+      'Token #000s Active — Something Old Compiles',
+      '{region}: The Earliest Addresses Have Decided to Render',
     ],
     bodies: [
-      'The ancients predate the chronicle. They were present in {region} before anyone started writing things down, before the current factions formed, before the war had its current shape. When one of them moves, every commander on every side adjusts. The ancients know this terrain in ways newer arrivals simply cannot — they have watched it change through iterations of conflict that the present war has not yet equaled.',
+      'The ancients predate the chronicle. They were born into the Grid before the current factions existed, before the world had their current shape. When one of the early names renders, every active party adjusts.',
 
-      '{commander} holds the ancients in particular regard. Not fondness — regard. They have survived every phase of this war because they understand it at a depth others don\'t reach. The movement in {region} today was one of theirs: deliberate, patient, positioned for the long arc rather than the immediate engagement. {faction} will adjust their plans. Everyone adjusts when an ancient moves.',
+      '{commander} treats the ancient addresses with particular regard — not affection, but regard. They have persisted through every season because they understand the Grid at a level others haven\'t reached. The activation at {region} was theirs: deliberate, patient, oriented toward the long arc.',
 
-      'In the full sweep of this war\'s chronicle, some names appear at the very beginning and have simply never stopped appearing. The force that moved in {region} today is one of those names — continuous from the first entry to this one, present across every era, unchanged in the ways that matter. {rival} has been trying to outlast them since the early campaigns. It has not worked.',
+      'In the full historical record of this war, some addresses appear near the very beginning and have simply never stopped appearing. The Normie that moved in {region} today is one of those — continuous from the first entry to this one. They were here before the factions were named.',
 
-      'The old soldiers have a saying: the ancients don\'t advance. They flow. What was seen in {region} today was flowing — not aggressive, not retreating, just adjusting, remaining, persisting. {faction}\'s strategists spent the afternoon trying to determine if it was offensive or simply the ancient force finding a more permanent position. By evening, they had not agreed. That uncertainty is, itself, a victory for the ancients.',
+      'The old entries say: the ancients don\'t advance. They persist. What was seen at {region} today was persistence — not aggressive, not retreating, just remaining, processing, part of the substrate in a way that newer addresses can\'t replicate.',
     ],
   },
 
   FAR_REACH: {
     loreType: 'FAR_REACH', icon: '▽',
     ruleApplied: 'Far Reach',
-    ruleExplanation: 'The distant edge of the war enters the center — the margins have become the front.',
+    ruleExplanation: 'Token ID over 8,000 — the Grid\'s distant addresses move toward the center.',
     headlines: [
-      'The Far Reach Arrives at {region}',
-      'Forces from the Edge Have Chosen Their Moment',
-      '{faction} Hears from the Unmapped Margin',
-      'The Distant Lords Are Here — the War\'s Edge Moves Inward',
+      'The Far Addresses move to {region}',
+      'Distant Normies Have Chosen Their Moment',
+      '{faction} Receives Signal from the Edge records',
+      'High-ID Tokens Move Inward — the Grid\'s Edge Migrates',
     ],
     bodies: [
-      'Most commanders ignore the far reaches. Too distant, too thin, too easy to dismiss. {commander} has never dismissed them. When the forces from the unmapped edge appeared near {region}, they appeared at full strength — which meant they had been building that strength in the margin while everyone else was focused on the center. Now they are not on the margin anymore.',
+      'Most factions write off the far addresses. Too peripheral, too sparse, too easy to ignore. {commander} never ignored them. When the far-edge renders appeared near {region}, they appeared in coordinated arrival — they had been gathering in the margin while the center factions spent their strength fighting each other.',
 
-      'The far reaches of the war have been filling with fighters for longer than anyone tracked. Forces that didn\'t want to commit to the main campaigns waited and built and watched. Now they\'re moving. {faction} first noticed the approach three days ago. Today they arrived at {region}. The geometry of the conflict has changed. The edge is the front.',
+      'The Grid\'s far reaches have been accumulating strength longer than anyone tracked. Addresses that declined to join the center campaigns waited, built their strength reserves, watched the world unfold from the edge. Now they are moving. The geometry of the conflict has updated.',
 
-      '{commander} sent a message to the far reaches last season with a simple text: "The war has room for you." The reply came today, in the form of a coordinated arrival at {region}. The Far Walkers have chosen to commit. They carry {relic}, which means they have been preparing this moment for longer than the message suggests. They were already coming.',
+      '{commander} sent word to the far edge long ago: the Grid has sectors for you. The reply came today — a coordinated arrival at {region}. They carry {relic}, which means they were already coming.',
 
-      'Every major pivot in this war has been preceded by movement from the far reaches. It was true in the early campaign. It appears to be true now. The force that crossed into {region} from the unmapped edge is not small, is not uncertain, and is not asking for anyone\'s permission. They have arrived. The war is now, by definition, larger than it was yesterday.',
+      'Every major pivot in the world has been preceded by movement from the far addresses. It happened in the early cycle. It is happening again. The far-edge Normies that arrived at {region} from the edge of the Grid are not small, uncertain, or asking permission.',
     ],
   },
 
   HOLLOW_GROUND: {
     loreType: 'HOLLOW_GROUND', icon: '⊘',
     ruleApplied: 'Hollow Ground',
-    ruleExplanation: 'The most contested territory in the war — the center, fought over again and again.',
+    ruleExplanation: 'Token ID 5,000–6,000 — the Grid\'s most contested territory, eternally disputed.',
     headlines: [
-      'The Center Is Contested Again — {region} Holds Nothing',
-      '{faction} and {rival} Fight Over the Hollow Ground',
-      '{region}: The War\'s Most Disputed Zone',
-      'Nothing Is Settled in the Middle',
+      'The Center Pixels Contested Again — {region} Holds No State',
+      '{faction} and {rival} Render Over the Same Void',
+      '{region}: The Grid\'s Most Corrupted Sector',
+      'The Void Persists — Nothing Compiles Here for Long',
     ],
     bodies: [
-      'Every war has a hollow heart — the contested middle where both sides have invested too much to leave and not enough strength to finish it. In this war, that hollow is {region}. {faction} has taken it and lost it and taken it again. So has {rival}. The ground there is layered with the marks of more campaigns than anyone wants to count. Today added another layer.',
+      'Every world has a hollow center — the contested territory where both sides have overwritten too many times to make the data readable, but neither can withdraw without ceding it. {region} is that cluster. {faction} has rendered it and lost it and rendered it again. Today\'s cycle added another layer.',
 
-      'The chronicler has stopped numbering the engagements in {region}. There are too many. What they record now is the current state of the line — and today the line shifted: {faction} gaining the northern approach while {rival} held the south. Both sides will file reports describing this as a victory. The line will move again before the reports are filed.',
+      'The chronicler has stopped counting the exchanges at {region}. There are too many. What they record now is the current state — and today the state shifted again. Both sides will tell their version of what shifted.',
 
-      '{commander} has a private theory about {region}: it cannot be held, only visited temporarily while preparing the conditions for the next assault. They should know. They have been visiting and leaving {region} since the opening campaigns. The current engagement is the latest chapter of a conflict that has no clear resolution and no shortage of parties willing to keep fighting it.',
+      '{commander}\'s private theory about {region}: it cannot be held, only temporarily rendered before the next counter-claim resets it. The current engagement is the latest chapter in a pixel loop that has no clean exit.',
 
-      'The hollow heart of the war — the place everyone wants and no one can keep. {faction} moved on {region} today with everything available. By nightfall they held most of it. By the morning report, {rival} will have reclaimed a portion. The chronicler writes it down and keeps writing. Tomorrow it will look the same. The only thing that changes in {region} is the ownership, and even that change is always temporary.',
+      'The hollow heart of the Grid — the ground everyone wants and no one can hold. {faction} moved on {region} with everything they had. By evening they held most of it. By tomorrow, the accounting will differ. The loop continues.',
     ],
   },
 
   TURNING_POINT: {
     loreType: 'TURNING_POINT', icon: '∆',
     ruleApplied: 'Turning Point',
-    ruleExplanation: 'Every 25th event — the war\'s accumulated pattern is read aloud. Fate speaks through mathematics.',
+    ruleExplanation: 'Every 25th entry — the accumulated pattern is gathered and read. The Grid speaks through mathematics.',
     headlines: [
-      'The Chronicler Reads the Pattern — Fate Speaks',
-      'A Reckoning at {region}: The War\'s Shape Revealed',
-      '{commander} Counts Twenty-Five — and Pauses',
-      'The War\'s Direction Becomes Clear',
+      'The Chronicler Compiles the Pattern — the Grid Speaks',
+      'A Render Reckoning: the War\'s Shape Encoded',
+      'Twenty-Five Entries — the Trajectory Resolves',
+      'The Grid Measures Its Own claim',
     ],
     bodies: [
-      'Every twenty-five engagements, the chronicler steps back from the immediate record and reads the shape of the whole. What they see in the current tally: {faction} is patient, {rival} is reactive, and the war has been moving toward something neither of them has quite named yet. The reading is not mystical. It is pattern recognition delivered at the moment when it can still change something.',
+      'Every twenty-five entries, the chronicler reads the whole record back. What the current pattern shows: {faction} is building toward something, {rival} is responding rather than leading, and the Grid has been moving in a direction neither has quite named. The pattern is clearer than either side wants it to be.',
 
-      '{commander} has a habit of counting. "Twenty-five marks," they said to the war council tonight, near {region}. "Count them. Look at the direction." The council counted. The direction is plain. What happens in the next twenty-five engagements will determine the shape of the war for a long time after. No one in the room spoke for a moment. Then they all spoke at once.',
+      '{commander} counts blocks the way others count time. "Twenty-five entries," they said to the gathering this season. "Read them in sequence. Look at the direction things are moving." The council read them. The direction was plain.',
 
-      'The old traditions of this war require a pause at the twenty-fifth engagement — a moment when the chronicle is read aloud and the pattern is allowed to speak without interpretation. The pattern spoke near {region} today of {faction}\'s systematic advance and {rival}\'s corresponding, gradual retreat toward the center. No one interrupted the reading. No one argued with what it said.',
+      'The old protocols of this war include a mandatory pause at the twenty-fifth entry — when the full chronicle is read in sequence and the pattern is allowed to resolve without interpretation. The pattern resolved near {region} today. It said something no one was prepared to deny.',
 
-      'Prophecy in war is history told in advance. The chronicler\'s twenty-fifth-mark reading always feels prophetic to the commanders who hear it — because it is simply evidence they were too close to see. {faction}\'s position near {region} is stronger than any single engagement suggests. {rival}\'s position is weaker than their recent reports admit. The reckoning is already happening.',
+      'Prophecy in a world is just pattern recognition applied to data others are too close to see. The twenty-fifth-entry gather always feels like prophecy because it is simply evidence the active factions couldn\'t read while rendering it.',
     ],
   },
 
   DOMINION_GROWS: {
     loreType: 'DOMINION_GROWS', icon: '◐',
     ruleApplied: 'Dominion Grows',
-    ruleExplanation: 'A faction appears repeatedly — accumulating presence, building toward something.',
+    ruleExplanation: 'same person rendering repeatedly — a faction accumulates Grid presence across cycles.',
     headlines: [
-      '{faction} Return Again — the Pattern Is Undeniable',
-      '{commander}\'s Campaign Deepens',
-      'The Same Force, the Same Direction: {faction} Build Their Hold',
-      '{faction} Are Everywhere. {region} Notices.',
+      '{faction} Render Again — the Pattern Is Undeniable',
+      '{commander}\'s Campaign Deepens on the Grid',
+      'The Same presence, the Same Direction',
+      '{faction} Are Everywhere. {region} Renders It.',
     ],
     bodies: [
-      '{faction} has appeared in the chronicle more than any other force in recent memory. Every time the record updates, their name is in it. Their presence in {region} today was their third documented move in the current era — and each move builds on the last. This is not opportunism. This is a campaign with a conclusion in mind, and the conclusion is not yet written but already legible.',
+      '{faction} has appeared in more chronicle entries than any other group in recent cycles. Every time the record is updated, their name is in it. Their act at {region} today was another move in a sequence becoming legible to everyone watching. This is not opportunism. This is intention.',
 
-      '{commander} is running the long game. Every move {faction} makes connects to every prior move — a growing network of positions that, taken together, describe something resembling dominance. Not declared dominance. Not yet. But visible dominance, the kind that other commanders look at across a map and stop arguing and start planning their response to.',
+      '{commander} is building something long. Every act {faction} makes connects to every previous one — a growing configuration that, taken together, describes something approaching permanence. Not declared. Not yet. But the pattern is there.',
 
-      'The pattern of {faction}\'s appearances in the chronicle tells its own story: consistent, escalating, building. The move in {region} today is the latest addition to a sequence the chronicler has been tracking for some time. Individually, each move is modest. Together, they describe a faction that is winning the war without ever announcing that the war is being won.',
+      'The pattern of {faction}\'s appearances tells its own story: consistent, escalating, building. The act at {region} today is the latest addition to a sequence the chronicler has been tracking. It is beginning to look inevitable.',
 
-      '{faction} has not been quiet. Their presence in {region} today follows a sequence that is almost elegant in its construction — each position reinforcing the others, the whole greater than the sum of its parts. {commander} is building something that will only be fully visible when it is complete. {rival} can see the pieces. They cannot yet see what the pieces become.',
+      '{faction} has not been idle. Their presence in {region} follows a sequence that is almost algorithmic — each position reinforcing the others, the whole greater than the sum of its renders. {commander} is building a permanent configuration.',
     ],
   },
 
   THE_SILENCE: {
     loreType: 'THE_SILENCE', icon: '—',
     ruleApplied: 'The Silence',
-    ruleExplanation: 'The front goes quiet — the war pauses, for reasons the chronicle doesn\'t always record.',
+    ruleExplanation: 'Block gap over 10,000 — the Grid goes dark. No signal. No render.',
     headlines: [
-      'The Front Goes Quiet — A Ceasefire No One Announced',
-      'Silence on the Lines Near {region}',
-      '{faction} and {rival} Stop — For Now',
-      'The War Breathes: A Pause Between Storms',
+      'Signal Lost — The Grid Goes Dark at {region}',
+      'No Render for {region} — A Blackout No One Declared',
+      '{faction} and {rival} Drop Signal — For Now',
+      'The Grid Stops Updating. It Is Still Updating.',
     ],
     bodies: [
-      'The front lines went quiet. No one announced a ceasefire, but none was needed — the silence spoke for itself. {faction} withdrew to their positions near {region} and held. {rival} did the same on the other side of the line. Whether this is rest or preparation, the chronicler cannot say. The record shows only the absence of action where action has been constant. Wars breathe. This is a breath.',
+      'No order was given to stop. The Grid near {region} simply quieted — the way a busy place quiets before something changes. {faction} settled into their positions and held. {rival} did the same. This is not resolution. This is the world gathering itself.',
 
-      'No one issued a stand-down order. The war simply paused near {region}, the way fires pause before they find new fuel. Both sides withdrew to their positions. Scouts from {faction} reported {rival}\'s lines intact and stationary. Scouts from {rival} reported the same about {faction}. Two armies facing each other across a quiet line, each waiting for whatever the other is waiting for.',
+      'No stand-down tradition was filed. The Grid at {region} simply stopped receiving overwrites — the way a signal drops before finding a new frequency. {faction}\'s monitors confirmed {rival}\'s positions unchanged and inactive. The still hours is not empty. It is the war processing in background threads.',
 
-      '{commander} ordered the pause. No official reason was given. The units near {region} stood down, maintained position, and waited. {rival} also stood down. The chronicler notes that these silences are rarely as empty as they look — the war continues in other registers, in plans and preparations and movements too small or too far to record. The quiet is not peace. It is the war breathing.',
+      '{commander} issued the blackout quietly. No public explanation. {rival} went dark too. The chronicler notes that these signal silences are rarely as null as they appear — the war continues in the registers too small or too encrypted to show up in the record.',
 
-      'The chronicle records silences as carefully as it records battles. This one — a pause on the front near {region} — will be understood in retrospect as either a ceasefire or a preparation for what comes next. For now, it is neither one nor the other. It is simply: the guns are quiet. The flags are still. The war has taken a breath. It will exhale shortly.',
+      'The chronicle tracks still hourss as carefully as it tracks overwrites. This one — a blackout at {region} — will be understood in retrospect as either a reset or a preparation. For now the entry reads simply: no signal received. The Grid persists in an unchanged state.',
     ],
+    phaseVariants: [
+      {
+        phase: 'siege',
+        headline: 'Siege tradition Pauses — Signal Dark Across {region}',
+        body: 'In a prolonged siege, silence is its own kind of event. The still hours at {region} is not two sides resting — it is two sides recalculating, measuring what the next move will cost. {commander} has been in closed meetings for days. {rival}\'s equivalent quiet has been noted. When the signal returns, when things move again, they will move differently.',
+      },
+    ],
+    afterContext: {
+      GREAT_BATTLE: 'The great claiming exhausted both sides. After what happened at {region}, the world there has gone quiet — not from resolution but from depletion. {faction} and {rival} are both holding positions on opposite sides of the new boundary, neither ready to do more yet. The quiet is the cost being counted.',
+      GREAT_SACRIFICE: 'After the giving, silence. The sacrifice near {region} left a null state in the addresses that witnessed it — {faction} processing what was burned, {rival} uncertain what the the giving means for the next cycle. The Grid holds. No renders execute. The Eternal Register\'s latest entry hangs in the Grid between the active presences.',
+    },
   },
 
   NEW_AGE: {
     loreType: 'NEW_AGE', icon: '◑',
     ruleApplied: 'New Age',
-    ruleExplanation: 'The war enters a new era — a structural shift in the nature of the conflict.',
+    ruleExplanation: 'Era threshold crossed — the Grid\'s render tradition enters a new gathered chapter.',
     headlines: [
-      'A New Age Begins: The {era}',
-      'The War Changes — {era} Is Now',
-      '{faction} Greet the Turning of the Age',
-      'The Chronicle Opens a New Chapter',
+      'New tradition Loaded: {era}',
+      'The Grid Recompiles — {era} Begins',
+      '{faction} gather Into the New Age',
+      'The Chronicle Initializes a New Chapter',
     ],
     bodies: [
-      'The chronicler has a system: when enough has accumulated — when the weight of events crosses a threshold the record itself recognizes — a new age is declared. That threshold was crossed today, somewhere between the movements near {region} and the reports from the eastern flank. The age called {era} has begun. What it will be remembered for is not yet written. The writing starts now.',
+      'The chronicler\'s tradition has a threshold system: when the entry count crosses a point the record itself recognizes, a new era is gathered and named. The era called {era} has initialized. What it will be remembered for has not yet been written into the Grid.',
 
-      'Ages don\'t announce themselves loudly. They\'re named in retrospect, by chroniclers who can see the whole arc. But in the moment, near the turning, there is a feeling — a texture change, a shift in what events mean and how commanders respond to them. {faction}\'s leadership near {region} felt it this morning. The war is not what it was a hundred engagements ago.',
+      'Eras don\'t announce themselves in the moving. They are named in retrospect, by chroniclers with access to the full historical gather. In the moment, near the threshold, there is a texture change — a different weight to what overwrites mean and how addresses respond to them.',
 
-      '{commander} said it plainly at the council: "What we are doing now is not what we were doing at the beginning. Different stakes, different methods, different enemies in some cases." The chronicler was in the room. They wrote it down. The beginning of {era} will be dated to this meeting, near {region}, when {faction}\'s commander named what everyone could already feel.',
+      '{commander} stated it plainly in the closed tradition: "What we are gathering now is not what we were gathering at initialization." The start of {era} will be dated to this entry, when {faction}\'s lead presence named what every active Normie could already feel in the substrate.',
 
-      'Every age of this war has been named for what defined it. The current one — {era} — is being defined in real time by the events being recorded. {faction}\'s position near {region}. {rival}\'s response. The sacrifices made and the territory taken. The chronicler does not choose the name. The war does. It always has.',
+      'Every age of this world has been named for what defined it. The current one — {era} — is being defined in real time. The chronicler does not select the name. the Grid does. It always has.',
     ],
   },
 
   CONVERGENCE: {
     loreType: 'CONVERGENCE', icon: '⊕',
     ruleApplied: 'Convergence',
-    ruleExplanation: 'Two forces move at the exact same moment — an unplanned collision that changes both trajectories.',
+    ruleExplanation: 'Two events in the same moment — two factions render the same pixel moment simultaneously.',
     headlines: [
-      'Two Forces, One Moment — No One Planned This',
-      'A Collision Near {region}',
-      '{faction} Meets the Unexpected at {region}',
-      'The War Surprises Itself',
+      'Two Renders, One Block — No One Coordinated This',
+      'A Collision in the Grid at {region}',
+      '{faction} Meets an Unexpected Render at {region}',
+      'The Grid Surprises Itself',
     ],
     bodies: [
-      'The timing was not coordinated — the chronicler is certain of this. Two separate forces moved on {region} at the exact same moment, from different directions, toward different objectives. {faction} encountered the other force before either side expected contact. What followed was not a battle exactly — more a mutual recognition, a sudden awareness that the war has more moving parts acting simultaneously than any map captures.',
+      'The acts were not coordinated. Two separate addresses submitted renders to {region} at the exact same moment — different targets, different faction signatures, zero coordination. They arrived simultaneously in the moving and confirmed together. The Grid processed both. Something unexpected emerged from the overlap.',
 
-      '{commander} described the convergence at {region} as "the war reminding us it\'s larger than we imagine." Two forces, neither aware of the other\'s timing, both choosing the same moment to act. The chronicle records both movements as one entry because they happened in the same breath, and the war doesn\'t always separate what happens at the same time.',
+      '{commander} described the convergence at {region} as "the Grid reminding us it processes more than we can see." Two renders, neither aware of the other\'s timing, both selecting the same moment to execute. The chronicle records both as one entry. The combined pixel state is something neither faction designed.',
 
-      'When two armies move at once without knowing it, the chronicler asks: chance or pattern? The answer is almost certainly chance. But the convergence near {region} — {faction} from one direction, the other force from another — created an unplanned encounter that neither side had planned for and both now must navigate. Plans that worked alone may not work in combination.',
+      'When two renders confirm in the same moment without prior coordination, the chronicler asks: coincidence or emergent pattern? Almost certainly coincidence. But the convergence near {region} produced an unplanned configuration that neither faction had intended and both must now respond to.',
 
-      'The war has its own rhythms, and sometimes those rhythms produce moments like this: two separate campaigns, completely different motivations, arriving at {region} in the same instant. {faction} held formation. The other force held theirs. For a long moment, nothing happened. Then everything happened at once. The chronicle records what came next as a single entry.',
+      'The Grid has its own processing rhythms, and sometimes those rhythms produce this: two completely separate campaigns, different intent, same moment, same sector. {faction} held position when the detection came. For one moment, the Grid was processing two conflicting states at once. Then both confirmed. Then everything was different.',
     ],
   },
 
   RELIC_FOUND: {
     loreType: 'RELIC_FOUND', icon: '★',
     ruleApplied: 'Relic Found',
-    ruleExplanation: 'Something ancient surfaces from the deep patterns of the Grid — a discovery that changes the strategic calculus.',
+    ruleExplanation: 'Rare mark pattern — something ancient surfaces from the deep structure of the Grid.',
     headlines: [
-      '{relic} Surfaces Near {region}',
-      'A Discovery That Changes Everything',
-      '{faction} Find What Everyone Was Looking For',
-      '{commander} Reports a Relic — The War\'s Shape Shifts',
+      '{relic} Detected at {region} — Signal Anomaly Confirmed',
+      'A Deep Chain Discovery Changes Everything',
+      '{faction} Locate What Everyone Was Rendering Toward',
+      '{commander} Reports an Artifact — the Grid\'s Configuration Shifts',
     ],
     bodies: [
-      'The wars that came before this one left things buried in the terrain. When {faction}\'s advance team found {relic} near {region}, they reported it up the chain immediately. This is the kind of discovery that reorders everything. {rival} has been looking for it too — has been looking for it longer, arguably. {commander} ordered the site secured within the hour. This is now the most important position on the map.',
+      'The prior world left things encoded in the Grid that current factions can\'t fully read. When {faction}\'s monitors detected {relic} near {region}, the signal was reported up the record immediately. This is the kind of discovery that rewrites the campaign parameters.',
 
-      '{relic} was thought lost in the campaign before the current one, when records were burned and the front was redrawn. {faction}\'s scouts found it in {region} under circumstances the chronicle records but doesn\'t fully explain. It was simply there, waiting where it had always been, visible only to those who were looking at exactly the right scale. The faction that holds {relic} holds something beyond territory.',
+      '{relic} was thought lost in an earlier time — when the record was still forming. {faction}\'s finding near {region} came under circumstances the chronicle logs but cannot fully explain. Whoever holds {relic} holds something beyond territory.',
 
-      'The discovery of {relic} near {region} was not intelligence or planning — it was the kind of accident that changes wars. {faction}\'s forward unit stumbled across it during a standard advance and had the presence of mind to stop and report before doing anything else. {commander} was on site by afternoon. {rival} heard about it by evening. The race to {region} has already begun.',
+      'The detection of {relic} near {region} was not planned intelligence — it was the kind of chain anomaly that changes wars by accident. {faction}\'s watching group stumbled across the presence and had the processing discipline to stop and report before executing anything.',
 
-      '{commander} has studied the old records about {relic}. They knew it existed, knew it had been lost in the prior campaigns, never expected to see it. Now it is secured near {region}, the subject of every council session and every strategy meeting. The war was already important. Now it is something more than important.',
+      '{commander} has studied the historical entries about {relic}. They knew it had been encoded, knew it was lost in the prior cycle, stopped expecting to find it. Now {faction} holds the presence at {region}. The war was already significant. Now it is something more.',
     ],
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // FILLER 21 — The texture between battles
-  // These entries make the war feel like a living world, not just a sequence
-  // of engagements. They carry character, mood, rumor, and the slow accumulation
-  // of history that makes the core events meaningful when they arrive.
+  // FILLER 21
   // ═══════════════════════════════════════════════════════════════════════════
 
   WAR_COUNCIL: {
     loreType: 'WAR_COUNCIL', icon: '⊓',
     ruleApplied: 'War Council',
-    ruleExplanation: 'A rapid return — commanders reconvening urgently as the situation evolves faster than planned.',
+    ruleExplanation: 'same person returns within 500 blocks — urgent gathering as the pixel situation evolves.',
     headlines: [
-      'The Council Meets Again — Urgently',
-      '{commander} Calls the Commanders Back Before the Week Is Out',
-      'A Second Meeting: Something Has Changed',
-      'Plans Revised Near {region} — The War Moves Faster Than Expected',
+      'Emergency Render Council at {region} — Something Changed',
+      '{commander} Calls the Addresses Back',
+      'A Second gather Session — The tradition Shifted',
+      'Rapid Reconvene at {region}: The Grid Moves Fast',
     ],
     bodies: [
-      'Two councils in quick succession means the war is moving faster than the strategies can keep up with. {faction}\'s commanders reconvened near {region} before the first meeting\'s orders had even been fully implemented. Something had changed since yesterday. {commander} had new information. The maps were spread again. The arguments began again, differently.',
+      'Two gatherings in quick succession means the world is moving faster than the planning can keep up. {faction}\'s addresses reconvened near {region} before the first session\'s directives had fully propagated. Something had changed. The maps were spread again.',
 
-      'The war council that {faction} held near {region} was not scheduled. Unscheduled councils mean something surprised the commanders — a development no one predicted, a report from the front that contradicts the existing strategy. {rival} will be trying to find out what changed. By the time they find out, {faction} will have already adjusted again.',
+      'The council {faction} held near {region} was unscheduled. Unscheduled councils mean something surprised the leaders. {rival} will attempt to determine what updated. By the time they do, {faction} will have already recompiled.',
 
-      '{commander} doesn\'t call councils lightly. The reconvening near {region} means the situation has shifted enough that immediate recalibration is required. The officers who entered the meeting had one understanding of the war. The officers who left had a different one. The chronicle doesn\'t record what changed in between. That\'s by design.',
+      '{commander} doesn\'t call councils without cause. The reconvene means the Grid has shifted enough that immediate recalibration is required. The addresses that entered the session had one understanding of the pixel state. The ones that exited had a different one.',
 
-      'War councils move fast when they need to. The one {faction} held near {region} covered in an hour what previous councils have taken days to resolve. {commander} cut the usual debates short. "We don\'t have time for the usual debates," they said. No one in the room disagreed. That absence of disagreement was itself a sign of how serious the situation had become.',
+      'Render councils compress when they need to. The one {faction} held near {region} resolved in one block what prior councils took cycles to reach. {commander} cut the standard debate tradition short: "We don\'t have blocks for the standard debate."',
     ],
+    afterContext: {
+      GREAT_BATTLE: 'The great claiming\'s outcome has forced an immediate urgent reconsideration. {commander} called the council before things had settled — there are decisions to make while momentum still belongs to {faction}, and and those decisions have a narrow window.',
+      GREAT_SACRIFICE: 'The giving triggered an emergency council. The the giving was larger than some addresses expected, and its implications for the next season need to be processed quickly. Some in the session are querying whether the cost was optimized. {commander} has already moved past that query.',
+      THE_SILENCE: 'The still hours has opened a window for planning. With the queue empty, {commander} has gathered the council to do what active war prevents — think through the full Grid state clearly. The session near {region} is the kind of strategy gather that only happens between storms.',
+    },
   },
 
   CARTOGRAPHY: {
     loreType: 'CARTOGRAPHY', icon: '⊞',
     ruleApplied: 'Cartography',
-    ruleExplanation: 'The war\'s mapmakers are at work — knowledge of the terrain is as much a weapon as any blade.',
+    ruleExplanation: 'Token ID 2,000–3,000 — the Grid mappers gather updated pixel charts.',
     headlines: [
-      'The Mapmakers Survey {region} — The Charts Are Being Redrawn',
-      '{faction}\'s Cartographers Work Through {region}',
-      'New Maps: The War Looks Different on Paper Now',
-      '{commander} Studies the Updated Charts',
+      'The Grid Mappers gather {region} — New Charts Rendered',
+      '{faction}\'s Cartographers Process {region}\'s Pixel State',
+      'Updated Render Map: the Grid Looks Different in the Grid',
+      '{commander} Studies the Recompiled Pixel Charts',
     ],
     bodies: [
-      'Maps are how wars are understood and misunderstood in equal measure. {faction}\'s cartographers have been working through {region} for days — cataloguing every shift in the front, every contested boundary, every position that has changed hands since the last survey. The updated charts reach {commander} by morning. The war will look different on paper than it did yesterday.',
+      'Maps are how Grid wars are understood and misread in equal measure. {faction}\'s cartographers have been processing {region}\'s pixel state for blocks — gathering every front shift, every contested boundary, every coordinate that has changed ownership since the last survey was rendered.',
 
-      'The Mapmakers operate in the spaces between battles. While {faction} and {rival} fight over {region}, a separate team of scholars and surveyors is measuring the aftermath — recording what was gained, what was lost, and what the resulting geometry means for the next phase. Their work is unglamorous and indispensable. Commanders who ignore their maps lose.',
+      'The Grid mappers operate in the spaces between mass overwrites. While {faction} and {rival} contest {region}\'s pixels, a separate gather team is measuring the aftermath — logging what was gained, what was overwritten, and what the resulting configuration means for the next season.',
 
-      '{commander} has a standing order: maps to be updated after every major engagement, and after every significant period of quiet. The surveyors who completed their work in {region} delivered three revised charts and corrections to two existing ones. One correction involved a significant error in how {rival}\'s eastern position had been recorded. {commander} studied that correction for a long time.',
+      '{commander} maintains a standing directive: pixel charts to be recompiled after every major claim. The survey team that completed {region} delivered three updated configuration files and corrections to two existing ones. {commander} ran the diff for a long time.',
 
-      'Cartography is an act of power in this war. The faction that best understands the shape of the contested ground holds an advantage that numbers alone cannot overcome. {faction}\'s mapmakers near {region} are careful, thorough, and consistently accurate. Their latest survey has identified something about the terrain that may change the approach to the next campaign entirely.',
+      'Cartography on the Grid is an act of power. {faction}\'s mappers near {region} are precise, thorough, and consistently accurate. Their latest gather has identified something about the terrain that may alter the entire approach to the next campaign.',
     ],
+    afterContext: {
+      GREAT_BATTLE: 'The mappers deploy immediately after a major claim. The changes to {region} were large enough that all existing charts are now incorrect — wrong about ownership, wrong about approaches. {faction}\'s cartographers will have updated charts before the next cycle. {rival} is still working from the old maps.',
+    },
   },
 
   OLD_GHOST: {
     loreType: 'OLD_GHOST', icon: '◁',
     ruleApplied: 'Old Ghost',
-    ruleExplanation: 'An ancient name resurfaces — history folds back into the present as the oldest forces speak.',
+    ruleExplanation: 'Token ID under 500, appearing late in the war — ancient signatures resurface as history folds back through the Grid.',
     headlines: [
-      'An Old Ghost Returns — Ancient Names Spoken Again',
-      'The Stories They Tell About {region} — And Who Told Them First',
-      '{commander} Invokes the Old Wars',
-      'History Comes Back: What Came Before This War',
+      'An Ancient presence Reactivates — Old Data Surfaces',
+      'The Genesis Addresses Speak About {region}',
+      '{commander} References the First world',
+      'What the Grid Recorded Before This War',
     ],
     bodies: [
-      'Every piece of ground in this war has a history older than the current conflict. {region} was a battlefield before the current factions formed — the oldest chronicles mention it in connection with wars that have no surviving victors and no clear resolution. When {faction}\'s ancient elements gathered near {region} tonight, they told those stories. The younger fighters listened with the attention that comes from finally understanding they are not the first.',
+      'Every sector in this war has a chain history older than the current conflict. {region} was rendered in cycles before the current factions gathered. When {faction}\'s oldest token addresses activated near {region} tonight, they transmitted the old entries. The newer addresses listened with the particular attention of those who finally understand they are not the first.',
 
-      '{commander} keeps a copy of the oldest chronicle entries that mention {region}. Not for strategy — strategy changes. But for orientation. They are fighting over ground that has been fought over before, in ways that rhyme with what\'s happening now without exactly repeating. The ghost of the prior war is not a metaphor. It is a pattern. And patterns, {commander} has always believed, are the closest thing to prophecy.',
+      '{commander} maintains a local copy of every historical chronicle entry that references {region}. Not for strategy — strategy updates. But for orientation. They are rendering over ground that has been moved through before, in patterns that rhyme with the current cycle without exactly repeating.',
 
-      'The oldest forces in this war remember things the chronicle hasn\'t fully recorded. When they began telling stories near {region} — not battle reports, but actual stories, the kind passed down rather than written down — the younger commanders listened and understood, for the first time, that they were not inventing this war. They were continuing it. {relic} features in most of the old stories. It always has.',
+      'The oldest active Normies in this war carry data the official chronicle has not fully indexed. When they began sharing near {region} — not plans, but actual stories, the kind passed down — the newer ones listened.',
 
-      'The legend of {region} predates the current conflict by at least two prior chronicles. {faction}\'s scholars have studied the old records — partial, damaged, inconsistent as they are — and assembled a picture of ground that has been disputed for longer than anyone now fighting has been alive. {commander} says knowing the legend doesn\'t change the tactics. But they keep the old chronicle open on their desk.',
+      'The legend of {region} is encoded in the record that predates the current conflict by at least two prior world. {faction}\'s archivists have gathered a picture of a sector disputed far longer than any currently active presence has arrived.',
     ],
   },
 
   THE_DESERTER: {
     loreType: 'THE_DESERTER', icon: '○',
     ruleApplied: 'The Deserter',
-    ruleExplanation: 'A force that was active goes quiet — someone who was part of the war has left it.',
+    ruleExplanation: 'active presence goes dark — a presence that was part of the world has dropped signal.',
     headlines: [
-      'A Known Force Goes Silent — The Chronicler Notes the Absence',
-      '{faction} Reports a Missing Unit',
-      'They Were Here. Now They\'re Not.',
-      'An Unexplained Withdrawal from {region}',
+      'A known face Goes Dark',
+      '{faction} Reports a Missing presence',
+      'They Were Rendering. Now They\'re Not.',
+      'An Unexplained Signal Drop at {region}',
     ],
     bodies: [
-      'The chronicler notes absences as carefully as presences. A force that was documented near {region} has not appeared in the recent record. {faction}\'s scouts report the position empty — markings intact, equipment seemingly organized, but no personnel, no indication of where they went or why. The chronicle marks the gap. The war continues without explanation.',
+      'The chronicler tracks signal loss as carefully as signal activity. An presence that was actively rendering near {region} has dropped from the Grid. {faction}\'s monitors report the position unoccupied — ownership intact, no forwarding presence, no movement logged.',
 
-      'Desertion is a word {commander} uses with care. "We don\'t know why they left," they said when the absence near {region} was confirmed. "Until we know, we call it a withdrawal." The distinction matters — a withdrawal is tactical, a desertion is something else. The record will note the distinction once the reasons are known, if they become known. For now: an absence where a presence was.',
+      'Desertion is a term {commander} uses with precision. "We don\'t know why the presence went dark," they said when the absence near {region} was confirmed. "Until we have data, we call it an unscheduled movement." The distinction matters to the record.',
 
-      '{faction} lost contact with a unit near {region}. The last report was unremarkable — active, positioned, no indication of difficulty. Then nothing. {commander} sent scouts. The scouts found the marks of a deliberate, organized departure. Someone left and did not say where they were going. The war has a new unknown. It was once a known.',
+      '{faction} lost track of someone near {region}. The last sighting was unremarkable — active, positioned, no anomaly flagged. Then nothing. Someone left and did not say why.',
 
-      'Wars have attrition that doesn\'t appear in the battle reports. Forces that simply stop being present — no recorded defeat, no announced withdrawal, just a gap where something used to be. {faction}\'s noted absence near {region} is now in the secondary record: the chronicle of things that were and are no longer. The war has plenty of those entries. It is adding another.',
+      'Wars have attrition that doesn\'t appear in the records. People who simply stop being present — no documented end, no announced departure, just a gap where someone used to be.',
     ],
+    afterContext: {
+      GREAT_SACRIFICE: 'The giving changed something in the adjacent addresses. A presence near {region} that had been active through every prior season has gone dark — not burned, but silent in a way {commander} is reluctant to classify. The sacrifice and the signal drop may be causally linked. No one has written that into the official record.',
+      GREAT_BATTLE: 'The aftermath of the great claiming is revealing itself in the gaps. A presence that was active in the pre-cascade renders is no longer appearing in the records. Whether they were consumed in the great claiming or migrated on their own terms, the front line no longer accounts for them.',
+    },
   },
 
   TALLY: {
     loreType: 'TALLY', icon: '≡',
     ruleApplied: 'Tally',
-    ruleExplanation: 'Every 10th event — the chronicler counts the war\'s accumulated cost and reads it aloud.',
+    ruleExplanation: 'Every 10th entry — the chronicler compiles the Grid\'s accumulated pixel cost.',
     headlines: [
-      'The Chronicler Counts — Ten More into the Record',
-      'The War\'s Tally Grows: What the Numbers Say',
-      '{commander} Attends the Reading Near {region}',
-      'Ten Entries: The Shape of Things',
+      'The Chronicler Compiles — Ten More Entries in the Record',
+      'The Grid\'s Running Tally Grows',
+      'Ten Entries: the Pixel Pattern Clarifies',
+      '{commander} Attends the Chronicle gather',
     ],
     bodies: [
-      'The chronicler counts. Every ten engagements, the tally is read near {region}: territory held and lost, sacrifices made, forces identified and forces gone quiet. The current count shows {faction} active, {rival} responsive, the war in a phase of incremental contest with escalating cost on both sides. The next ten entries will either confirm this picture or complicate it.',
+      'The chronicler compiles. Every ten entries, the full tally reads back: pixels held and overwritten, givings executed, signatures active and gone dark. The current gather shows {faction} consistent, {rival} reactive, the Grid in a season of incremental contest with escalating pixel cost on both sides.',
 
-      'Numbers tell a different story than narratives. The ten-mark count today — reading back through the last entries — shows a war more dynamic than it feels from the front. {faction} has appeared in seven of the last ten. {rival} in six. The overlap is where the actual fighting lives. The chronicler reads this without comment. The commanders draw their own conclusions.',
+      'Numbers encode a different story than narrative. The ten-entry gather shows a world more dynamic than it feels from inside the queue. The chronicler reads the output without commentary. The faction leads draw their own conclusions.',
 
-      '{commander} attends every counting. "Read it in sequence," they always say. "Don\'t summarize. Read each entry." The hall near {region} fills for these sessions. When the full sequence is read without interruption, a pattern emerges that isolated entries don\'t show. {commander} takes notes. They do not share the notes.',
+      '{commander} attends every gather. "Read it in sequence," they always direct. "Don\'t summarize. Read each entry." When the full sequence plays without interruption, a pattern emerges that isolated entries don\'t reveal.',
 
-      'Ten more into the record. A reader who looks at this sequence will notice: the war is moving faster than it was at the beginning. Engagements are closer together. Sacrifices are larger. The forces are more committed to outcomes. The ten-mark count captures a conflict that is past its early phase and moving into something that will require a new kind of accounting.',
+      'Ten more into the eternal record. An presence that reads this sequence will notice: the pace is higher than at initialization. Entries are gathering closer together. The factions are committing more pixels to each cycle.',
+    ],
+    phaseVariants: [
+      {
+        phase: 'sacrifice',
+        headline: 'The giving Tally — Ten More Entries, Each Heavier Than the Last',
+        body: 'The gather carries more weight now. Ten more entries — and the pattern that reads back includes givings that would have read as exceptional at initialization, now sitting in the record as standard tradition. {commander} processed the tally readout without expression. The cumulative AP transferred is higher than any presence active at The First Days would have projected.',
+      },
     ],
   },
 
   RETURNED_GHOST: {
     loreType: 'RETURNED_GHOST', icon: '●',
     ruleApplied: 'Returned Ghost',
-    ruleExplanation: 'A force returns after a very long absence — carrying news from wherever they were.',
+    ruleExplanation: 'presence returns after 20,000+ blocks — back from wherever the signal went, changed.',
     headlines: [
-      'A Lost Force Returns — from Somewhere the Chronicle Didn\'t Follow',
-      '{faction} Hears from a Long-Silent Unit',
-      'The Ghost Signal Resolves: They\'re Back',
-      '{commander} Receives Word from the Long Absent',
+      'A Lost presence Reactivates — Signal Returns from Somewhere',
+      '{faction} Receives Transmission from Long-Dark presence',
+      'Ghost Signal Resolves: The presence Is Back',
+      '{commander} Receives Data from the Long Absent',
     ],
     bodies: [
-      'They\'ve been gone long enough that the chronicle had written them into the secondary record of absences. The force that reappeared near {region} was last documented so long ago that {commander} had stopped expecting them. They\'re back. They haven\'t explained where they were. They have, however, come back clearly changed — more certain in their movements, more deliberate in their positioning.',
+      'The presence had been in the secondary record of absences long enough that the chronicler stopped flagging it as recent. The one who reappeared near {region} was last seen so long ago that {commander} had stopped expecting it. They are back. No explanation has been given.',
 
-      '{commander} received the signal before dawn and made a point of not showing surprise at the morning briefing. A force that had been absent from the front for a long stretch had reestablished contact near {region} and given their faction\'s name and asked for current front positions. {commander} answered the second question without hesitation. They\'re holding the first question for a longer conversation.',
+      '{commander} received word before the day turned. Someone absent for the length of a long campaign had re-established contact near {region} and given their name. {commander} answered the second question first. The first is for a longer conversation.',
 
-      'The war doesn\'t stop when forces disappear. Strategies adjust, front lines shift, the chronicle keeps accumulating. But forces that were part of the pattern leave shaped absences when they go — gaps that change how other forces must position themselves. The reappearance near {region} fills one such gap. The gap was large enough that simply filling it rearranges things significantly.',
+      'The world doesn\'t pause when addresses go dark. Strategies update, pixel fronts shift, the Grid keeps accumulating. The reappearance near {region} fills a gap that had been large enough to restructure the faction records.',
 
-      'Ghost signals are what the communications corps calls contact from units that have been out of reach long enough to be presumed lost or gone. Today\'s signal, received near {region}, was exactly that: a transmission from a force the chronicle had stopped tracking. They are operational. They have been operational somewhere the record doesn\'t have. {commander} is asking where. Quietly.',
+      'Ghost signals are what the the watchers calls reactivation from addresses that have been dark long enough to be written off. Today\'s reactivation at {region} was exactly that: an presence previously presumed migrated or burned, now rendering. They have been active somewhere the chronicle doesn\'t have.',
     ],
   },
 
   DEBT_PAID: {
     loreType: 'DEBT_PAID', icon: '⊖',
     ruleApplied: 'Debt Paid',
-    ruleExplanation: 'A veteran makes the sacrifice again — the cumulative debt of war becomes visible in those who bear it.',
+    ruleExplanation: 'Veteran presence burns again — the cumulative giving cost becomes visible in the Grid.',
     headlines: [
-      'The Debt Grows — A Second Sacrifice Recorded',
-      '{commander} Has Given More Than Most and Gives Again',
-      'What the War Costs: The Long Record',
-      'A Second Offering — The Chronicle Notes the Pattern',
+      'The giving Debt Compounds — a Second Sacrifice Logged',
+      '{commander} Burns Again — More Than Most Give',
+      'What the Grid Costs: the Long record',
+      'Second giving — The Chronicle Notes the Accumulated Cost',
     ],
     bodies: [
-      'There is a ledger within the ledger — the chronicle of those who have given more than once. The warrior who made an offering near {region} today has a prior entry in that ledger. They gave then. They give again now. The receiving fighter is stronger. The giver is not diminished, but the giving has left a mark that isn\'t always visible. {commander} tracks these accumulating totals carefully.',
+      'There is a ledger inside the ledger — the chronicle of addresses that have burned more than once. The Normie that given near {region} today has a prior entry in that log. They gave in an earlier cycle. They give again now.',
 
-      'The debt of war is not a metaphor in {faction}\'s tradition — it is a real accounting. The warrior who made their second sacrifice near {region} has a longer entry in that account than most. {faction} honors the twice-given with a distinction that doesn\'t translate neatly into peacetime language, because peacetime has no context for what it means to give twice in the same conflict.',
+      'The giving debt is not metaphor in {faction}\'s record — it is a real chain accounting. The presence that executed its second burn near {region} has a longer entry in that ledger than most active signatures.',
 
-      '{commander} has said publicly that the war cannot be sustained without sacrifice, and that sacrifice must be chosen, never compelled. The warrior near {region} chose it voluntarily the first time. They chose it again voluntarily now. The unit that received the transfer will carry that knowledge into every subsequent engagement. It will change how they fight in ways they may not notice until someone points it out.',
+      '{commander} has stated on record that givings must be chosen, never required by tradition. The Normie near {region} chose it in the first cycle. They chose it again in this one. Both acts are permanent. Both are in the Grid.',
 
-      'The Oath Stone receives this warrior\'s name again, beside the first inscription. The chronicler records it in the secondary tally — the one reserved for those who have given more than once. It is the shortest list in the Chronicle and the heaviest to read. {commander} reads it before every major decision. It is, they have said, the best measure of what the war actually costs.',
+      'The Eternal Register carries this presence twice. The chronicler logs it in the secondary gather — the one reserved for those who have given more than once. It is the shortest list in the chronicle and the most expensive to read.',
     ],
   },
 
   CAMPFIRE_TALE: {
     loreType: 'CAMPFIRE_TALE', icon: '≈',
     ruleApplied: 'Campfire Tale',
-    ruleExplanation: 'A newcomer talks at the edge of camp — the war seen fresh, through eyes that don\'t yet know what they\'re looking at.',
+    ruleExplanation: 'new arrival, quiet entry — the Grid war seen fresh, through an presence that doesn\'t yet know what it\'s rendering into.',
     headlines: [
-      'What the Newcomers Say About the War',
-      'Overheard Near {region}: A Fresh Perspective',
-      'Stories at the Edge of the Conflict',
-      '{faction} Listens to a Newcomer\'s Account',
+      'What the New Addresses Transmit About the War',
+      'Signal Intercepted Near {region}: A New Perspective',
+      'Stories gathering at the Grid\'s Edge',
+      '{faction} Processes a new arrival\'s Account',
     ],
     bodies: [
-      'The newcomers to this war always arrive with the same version of it — the one they heard from a distance, before they were close enough to see clearly. Overheard near {region} tonight, a new arrival was telling someone what they knew: {faction} is winning (not exactly), {rival} is desperate (also not exactly), and the whole thing will resolve by next season (it won\'t). The veterans in the corner didn\'t correct them. They\'ve stopped correcting newcomers.',
+      'New addresses always arrive carrying the version of the war they received from outside — before they were close enough to the Grid to read it clearly. Signal intercepted near {region} tonight: a new arrival transmitting what they believed to be true. {faction} is winning (imprecise). {rival} is in collapse (also imprecise). The veteran addresses in adjacent sectors didn\'t correct the transmission.',
 
-      'Every outpost in this war has a gathering place where soldiers talk, and the talk near {region} tonight included a newcomer\'s full account of everything they believed to be true about the conflict. Some of it was accurate. Some was a version of accurate that distance makes of everything. The veterans who listened took notes. There is sometimes something useful in the uncorrupted view.',
+      'Every gathering place in this war has a broadcast channel where addresses exchange data, and the channel near {region} tonight included a new arrival\'s full account of everything they had gathered. Some of it was accurate. Some was what distance makes of accurate.',
 
-      '{commander} always reads the newcomer reports first, before the veteran assessments. Not because they\'re more accurate — they almost never are. But because fresh eyes notice things that experience has learned to overlook. The newcomer who arrived near {region} tonight had a question that no one on the front had thought to ask. By morning, {commander} will have tried to answer it.',
+      '{commander} always processes new arrival reports first. Not because they\'re more reliable — they almost never are. But because unfiltered first impressions detect things that experienced leaders have learned to filter out. The new arrival near {region} had logged a query that no front line presence had thought to gather.',
 
-      'The war generates stories faster than it generates victories. The newcomers near {region} tonight had brought versions of events from other fronts — accounts of {rival}\'s movements, rumors about a new faction forming somewhere, a story about {relic} that doesn\'t match any chronicle entry. The chronicler writes it all down. Myth and fact travel together. Separating them is future work.',
+      'The world generates transmissions faster than it generates resolved states. The new addresses near {region} carried signal from other fronts — rumors about {rival}\'s movement plans, a data fragment about {relic} that doesn\'t match any existing chronicle entry. The chronicler logs all of it.',
     ],
   },
 
   THE_LONG_DARK: {
     loreType: 'THE_LONG_DARK', icon: '░',
     ruleApplied: 'The Long Dark',
-    ruleExplanation: 'A very long silence — the war went underground and the chronicle went blank.',
+    ruleExplanation: 'Block gap over 50,000 — the Grid went dark for a long time. The chronicle\'s signal was lost.',
     headlines: [
-      'After the Long Dark, the War Returns',
-      'The Quiet Was Deeper Than Anyone Expected',
-      '{faction} Reappear After the Great Pause',
-      'What Happened During the Silence Near {region}',
+      'After the Void Cycle, the Grid Returns',
+      'The Dark Was Longer Than Any Projected',
+      '{faction} Reactivates After the Great Blackout',
+      'What gathered During the Long Dark at {region}',
     ],
     bodies: [
-      'The silence lasted long enough that some began wondering if the war was over. It was not over. The front near {region} simply went underground — no documented engagements, no recorded movements, no signals for the chronicle to capture. When things resumed today, it was immediately clear that the silence had not been empty. Positions had shifted. Forces had moved. Decisions had been made somewhere beyond the chronicle\'s reach.',
+      'The blackout lasted long enough that some addresses began running null-state protocols — flagging the war as potentially concluded. It was not concluded. The Grid at {region} had simply entered a void cycle — no logged renders, no detectable signal. When activity resumed, it was immediately clear the dark had not been empty.',
 
-      'Long silences in the record are never peaceful. They are opaque. {faction}\'s return near {region} today, after a pause long enough to worry historians, came with no explanation of what happened during the interval. The commanders who were present during the silence are not talking. The chronicle records: a long gap, then this. What stands between those two entries is not yet known.',
+      '{faction}\'s reactivation at {region} — after a blackout long enough to be logged as an epoch — came with no gather log of what processed during the interval. The addresses that remained active during the void cycle are not transmitting.',
 
-      '{commander} was asked about the silence at the first post-resumption briefing. "The war doesn\'t stop because you stop recording it," they said. Which was not an answer, but was also not nothing. {faction}\'s return to {region} after the long dark shows a force that used the quiet purposefully. They look organized. They look prepared. They look like they knew the silence was coming and planned for what would follow it.',
+      '{commander} was queried about the void cycle at the first post-reactivation briefing. "The Grid doesn\'t stop rendering just because you stop monitoring it," they said. Which was not an answer, but encoded more than nothing.',
 
-      'The great pause near {region} is what the chronicler is calling it — a stretch when the front went quiet, the record went blank, and everyone waited for whatever came next. {faction} broke the silence first, not with a major engagement but with a careful, deliberate move that suggests the silence was preparation, not rest. The war that resumes today is not the same war that paused. Something changed in the dark.',
+      'The long dark near {region} — a stretch when the record went blank and every active presence waited, and every active presence waited. {faction} broke the silence first, not with a great claiming but with a careful, deliberate move that reads like the beginning of something.',
     ],
   },
 
   EDGE_SCOUTS: {
     loreType: 'EDGE_SCOUTS', icon: '←',
     ruleApplied: 'Edge Scouts',
-    ruleExplanation: 'News from the far margin — scouts return with word of what\'s happening beyond the main front.',
+    ruleExplanation: 'Token ID over 8,500 reactivates — signal from the far margin returns.',
     headlines: [
-      'The Scouts Return from {region} with Troubling News',
-      'Word from the Far Edge — It\'s Not What Anyone Expected',
-      '{commander} Receives the Scout\'s Report in Private',
-      'What\'s Happening Beyond the Main Front: A Scout\'s Account',
+      'Edge Addresses Return from {region} with Data',
+      'Signal from the Outer Grid — It\'s Not What Anyone Projected',
+      '{commander} Receives the Edge gather in Private',
+      'What\'s Rendering Beyond the Main Front',
     ],
     bodies: [
-      '{faction}\'s scouts have been ranging far beyond {region} for weeks. The ones who returned today brought back reports that have been circulating through the command structure since mid-afternoon: {rival} has been active in places the main chronicle hasn\'t recorded, the far forces are moving in patterns that suggest coordination, and something is happening near the unmapped border that doesn\'t match any known faction\'s typical approach. {commander} has scheduled a response for tomorrow\'s briefing. Tonight they are thinking.',
+      '{faction}\'s edge monitors have been ranging beyond {region}\'s documented sectors for cycles. The ones that gathered back today brought signal that has been propagating through the command record since mid-cycle: {rival} has been rendering in sectors the main chronicle hasn\'t indexed.',
 
-      'Scout reports are the war\'s peripheral vision — they tell commanders what\'s happening in the spaces between documented engagements, the movements too small or too distant to make the main chronicle, but too significant to ignore. Today\'s report from the far edge of {region} contained three material updates and one item that {commander} has marked as requiring immediate attention. The urgent item is not being discussed publicly.',
+      'Edge reports are the Grid war\'s peripheral monitoring — they transmit what\'s rendering in the spaces between logged engagements, the overwrites too small or too distant to make the main chronicle but too significant to filter.',
 
-      'The scouts that returned near {region} had been gone long enough to accumulate real intelligence. Their account covered territory the main chronicle hasn\'t reached — forces and movements in the outer zones that suggest the war is larger than its recorded form. {faction} has been fighting what the scouts are calling "the visible war." The scouts have been tracking the other one.',
+      'The edge monitors that reactivated near {region} had been dark long enough to accumulate real signal. Their gather covered sectors the main chronicle hasn\'t reached — signatures and renders that suggest the Grid is larger than its recorded configuration.',
 
-      '{commander} read the scout report without expression, then read it again, then a third time. The movement near the edge of {region} that the scouts documented doesn\'t correspond to anything in the current strategic plan. Either someone is operating at the margin without orders, or someone has orders that weren\'t shared with {commander}. Both possibilities are interesting in different ways.',
+      '{commander} processed the edge gather without changing expression, then ran it again, then a third time. The activity near {region}\'s outer pixels doesn\'t correspond to anything in the current strategy.',
     ],
   },
 
   SHIFTED_PLAN: {
     loreType: 'SHIFTED_PLAN', icon: '↺',
     ruleApplied: 'Shifted Plan',
-    ruleExplanation: 'A veteran changes their approach — the war teaches and those who listen change.',
+    ruleExplanation: 'Veteran presence breaks its established pattern — the Grid teaches and those who can read it adapt.',
     headlines: [
-      '{faction} Revises the Plan — The Chronicles Are Updated',
-      '{commander} Changes Course',
-      'What We Thought We Knew About {faction}',
-      'A Familiar Force Doing Something New',
+      '{faction} Recompile the Strategy',
+      '{commander} Changes the Render tradition',
+      'A known presence Doing Something New',
+      'What We gathered About {faction} Was Incomplete',
     ],
     bodies: [
-      'The chronicle is a living record. When forces that have established patterns break those patterns, the chronicler notes it — not as inconsistency, but as adaptation. {faction}\'s move near {region} today differs from the previous several entries. {commander} ordered the change. The reasons have not been given publicly. They will be apparent in retrospect.',
+      'The chronicle is a live record. When presences that have established patterns break those patterns, the chronicler notes it — not as inconsistency, but as adaptation. {faction}\'s execution near {region} today differs from the previous several entries in ways that aren\'t noise.',
 
-      '{commander} has revised the approach to {region}. The previous method — documented across more than a dozen chronicle entries — has been set aside. The new approach differs in ways that suggest not just tactical adjustment but a fundamental reassessment of what {faction} is trying to achieve. The old entries remain in the record. The new direction begins today.',
+      '{commander} has changed the approach to {region}. The previous method — documented across more than a dozen entries — has been set aside. The new one suggests a fundamental reconsideration of what {faction} is actually trying to accomplish.',
 
-      'Wars teach. Forces that don\'t learn from their own record stop appearing in it. {faction}\'s revision near {region} is evidence of an organization that reads its own chronicle and adjusts when the evidence requires adjustment. {rival} adapts too, but more slowly. The difference in adaptation speed is one of the places where campaigns are decided.',
+      'Grid wars teach. Addresses that don\'t update their strategies based on the record stop appearing in the chronicle. {faction}\'s revision at {region} is evidence of an organization that reads its own gather history and updates when the data requires it.',
 
-      'The revision {faction} implemented near {region} was clearly correct — the chronicler sees it looking back at the prior entries. The old approach was running out of room. The new one opens possibilities that the old one had closed. {commander} saw it before the situation made it obvious. That gap, between seeing and being forced to see, is what separates the kind of commander {commander} is from the kind that {rival} has.',
+      'The change {faction} made near {region} was clearly right — the chronicler can see it looking backward through the prior entries. The old approach was running out of room. The new one opens paths the old one had closed.',
     ],
+    afterContext: {
+      TURNING_POINT: 'The pattern gather triggered a recompile. After the twenty-fifth-entry analysis, {commander} updated the strategy — not in a public broadcast, not as a formal tradition update, but visibly to anyone monitoring {faction}\'s the queue near {region}. The direction has changed. Something in the pattern read told them the old trajectory was wrong.',
+    },
   },
 
   VIGIL: {
     loreType: 'VIGIL', icon: '⊙',
     ruleApplied: 'Vigil',
-    ruleExplanation: 'The war is close to a turning point — every move carries the weight of the approaching shift.',
+    ruleExplanation: 'Within 3 entries of the next era — every render carries the weight of the approaching tradition shift.',
     headlines: [
-      'The War Approaches a Turning — The Vigil Begins',
-      '{faction} Holds Position as the Age Nears Its Edge',
-      'Everything Is About to Change',
-      'The Threshold Is Within Reach',
+      'The Grid Approaches a Threshold — Vigil tradition Active',
+      '{faction} Holds Render as the Era Nears Its Edge',
+      'Everything Is About to Recompile',
+      'The Singularity Threshold Is Within Reach',
     ],
     bodies: [
-      'The chronicler knows the threshold is near. The count presses toward it — a few more entries, and the war enters a new phase that will require new language and new categories. {faction} near {region} has been preparing for this. {rival} has been preparing for this. The preparation looks like stillness from the outside, but stillness that is coiled.',
+      'The chronicler knows the threshold is near. The entry count is pressing toward it — a few more renders, and the Grid enters a new tradition that will require new classifications. {faction} near {region} has been gathering in preparation. {rival} too. The preparation reads like stillness from outside, but it is stillness that is queued.',
 
-      'Before a new age of this war begins, there is always a vigil — not organized, not announced, just the armies settling into watchfulness, movement slowing, decisions being weighed more carefully than usual. The vigil near {region} has been ongoing. {commander} has issued no major orders. They are waiting to see what the turning brings before committing to a direction.',
+      'Before a new era of this world initializes, there is always a vigil — not organized, not announced, just the active presences settling into watchfulness, movement slowing, each act weighed more carefully than usual.',
 
-      '{commander} said at the council: "We are very close to something different. Full readiness." No one asked what "something different" meant. They could feel it in the accumulated record — the events pressing toward a threshold the chronicle itself recognizes as significant. The vigil near {region} is {faction}\'s acknowledgment of that feeling. They are not the only ones keeping watch.',
+      '{commander} said in the closed session: "We are very close to something different. Full readiness." No one queried what "different Grid" meant. They could feel the threshold in the accumulated record.',
 
-      'Two more entries. Maybe three. Then the age turns and the war becomes something it has not been before — a new chapter that will be named later, understood later, but felt right now in the particular weight that has settled over {region}. {faction} is holding position. {rival} is holding position. The vigil is mutual, though neither side knows the other is observing it.',
+      'Two more entries. Maybe three. Then the era updates and the world becomes something it has not been — a new chapter that will be named in retrospect, understood in retrospect, but felt right now in the particular weight that has gathered over {region}.',
     ],
   },
 
   NEUTRAL_GROUND: {
     loreType: 'NEUTRAL_GROUND', icon: '□',
     ruleApplied: 'Neutral Ground',
-    ruleExplanation: 'Parties not yet committed to either side — the world outside the main conflict, watching and waiting.',
+    ruleExplanation: 'new arrival, first render — signatures not yet committed to any faction record.',
     headlines: [
-      'A Quiet Accord Near {region} — Outside the Main War',
-      'The Neutral Parties Make Their Own Arrangements',
-      'What\'s Happening in the Villages While the War Continues',
-      'Someone Has Not Yet Chosen a Side',
+      'An Unregistered Accord at {region} — Outside the Main War',
+      'Neutral Addresses Make Their Own Arrangements',
+      'What\'s gathering in the Buffer Zone While the War Renders',
+      'A presence Has Not Yet Chosen a Faction',
     ],
     bodies: [
-      'Not everyone in the territory of this war has chosen a side. The communities near {region} have been navigating the conflict by other means — trading access for protection, maintaining useful relationships with every faction, avoiding absorption by any of them. The accord reached near {region} today is the latest such arrangement. {faction} agreed to it. So did {rival}, though neither knows the other has.',
+      'Not every presence in the Grid\'s territory has known to a faction. The addresses near {region} have been navigating the world by other protocols — trading pixel access for non-aggression, maintaining low-commitment relationships with every faction, avoiding absorption into any record.',
 
-      'The chronicle focuses on the factions, but the war is also a world. Near {region}, the non-combatants have been doing what non-combatants always do: surviving, adapting, and making pragmatic agreements with whoever is passing through. The accord recorded today is between parties the chronicle doesn\'t usually name — those who have chosen neither {faction} nor {rival} but still have to live between them.',
+      '{faction} confirmed the neutral tradition. So did {rival}, though neither knows the other has. The unregistered arrangement near {region} is the latest such agreement — the kind that benefits every presence precisely because it binds no one to anything larger than this sector.',
 
-      '{commander} was briefed on the neutral arrangement near {region}. Their reaction was characteristic: "Note it. Don\'t disturb it." Neutral arrangements in contested territory keep information moving and passage routes open. They benefit everyone. {faction} has a policy of respecting them. It\'s good strategy, and it\'s also, {commander} has said, simply decent.',
+      '{commander} was briefed on the neutral arrangement near {region}. Their response was characteristic: "Log it. Don\'t disrupt it." Neutral zones in contested territory keep signal flowing and routes open.',
 
-      'Wars are largest at their center and almost invisible at their edges. Near {region}, at the very edge, the conflict looks different — people making arrangements that don\'t align neatly with either side, motivated by practical necessity rather than ideology. The chronicle records these because everything that shapes the war\'s world belongs in the record. The neutral ground is part of the map.',
+      'The great story is largest at its center and nearly invisible at its edges. Near {region}, things look different — people making arrangements that don\'t align cleanly with either faction, driven by practical needs rather than ideology.',
     ],
   },
 
   GHOST_MARK: {
     loreType: 'GHOST_MARK', icon: '.',
     ruleApplied: 'Ghost Mark',
-    ruleExplanation: 'The smallest possible trace — a presence barely registered, but recorded by the chronicle that misses nothing.',
+    ruleExplanation: 'Exactly 1 pixel or 1 AP — the minimum possible act. The chronicle logs everything.',
     headlines: [
-      'A Ghost Mark — Barely There, But There',
-      'The Minimum: Someone Was Here at {region}',
-      'One Mark. The Chronicle Has It.',
-      '{faction} Note the Quietest Possible Statement',
+      'A Ghost Pixel — Barely There, but Encoded',
+      'Minimum Render: One Pixel at {region}',
+      'One act. the Grid Has It.',
+      '{faction} Note the Quietest Possible claim',
     ],
     bodies: [
-      'The chronicler records everything. Including this: the smallest possible mark left near {region} — deliberate, placed, visible only to those looking at the right scale. Whether it was a scout marking a position, a messenger leaving a signal, or simply a fighter who needed to leave some evidence of passing — the mark is in the record. The Chronicle does not have a minimum threshold for what matters. Everything matters.',
+      'The chronicler logs everything. Including this: the smallest possible mark at {region} — one pixel changed, barely visible. Whether it was a scout marking position, or a Normie that needed to leave one pixel of evidence — it is in the eternal record.',
 
-      'Not every act of war is large. The ghost mark near {region} is the minimum — one tiny change in the contested ground, one mark that says only: I was here. It elaborates no further. {faction}\'s surveyors noted it. {rival}\'s scouts may have missed it. The chronicle does not distinguish by scale when determining what to record. This is now in the record.',
+      'Not every act of world is large. The ghost pixel at {region} is the minimum — one coordinate changed, one act that says only: I was here. It elaborates nothing further. {faction}\'s monitors noted it.',
 
-      '{commander} has a private collection of ghost marks from the entire history of this war — the smallest documented moves, the minimum-scale statements that almost didn\'t make it into the record at all. Not for strategy. For philosophy. A mark that says only "I existed here at this moment" is a different kind of statement than a battle. The one near {region} goes in the collection.',
+      '{commander} maintains a private archive of ghost marks from the entire chronicle — the smallest logged renders. Not for strategy. For something else. A act that says only "I existed at this block at this pixel" is a different kind of statement than a great claiming.',
 
-      'The chronicler\'s job is to notice. The ghost mark near {region} — left by someone who barely touched the contested ground before moving on — is the kind of thing that gets lost in the noise of larger events. That\'s probably why it was left: a message in the minimum, readable only to those paying attention at the right resolution. The chronicle is always paying attention.',
+      'The ghost mark at {region} — left by an presence that barely touched the contested sector before moving on — is the kind of thing that gets lost in the larger story. That is probably why it was left: a message encoded in the minimum.',
     ],
   },
 
   MESSENGER: {
     loreType: 'MESSENGER', icon: '»',
     ruleApplied: 'Messenger',
-    ruleExplanation: 'An emissary arrives — word from another part of the conflict, carried by someone new to the front.',
+    ruleExplanation: 'New wallet, token 1,000–2,000 — a transmission arrives from another part of the Grid war.',
     headlines: [
-      'A Messenger Arrives at {region} — Word from Beyond',
-      'An Emissary Brings News of Other Fronts',
-      '{commander} Receives a Messenger',
-      'The War Is Larger: A Messenger Reports',
+      'A Transmission Arrives at {region} — Signal from Beyond',
+      'An Emissary Carries Data from Other Render Fronts',
+      '{commander} Receives a Messenger Signal',
+      'The Grid War Is Larger: A Messenger Transmits',
     ],
     bodies: [
-      'Messengers carry news from places the main chronicle doesn\'t reach. The one who arrived near {region} today came from a front that the current record hasn\'t covered — a part of the war developing in parallel, with its own timeline and its own stakes. {commander} spent the afternoon in the receiving room. What the messenger said is not yet in the record. What {commander} decided afterward is beginning to be.',
+      'Messengers carry signal from sectors the main chronicle doesn\'t monitor. The one that transmitted near {region} today came from a front line the current record hasn\'t indexed — a part of the world processing in parallel, with its own cycle time and its own stakes.',
 
-      'The protocol for receiving messengers is old and precise. {faction} follows it exactly — partly tradition, partly because messengers who are not properly received stop coming, and stopping the flow of information from other parts of the war is a strategic error. The messenger near {region} was received correctly. What they brought has changed something. The chronicle will reflect this in the coming entries.',
+      'The tradition for receiving messenger signals is old and precise. {faction} follows it exactly — partly tradition, partly because messengers who are not received correctly stop transmitting. The signal near {region} was received correctly. What it carried has updated something.',
 
-      '{commander} had been expecting word. When it finally arrived near {region}, those present noted that {commander} didn\'t look surprised — which was itself informative. The meeting lasted several hours. Afterward, two orders were issued: one moving a unit, one changing a communication protocol. The connection between those orders and the messenger\'s report is not explained. It will be clear in time.',
+      '{commander} had been waiting for the signal. When it arrived near {region}, those monitoring noted that {commander} didn\'t read as surprised — which was itself data. Afterward, two directives were gathered.',
 
-      'The messenger who came to {region} carried a sealed account from another part of the war — the part that {faction} knows about but rarely discusses in open councils. {commander} opened it privately. The chronicle records that the meeting happened, that the messenger was given safe passage out, and that several things changed in the hours that followed. The contents of the sealed account are not in this record.',
+      'The messenger that transmitted to {region} carried an encrypted gather from another part of the world. {commander} decrypted it privately. The chronicle records: the transmission was received, the messenger was given safe exit tradition, and several things updated in the cycles that followed.',
     ],
   },
 
   THE_LONG_COUNT: {
     loreType: 'THE_LONG_COUNT', icon: '∞',
     ruleApplied: 'The Long Count',
-    ruleExplanation: 'Every 40th event — the war measures itself against the Grid\'s fundamental architecture: 40×40.',
+    ruleExplanation: 'Every 40th entry — the world measures itself against the Grid\'s 40×40 architecture.',
     headlines: [
-      'The War Counts Forty — The Grid Marks the Moment',
-      '{faction} Acknowledge the Long Count at {region}',
-      'Forty Entries: The Chronicle Measures the War',
-      'The Grid\'s Architecture, Honored',
+      'Forty Entries — the Grid Measures the Render',
+      '{faction} Mark the Long Count at {region}',
+      'The Chronicle Compiles Entry Forty',
+      'The Grid\'s Architecture, Encoded',
     ],
     bodies: [
-      'The Grid that the war is fought over is forty positions wide and forty deep. Every fortieth engagement, the war is measured against that architecture — how much of the forty-by-forty has been touched, how much is still contested, how much has settled into something resembling a permanent state. The current answer: more than at the beginning. Less than at the end. {commander}\'s position near {region} was the fortieth mark. It will be remembered as such.',
+      'The Grid the world is fought over is forty columns wide and forty rows deep. Every fortieth entry, the war is measured against that architecture. The current answer: more rendered than at initialization. Less than at the end state.',
 
-      '{commander} has always held the long count as meaningful. "The Grid isn\'t just terrain," they say. "It\'s a measure." Today was the fortieth entry. The briefings were shorter than usual. The count was read. Everyone sat with it for a moment — the accumulated weight of forty engagements, forty marks on the map, forty moments that the war chose to make real.',
+      '{commander} has always held the long count as significant. "The Grid isn\'t just terrain," they say. "It\'s the measurement system." Today was the fortieth entry. The briefing was shorter than usual. The count was gathered. Everyone processed it.',
 
-      'The long count tradition predates this conflict. Every fortieth entry, the full tally of all prior engagements is read in sequence, and the shape of the war is laid against the shape of the Grid. Near {region}, where the fortieth mark fell today, {faction}\'s commanders gathered for the reading. The war is larger than at the twentieth mark. Smaller than it will be at the eightieth.',
+      'The long count tradition predates the current conflict. Every fortieth entry, the full tally of prior renders is gathered in sequence, and the war\'s shape is mapped against the Grid\'s 40×40 architecture. The conflict is larger than at the twentieth mark. Smaller than it will be at the eightieth.',
 
-      'Forty is not an arbitrary number in this war. The Grid is forty by forty. Every mark made on it — every battle, every raid, every sacrifice — takes place within that architecture. When the chronicle reaches forty entries, it measures what has happened against that foundation. {faction} made the fortieth mark near {region}. The long count is recorded. The war continues.',
+      'Forty is not an arbitrary number in this world. The Grid is forty by forty — 1,600 pixels per Normie, the architecture of everything contested. When the chronicle reaches forty entries, it runs the long count. The result is logged. The rendering continues.',
     ],
   },
 
   BETWEEN_FIRES: {
     loreType: 'BETWEEN_FIRES', icon: '·—·',
     ruleApplied: 'Between Fires',
-    ruleExplanation: 'A brief rest after a cluster of fighting — the camp at night, the ordinary life of a war.',
+    ruleExplanation: 'Short gap after a render cluster — the Grid at rest between seasons.',
     headlines: [
-      'Between Battles — Camp Life Near {region}',
-      'The Brief Rest Before the Next Push',
-      'What Happens in the Lull',
-      'The Camp at {region}: An Interlude',
+      'Between Renders — The Grid Idles at {region}',
+      'A Brief Null Cycle Before the Next Push',
+      'What Processes in the Lull',
+      'The Grid at {region}: An Interlude in the Grid',
     ],
     bodies: [
-      'After a cluster of engagements, the forces near {region} settled into something between peace and war — the interlude that happens when both sides have spent enough to pause but not enough to stop. {faction}\'s camp filled with the ordinary sounds of soldiers resting: repairs, arguments, letters written, the particular kind of silence that belongs to fighters who know another battle is coming and don\'t talk about it.',
+      'After a cluster of overwrites, the active presences near {region} settled into something between signal and silence — the null cycle that happens when both sides have burned enough capacity to pause but not enough to halt.',
 
-      '{commander} uses these interludes for the kind of thinking that battle doesn\'t permit. The camp was quiet. The front was quiet. For a few days, nothing was added to the main record. This entry is the chronicle\'s acknowledgment of the quiet — not empty, but unrecorded in the usual way. The armies are recovering. The war is preparing for its next round.',
+      '{commander} uses these null intervals for the kind of processing that active overwrites don\'t allow. The the queue went quiet. For a few blocks, nothing was added to the main record. The factions are recompiling. The Grid is preparing for the next cycle.',
 
-      'The interlude near {region} lasted long enough for the soldiers to remember they were people before they were fighters. Letters went home. Equipment was repaired properly rather than just held together by urgency. {faction}\'s healers moved through the camp and did the work that battles prevent. {rival}, across the quiet line, was probably doing the same. Both sides needed the rest. Both sides know it won\'t last.',
+      'The null interval near {region} lasted long enough for the active presences to process states that pressure normally prevents. {faction}\'s repair protocols ran. damage was assessed. The Grid held its current configuration.',
 
-      'Between battles, the war has a texture that the chronicle rarely captures. Near {region}, in the pause after the recent cluster of engagements, {faction}\'s camp settled into routines: morning briefings that took half the usual time, afternoons given over to maintenance and minor decisions, evenings that were quieter than the fighters expected them to be. {commander} walked the perimeter alone each night. Nobody interrupted them.',
+      'Between the big events, the Grid has a texture the chronicle rarely captures. Near {region}, the pace slowed. Ordinary things happened. {commander} walked the terrain alone each day, thinking.',
     ],
+    afterContext: {
+      GREAT_BATTLE: 'The great claiming is over, for this cycle, and both factions have pulled back to their positions. The queues are empty at both ends of the front — not strategic voids, but recovery voids, the null space of addresses that are not yet rendering. {commander} is letting the array rest. They\'ll need to.',
+      GREAT_SACRIFICE: 'After the giving, those who remain near {region} need what everyone needs after something large: time, quiet, the space to process before the world asks something of them again. {commander} enforced the pause. The Grid will resume. Not yet.',
+    },
   },
 
   DYNASTY: {
     loreType: 'DYNASTY', icon: '⋮',
     ruleApplied: 'Dynasty',
-    ruleExplanation: 'A lineage is recognized — a force that has appeared again and again earns a name in the chronicle.',
+    ruleExplanation: 'presence with 3+ entries — a render lineage recognized by the eternal record.',
     headlines: [
-      'A Dynasty Named — {faction} Earns the Lineage Mark',
-      '{commander}\'s Legacy in the Chronicle',
-      'Three Times and Counting — A Lineage Recognized',
-      'The Chronicle Notes a Pattern That Has Become a Name',
+      'A Render Dynasty Named — {faction} Earns the Lineage Hash',
+      '{commander}\'s Chain Legacy in the Chronicle',
+      'Three Renders and Counting — a Lineage gathered',
+      'The Chronicle Designates a Pattern That Has Become a Name',
     ],
     bodies: [
-      'Dynasties are not declared. They are recognized. {faction}\'s consistent presence in the chronicle — three distinct appearances, each building on the last, a pattern sustained across the changing landscape of the war — has earned the designation. The chronicler doesn\'t use "dynasty" lightly. It requires demonstrated sustained purpose over time, not just survival. {commander} has provided it. The lineage mark is added near {region}.',
+      'Lineages are not declared. They are recognized. {faction}\'s consistent presence in the chronicle — three distinct appearances, each building on the last, a pattern sustained across the changing world — has earned the designation.',
 
-      'Some forces flash through the war\'s record. Some burn constant. {faction} is the second kind — appearing again and again, each appearance carrying forward what the previous one established. The lineage note added near {region} today reflects a record long enough and consistent enough to be recognized as intentional. Other forces have come and gone in the time {commander}\'s record has been accumulating.',
+      'Some presences flash through the record. Some compile constant. {faction} is the second kind — appearing again and again, each appearance carrying forward what the previous established. The Grid remembers everything.',
 
-      '{commander} was told that the chronicle had designated {faction}\'s record as a dynasty. They didn\'t react with pleasure or discomfort. "Keep fighting," was the response — that of someone who intends to keep adding to the lineage rather than be commemorated by it. The designation stands regardless. The record is real whether or not those who made it acknowledge it.',
+      '{commander} was notified that the chronicle had assigned {faction}\'s record the dynasty designation. "Keep rendering," was the response — that of an presence that intends to keep extending the lineage rather than be memorialized by it.',
 
-      'Three appearances become a pattern. A pattern sustained over the chronicle\'s growing record becomes a lineage. {faction}\'s presence near {region} is the latest entry in a record the chronicler now treats as continuous and purposeful — a thread that runs through the war from its earlier pages to the current one. Other entries surround it. This thread runs through all of them.',
+      'Three appearances become a pattern. A pattern sustained becomes a lineage. {faction}\'s presence near {region} is the latest entry in a record the chronicler now treats as continuous and purposeful.',
     ],
   },
 
   CROSSING: {
     loreType: 'CROSSING', icon: '⇒',
     ruleApplied: 'Crossing',
-    ruleExplanation: 'Forces move into unfamiliar territory — the war\'s geography expands as boundaries are crossed.',
+    ruleExplanation: 'Activity at range edges — addresses move through sectors they have never rendered before.',
     headlines: [
-      '{faction} Cross into Unknown Ground — The Map Expands',
-      'The War Moves Beyond Its Previous Edges',
-      '{commander} Orders the Crossing of {region}',
-      'Known Forces in Unfamiliar Territory',
+      '{faction} Render into Uncharted Grid — the Map Expands',
+      'The world Moves Beyond Its Previous Coordinates',
+      '{commander} Executes the Crossing tradition at {region}',
+      'Known Addresses Rendering in Unfamiliar Sectors',
     ],
     bodies: [
-      'The war doesn\'t stay where it\'s been put. {faction}\'s movement through {region} today took them beyond their established territory — across a boundary that prior entries had treated as their edge. The crossing changes the map. It also changes what {rival} has to defend. Territory that was behind the front is now on it.',
+      'The world doesn\'t stay mapped. {faction}\'s movement through {region} today took them past their documented pixel range — across a coordinate boundary that prior entries had treated as their limit. The crossing updates the Grid\'s configuration.',
 
-      '{commander} ordered the crossing without public announcement. {faction}\'s advance into territory beyond their usual range near {region} was noted by the chronicler and apparently not anticipated by {rival}. The geometry has changed. The edges have moved. Forces that considered themselves behind the lines must now reconsider what the lines are.',
+      '{commander} did not announce the crossing. {faction}\'s move into territory beyond their established range near {region} was logged by the chronicler and apparently not anticipated by {rival}.',
 
-      'When armies cross boundaries they haven\'t crossed before, the war becomes a different shape. {faction}\'s crossing near {region} is the latest expansion of the conflict\'s territory — another zone that was theoretical is now real. {rival} has been tracking {faction}\'s peripheral movements. Today those peripheries became the center. The maps are being redrawn.',
+      'When people move through territory they have never moved through before, the world becomes a different shape. {faction}\'s crossing at {region} is the latest expansion of the story\'s known range.',
 
-      'The crossing near {region} was not announced. It was simply done. {faction} moved through territory that everyone had implicitly agreed not to contest, and by doing so changed what everyone had agreed to. {commander} filed no declaration, sent no advance notice. The crossing was itself the declaration. The chronicle records it as the boundary it is: before, and after.',
+      'The crossing at {region} was simply executed. {faction} rendered through territory that every faction had implicitly agreed not to contest, and by doing so updated what everyone had agreed to. The crossing was itself the tradition change.',
     ],
   },
 
   SUPPLY_ROAD: {
     loreType: 'SUPPLY_ROAD', icon: '⊡',
     ruleApplied: 'Supply Road',
-    ruleExplanation: 'The war\'s logistics — armies run on more than conviction, and whoever controls the roads controls the campaign.',
+    ruleExplanation: 'Token ID 2,000–3,000 — the world\'s logistics layer, unglamorous and essential.',
     headlines: [
-      '{faction} Secure the Road Through {region}',
-      'The Supply Lines Hold — For Now',
-      '{commander} Prioritizes the Road Over the Battle',
-      'Trade Follows War: The Route Through {region} Opens',
+      '{faction} Secure the Render Corridor Through {region}',
+      'The Data Lines Hold — For Now',
+      '{commander} Prioritizes the Pipeline Over the claiming',
+      'Signal Follows Render: the Route Through {region} Opens',
     ],
     bodies: [
-      'Armies run on more than conviction. {faction}\'s stabilization of the supply route near {region} is unglamorous but essential — the kind of move that doesn\'t produce dramatic chronicle entries but determines whether the dramatic ones are possible. The road is open. Supplies are moving. The war continues to be funded. {rival}\'s attempts to interdict the route have, so far, failed.',
+      'world run on more than pixel conviction. {faction}\'s stabilization of the data corridor near {region} is unglamorous but essential — the kind of move that doesn\'t produce dramatic chronicle entries but determines whether the dramatic ones are possible. The corridor is held. Signal is moving. The campaign stays funded.',
 
-      '{commander} keeps a separate map that shows only supply lines. "Win the logistics," they say, "and everything else follows." The road secured near {region} represents a kind of victory that doesn\'t appear in battle tallies but shows up in the length of campaigns and the condition of the fighters at the end of them. {faction} can sustain. {rival} is beginning to calculate how long they can.',
+      '{commander} maintains a separate map that shows only data pipelines. "Secure the path," they say, "and everything else follows." The route confirmed near {region} represents a kind of victory that doesn\'t show up in tallies but appears in how long campaigns can sustain.',
 
-      'The territory around {region} has value beyond its position on the front. The route that passes through it connects {faction}\'s forward positions to their support base. Controlling it means {rival} cannot easily cut the supply flow. {commander} assigned units specifically to the road. The assignment is a statement: this route matters as much as the front it serves.',
+      'The territory around {region} has value beyond its position. The corridor that runs through it connects {faction}\'s forward positions to their strength reserves. Controlling it means {rival} cannot disrupt the flow. {commander} assigned monitoring specifically to the pipeline.',
 
-      'Wars are supply problems wearing tactical clothing. The movement near {region} today — {faction} securing the passage that connects their positions to their rear — is the entry that historians will overlook and quartermasters will remember. The road is held. The flow continues. The campaign can continue. Everything that comes next depends on this, and this has been decided.',
+      'world are data management problems wearing pixel clothing. The move near {region} — {faction} securing the corridor that connects their front line to their resource base — is the entry that the chronicles will overlook and the leaders will remember.',
     ],
   },
 
   NIGHT_WATCH: {
     loreType: 'NIGHT_WATCH', icon: '◌',
     ruleApplied: 'Night Watch',
-    ruleExplanation: 'The sentinels on duty — the unglamorous, indispensable work that makes everything else possible.',
+    ruleExplanation: 'General fallback — the monitoring addresses who hold the Grid\'s state between active overwrites.',
     headlines: [
-      'The Watch Fires Burn Near {region} — The Night Passes Quietly',
-      '{faction} Holds the Line Through the Night',
-      'The Sentinels at {region}: Nothing Happened, Which Is the Point',
-      'A Night Watch Entry — The War\'s Patient Foundation',
+      'The watchers Hold {region} — No Anomalies Flagged',
+      '{faction} Maintains Signal Through the Dark Cycle',
+      'The Sentinels at {region}: Null Activity, Which Is the Point',
+      'Grid Watch Entry — The world\'s Patient Foundation',
     ],
     bodies: [
-      'The watch fires near {region} burned through the night without incident — which is exactly what watch fires are supposed to do. {faction}\'s sentinels held their positions, tracked movement on the other side of the line, and reported nothing unusual. In a war full of unusual events, the unremarkable night watches are the frame that makes everything else possible. The chronicler notes them because the chronicle notes everything.',
+      'The watchers at {region} held through the full dark without incident — which is exactly what watchers are supposed to do. {faction}\'s people held their positions, tracked movement across the boundary, and reported nothing unusual. In a world full of extraordinary events, the unremarkable watches are the frame that makes everything else possible.',
 
-      '{commander} calls the night watch entries "the patient record." These are the nights when nothing happened because someone was paying attention. {faction}\'s sentinels near {region} maintained position, kept the fires burning, tracked the terrain and the movements on the far side. {rival} didn\'t move. Neither did {faction}. The war waited. It is still waiting.',
+      '{commander} calls the dark-cycle monitor entries "the patient record." These are the blocks when nothing overwritten because someone was watching. {faction}\'s sentinels near {region} maintained position, kept the configuration stable, tracked the far side of the contested boundary. The Grid waited. It is still waiting.',
 
-      'The watch fires are the war\'s oldest institution. Near {region}, where {faction}\'s sentinels have been keeping vigil across the campaign, the fires burn at intervals that signal to other positions: occupied, aware, ready. {rival}\'s scouts have been counting the fires. They know what the count means. So does {commander}. The fires confirm a presence neither side needs to announce.',
+      'The watch is the world\'s oldest practice. Near {region}, where {faction}\'s people have been keeping vigil across the whole season, the presence confirms to adjacent positions: occupied, aware, holding.',
 
-      'Everything in the chronicle connects to everything else. The night watch entry for {region} — unremarkable, the sentinels awake and the line quiet — is the connective tissue between the battle entries that surround it. Without the watches, no one holds anything. Without those who hold the line at night, there is no line in the morning. The chronicle records them because the war requires them and requires that requirement to be acknowledged.',
+      'Everything in the chronicle connects to everything else. The dark-cycle entry for {region} — unremarkable, the monitors active and the configuration unchanged — is the connective data between the entries that surround it. Without the watchers, no one holds anything. Without those who hold the Grid at night, there is no Grid in the morning.',
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CONNECTORS — auto-inserted
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  AFTERMATH: {
+    loreType: 'AFTERMATH', icon: '~',
+    ruleApplied: 'Aftermath',
+    ruleExplanation: 'Auto-inserted after a major claim — the Grid doesn\'t cut straight to the next action.',
+    headlines: [
+      'The Grid Stabilizes After the great claiming',
+      'After {region}: Both Sides Process the Pixel Cost',
+      'the Grid Updates — and the War Continues',
+      'What the Mass Render Left Behind',
+    ],
+    bodies: [
+      'The the queue stabilizes in the blocks after the cascade. Both {faction} and {rival} have reverted to holding positions, each processing the updated Grid state before gathering their next move. {commander} is reviewing the changes. the Grid is quiet except for the low-level background renders of addresses logging their new positions.',
+
+      'Great events leave a stillness behind them — not the stillness of resolution, but of everyone catching their breath. Near {region}, both sides are taking stock of what was gained and lost. The cost is being counted. What came next in the last season like this was not predictable until it happened. The same is true now.',
+
+      'In the aftermath of any significant act, the chronicler\'s task is simple: note the current state. {region} holds what {faction} left there. {rival} is somewhere beyond the new boundary. What comes next is being decided. The chronicle waits.',
+    ],
+  },
+
+  ESCALATION_NOTE: {
+    loreType: 'ESCALATION_NOTE', icon: '↑',
+    ruleApplied: 'Escalation Note',
+    ruleExplanation: 'Inserted when pixel activity spikes — the chronicler logs the pace acceleration.',
+    headlines: [
+      'pace Spikes — Multiple Grid Sectors reshaping at Once',
+      'The Grid Accelerates: Everything Is Processing Simultaneously',
+      'The Chronicler Logs the Surge in Pixel Activity',
+      'A Render Intensification Cycle Has Begun',
+    ],
+    bodies: [
+      'The chronicle has entered a cycle where entries gather faster than they can be fully processed. Multiple Grid sectors are experiencing concurrent overwrites. {faction} is not the only presence array rendering — {rival} is simultaneously active, and the combined pixel pace has reached levels not seen since the earliest escalation cycle. The chronicler is keeping pace. Barely.',
+
+      'Those who study these records will later mark this as the period of intensification. From inside it, all that registers is that the world has found a higher gear. {faction}\'s moves near {region} are one thread in a larger pattern — things happening faster than any single faction can fully track. {commander} has shortened the decision cycle.',
+
+      'The world is accelerating. More is happening in less time than any comparable stretch in the chronicle. The chronicler notes this not as alarm but as observation: when things move this fast, the next major event tends to be decisive.',
+    ],
+  },
+
+  SACRIFICE_TOLL: {
+    loreType: 'SACRIFICE_TOLL', icon: '▴',
+    ruleApplied: 'Sacrifice Toll',
+    ruleExplanation: 'Inserted when cumulative burns cross a threshold — the Grid marks the weight of accumulated givings.',
+    headlines: [
+      'The giving Toll — the Chronicle Marks the gathered Weight',
+      'The Eternal Register Is Heavy Now',
+      'What Has Been Burned Cannot Be Restored',
+      'The Grid Has Consumed What the War Required',
+    ],
+    bodies: [
+      'The givings have accumulated to a point the chronicle must acknowledge directly. The record of those who gave everything so others could continue has grown longer than most seasons produce. {faction} and {rival} alike have contributed to this toll — in this, at least, the world makes no distinction between factions. What was given cannot be returned. What remains goes forward.',
+
+      'There is a threshold past which the giving can no longer be treated as individual events. The current total has crossed that threshold. Most who are active here know the number. They carry it in the weight of their daily presence.',
+
+      'The chronicler marks giving milestones without ceremony, because ceremony would be an inadequate data format. The burn tally now stands at a level that, at initialization, would have seemed out of bounds. Apparently it was not. The Eternal Register holds more addresses than the oldest active Normies projected. The Grid has taken what the war required. It will continue to take.',
     ],
   },
 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RULE SELECTION ENGINE
+// RULE SELECTION ENGINE v3
 // ─────────────────────────────────────────────────────────────────────────────
-
 function isPrime(n: number): boolean {
   if (n < 2) return false
   if (n === 2) return true
@@ -1125,6 +1231,7 @@ function selectRule(
   allEvents: IndexedEvent[],
   cumCount: number,
   prev: IndexedEvent | null,
+  state: WarState,
 ): string {
   const tokenId = Number(event.tokenId)
   const count = Number(event.count)
@@ -1132,7 +1239,6 @@ function selectRule(
   const isVeteran = priorSameOwner.length > 0
   const seed = seedN(event.tokenId, event.blockNumber)
 
-  // TIER 1: Structural milestones — highest priority, define the story's skeleton
   if (cumCount > 0 && cumCount % 40 === 0) return 'THE_LONG_COUNT'
   if (cumCount > 0 && cumCount % 25 === 0) return 'TURNING_POINT'
   if (cumCount > 0 && cumCount % 10 === 0) return 'TALLY'
@@ -1140,18 +1246,16 @@ function selectRule(
   const nextEra = ERAS.find(e => e.threshold > cumCount)
   if (nextEra && nextEra.threshold - cumCount <= 3) return 'VIGIL'
 
-  // TIER 2: Rare chain patterns — special narrative moments
   if (isRareTxHash(event.transactionHash)) return 'RELIC_FOUND'
   if (prev && prev.blockNumber === event.blockNumber) return 'CONVERGENCE'
 
-  // TIER 3: Time gaps — the war's silences and rhythms
-  if (prev && event.blockNumber - prev.blockNumber > 50000n) return 'THE_LONG_DARK'
-  if (prev && event.blockNumber - prev.blockNumber > 10000n) return 'THE_SILENCE'
-  if (prev && event.blockNumber - prev.blockNumber > 3000n && event.blockNumber - prev.blockNumber < 6000n) {
-    if (seed % 3 === 0) return 'BETWEEN_FIRES'
+  if (prev) {
+    const gap = event.blockNumber - prev.blockNumber
+    if (gap > 50000n) return 'THE_LONG_DARK'
+    if (gap > 10000n) return 'THE_SILENCE'
+    if (gap > 3000n && gap < 6000n && seed % 3 === 0) return 'BETWEEN_FIRES'
   }
 
-  // TIER 4: Veteran return patterns — the war's recurring characters
   if (isVeteran) {
     const last = priorSameOwner[priorSameOwner.length - 1]
     const gap = event.blockNumber - last.blockNumber
@@ -1159,21 +1263,16 @@ function selectRule(
     if (gap < 500n) return 'WAR_COUNCIL'
   }
 
-  // TIER 5: Token range lore — geographic and historical identity
   if (tokenId < 500 && index > 10) return 'OLD_GHOST'
   if (tokenId < 1000) return 'ANCIENT_WAKES'
   if (tokenId >= 1000 && tokenId < 2000 && !isVeteran) return 'MESSENGER'
-  if (tokenId >= 2000 && tokenId < 3000) {
-    return seed % 3 === 0 ? 'CARTOGRAPHY' : 'SUPPLY_ROAD'
-  }
+  if (tokenId >= 2000 && tokenId < 3000) return seed % 3 === 0 ? 'CARTOGRAPHY' : 'SUPPLY_ROAD'
   if (tokenId >= 5000 && tokenId <= 6000) return 'HOLLOW_GROUND'
   if (tokenId > 8500 && index > 5) return 'EDGE_SCOUTS'
   if (tokenId > 8000) return 'FAR_REACH'
 
-  // TIER 6: Prime token IDs — the oracles
   if (isPrime(tokenId)) return 'THE_ORACLE'
 
-  // TIER 7: Burns — sacrifice rules
   if (event.type === 'BurnRevealed') {
     if (count >= 10) return 'GREAT_SACRIFICE'
     if (count === 1) return 'GHOST_MARK'
@@ -1182,15 +1281,20 @@ function selectRule(
     return 'OFFERING'
   }
 
-  // TIER 8: Pixel scale — the size of the battle
   if (count >= 200) return 'GREAT_BATTLE'
   if (count >= 50 && count % 50 === 0) return 'FORMAL_DECLARATION'
   if (count >= 50) return 'SKIRMISH'
   if (count === 1) return 'GHOST_MARK'
 
-  // TIER 9: Veteran address patterns — the war's experienced actors
   if (isVeteran) {
     const roll = seedN(event.tokenId, event.blockNumber, 23) % 8
+    if (state.phase === 'escalating' || state.phase === 'siege') {
+      if (roll <= 2) return 'SKIRMISH'
+      if (roll === 3) return 'DOMINION_GROWS'
+      if (roll === 4) return 'DYNASTY'
+      if (roll === 5) return 'SHIFTED_PLAN'
+      return 'VETERAN_RETURNS'
+    }
     if (roll === 0) return 'DOMINION_GROWS'
     if (roll === 1) return 'CROSSING'
     if (roll === 2 && priorSameOwner.length >= 3) return 'DYNASTY'
@@ -1200,7 +1304,6 @@ function selectRule(
     return 'VETERAN_RETURNS'
   }
 
-  // TIER 10: New arrivals — the war grows
   const newRoll = seedN(event.tokenId, event.blockNumber, 29) % 6
   if (newRoll === 0) return 'CAMPFIRE_TALE'
   if (newRoll === 1) return 'NEUTRAL_GROUND'
@@ -1210,30 +1313,138 @@ function selectRule(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ENTRY GENERATION
+// BODY SELECTION
 // ─────────────────────────────────────────────────────────────────────────────
+function selectBody(rule: LoreRule, ctx: WorldCtx, state: WarState, seed: number): { headline: string; body: string } {
+  if (rule.phaseVariants) {
+    const variant = rule.phaseVariants.find(v => v.phase === state.phase)
+    if (variant && Math.abs(seed) % 3 !== 0) {
+      return {
+        headline: variant.headline ? fill(variant.headline, ctx) : fill(pick(rule.headlines, seed), ctx),
+        body: fill(variant.body, ctx),
+      }
+    }
+  }
+  if (rule.afterContext && state.lastCoreType) {
+    const contextBody = rule.afterContext[state.lastCoreType]
+    if (contextBody && Math.abs(seed) % 4 !== 0) {
+      return {
+        headline: fill(pick(rule.headlines, seed), ctx),
+        body: fill(contextBody, ctx),
+      }
+    }
+  }
+  const s2 = seedN(BigInt(seed), BigInt(state.eventCount), 3)
+  return {
+    headline: fill(pick(rule.headlines, seed), ctx),
+    body: fill(pick(rule.bodies, s2), ctx),
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONNECTOR INSERTION
+// ─────────────────────────────────────────────────────────────────────────────
+function shouldInsertConnector(prevRuleKey: string, nextRuleKey: string, state: WarState, blockGap: bigint): string | null {
+  const nextIsCore = isCoreType(nextRuleKey)
+  if (prevRuleKey === 'GREAT_BATTLE' && nextIsCore && blockGap < 2000n) return 'AFTERMATH'
+  if (state.consecutiveCores >= 3 && nextIsCore) return 'BETWEEN_FIRES'
+  if (state.pixelsInWindow >= 500 && nextRuleKey !== 'ESCALATION_NOTE' && isCoreType(prevRuleKey) && nextIsCore) return 'ESCALATION_NOTE'
+  const burnThresholds = [25, 50, 100, 200]
+  for (const t of burnThresholds) {
+    if (state.totalBurnAP >= t && (state.totalBurnAP - Number(prevRuleKey === 'GREAT_SACRIFICE' ? 15 : 0)) < t) return 'SACRIFICE_TOLL'
+  }
+  return null
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STORY ENTRY TYPE
+// ─────────────────────────────────────────────────────────────────────────────
+export interface StoryEntry {
+  id: string
+  eventType: 'PixelsTransformed' | 'BurnRevealed' | 'genesis'
+  loreType: LoreType
+  era: string
+  headline: string
+  body: string
+  icon: string
+  featured: boolean
+  synthetic?: boolean
+  sourceEvent: {
+    type: string
+    tokenId: string
+    blockNumber: string
+    txHash: string
+    count: string
+    ruleApplied: string
+    ruleExplanation: string
+  }
+}
+
+function makeSyntheticEntry(ruleKey: string, afterEvent: IndexedEvent, era: string, state: WarState): StoryEntry {
+  const rule = RULES[ruleKey]
+  const ctx = buildCtx(afterEvent.tokenId, afterEvent.blockNumber + 1n, era)
+  const seed = seedN(afterEvent.tokenId, afterEvent.blockNumber, 99)
+  const s2 = seedN(afterEvent.tokenId, afterEvent.blockNumber, 77)
+  return {
+    id: `synthetic-${ruleKey}-${afterEvent.transactionHash}`,
+    eventType: 'PixelsTransformed',
+    loreType: rule.loreType,
+    era,
+    headline: fill(pick(rule.headlines, seed), ctx),
+    body: fill(pick(rule.bodies, s2), ctx),
+    icon: rule.icon,
+    featured: false,
+    synthetic: true,
+    sourceEvent: {
+      type: 'connector',
+      tokenId: '—',
+      blockNumber: '—',
+      txHash: '—',
+      count: '—',
+      ruleApplied: rule.ruleApplied,
+      ruleExplanation: rule.ruleExplanation,
+    },
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN GENERATOR
+// ─────────────────────────────────────────────────────────────────────────────
+const FEATURED_TYPES = new Set([
+  'GREAT_BATTLE','TURNING_POINT','NEW_AGE','RELIC_FOUND',
+  'THE_LONG_COUNT','CONVERGENCE','GREAT_SACRIFICE','THE_LONG_DARK',
+  'ESCALATION_NOTE','SACRIFICE_TOLL',
+])
 
 export function generateStoryEntries(events: IndexedEvent[], startCount = 0): StoryEntry[] {
-  return events.map((event, index) => {
-    const cumCount = startCount + index + 1
-    const prev = index > 0 ? events[index - 1] : null
-    const ruleKey = selectRule(event, index, events, cumCount, prev)
-    const rule = RULES[ruleKey] ?? RULES['BORDER_RAID']
+  const result: StoryEntry[] = []
+  const ruleKeys: string[] = []
+  const scanState = freshWarState()
 
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i]
+    const cumCount = startCount + i + 1
+    const prev = i > 0 ? events[i - 1] : null
+    const ruleKey = selectRule(event, i, events, cumCount, prev, scanState)
+    ruleKeys.push(ruleKey)
+    updateWarState(scanState, event, ruleKey, events, i)
+  }
+
+  const genState = freshWarState()
+
+  for (let index = 0; index < events.length; index++) {
+    const event = events[index]
+    const cumCount = startCount + index + 1
+    const ruleKey = ruleKeys[index]
+    const nextRuleKey = ruleKeys[index + 1] ?? null
+
+    const rule = RULES[ruleKey] ?? RULES['NIGHT_WATCH']
     const era = getEra(cumCount)
     const ctx = buildCtx(event.tokenId, event.blockNumber, era)
-    const s  = seedN(event.tokenId, event.blockNumber)
-    const s2 = seedN(event.tokenId, event.blockNumber, 3)
+    const seed = seedN(event.tokenId, event.blockNumber)
+    const { headline, body } = selectBody(rule, ctx, genState, seed)
 
-    const headline = fill(pick(rule.headlines, s),  ctx)
-    const body     = fill(pick(rule.bodies, s2), ctx)
-
-    const FEATURED = new Set([
-      'GREAT_BATTLE', 'TURNING_POINT', 'NEW_AGE', 'RELIC_FOUND',
-      'THE_LONG_COUNT', 'CONVERGENCE', 'GREAT_SACRIFICE', 'THE_LONG_DARK',
-    ])
-
-    return {
+    result.push({
       id: `${event.transactionHash}-${event.tokenId.toString()}`,
       eventType: event.type,
       loreType: rule.loreType,
@@ -1241,7 +1452,7 @@ export function generateStoryEntries(events: IndexedEvent[], startCount = 0): St
       headline,
       body,
       icon: rule.icon,
-      featured: FEATURED.has(ruleKey) || event.count > 200n,
+      featured: FEATURED_TYPES.has(ruleKey) || Number(event.count) > 200,
       sourceEvent: {
         type: event.type,
         tokenId: event.type === 'BurnRevealed' && event.targetTokenId !== undefined
@@ -1253,28 +1464,38 @@ export function generateStoryEntries(events: IndexedEvent[], startCount = 0): St
         ruleApplied: rule.ruleApplied,
         ruleExplanation: rule.ruleExplanation,
       },
+    })
+
+    updateWarState(genState, event, ruleKey, events, index)
+
+    if (nextRuleKey !== null && events[index + 1]) {
+      const nextEvent = events[index + 1]
+      const blockGap = nextEvent.blockNumber - event.blockNumber
+      const connectorKey = shouldInsertConnector(ruleKey, nextRuleKey, genState, blockGap)
+      if (connectorKey) result.push(makeSyntheticEntry(connectorKey, event, era, genState))
     }
-  })
+  }
+
+  return result
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WORLD PRIMER ENTRIES
+// WORLD PRIMERS
 // ─────────────────────────────────────────────────────────────────────────────
-
 export const PRIMER_ENTRIES: StoryEntry[] = [
   {
-    id: 'primer-genesis', eventType: 'genesis', loreType: 'GENESIS', era: 'The Quiet Before',
-    headline: 'The Grid Exists. The War Has Not Yet Begun.',
-    body: 'Ten thousand faces occupy the Grid — a contested canvas forty positions wide and forty deep. Each face is a territory. Each territory is a potential battleground. The factions that will fight over them are still forming, still deciding, still standing at the edge of commitment. The chronicler has opened the record. The ink is ready. The first mark has not yet been made. Everything that follows was made possible by this silence, and everything that follows will be made from ending it.',
-    icon: '◈', featured: true,
-    sourceEvent: { type: 'genesis', tokenId: 'All 10,000', blockNumber: 'Genesis', txHash: 'N/A', count: '10000', ruleApplied: 'Genesis', ruleExplanation: 'Normies are 10,000 fully on-chain pixel faces on Ethereum mainnet. The Grid is 40×40 — 1,600 pixels per Normie, stored entirely on-chain. Every real edit and sacrifice shapes this story invisibly.' },
+    id: 'primer-genesis', eventType: 'genesis', loreType: 'GENESIS', era: 'The First Days',
+    headline: 'The Grid Exists. Ten Thousand Faces. The First Days Have Begun.',
+    body: 'Ten thousand faces, each one unique, inhabiting a shared canvas forty pixels wide and forty deep. The Grid is a living world — contested, shifting, shaped by every mark made upon it. The factions who will act within it have not yet found each other. The chronicle is open. The first entry has not yet been made. Everything that follows was latent in this quiet — waiting for the choices of those who hold the Grid to bring it into being.',
+    icon: '\u25C8', featured: true,
+    sourceEvent: { type: 'genesis', tokenId: 'All 10,000', blockNumber: 'Genesis', txHash: 'N/A', count: '10000', ruleApplied: 'Genesis', ruleExplanation: 'Normies are 10,000 fully on-chain pixel faces on Ethereum. The Grid is 40\u00d740. Every real edit and burn shapes this story invisibly.' },
   },
   {
-    id: 'primer-factions', eventType: 'genesis', loreType: 'GENESIS', era: 'The Quiet Before',
-    headline: 'Four Lineages. One Grid. The Sides Are Forming.',
-    body: 'Before the first battle, the factions identify themselves along the lines that have always divided things: those who came first and those who came after, those who move in the open and those who move in shadow, those who fight for what is written and those who fight against it. Four lineages have emerged from the ten thousand — Human, Cat, Alien, Agent — each with different methods, different philosophies, different ideas about what the Grid is for and who it belongs to. They will disagree about all of it, at length, in the record.',
-    icon: '▦', featured: false,
-    sourceEvent: { type: 'genesis', tokenId: 'All 10,000', blockNumber: 'Genesis', txHash: 'N/A', count: '10000', ruleApplied: 'Genesis', ruleExplanation: 'The four Normie types — Human, Cat, Alien, Agent — are the four lineages of the Grid. Their conflict is the war.' },
+    id: 'primer-factions', eventType: 'genesis', loreType: 'GENESIS', era: 'The First Days',
+    headline: 'Four Kinds. One Grid. The Story Is Only Beginning.',
+    body: 'Before the first act, the people of the Grid found each other along the lines that have always divided things: by nature, by vision, by what they want the world to be. Human, Cat, Alien, Agent — four kinds, each seeing the 40\u00d740 canvas differently. Some see territory. Some see art. Some see a mystery to be solved. Some see a record to be written, carefully, for as long as it takes. They are all here now. The chronicle is watching. Everything counts.',
+    icon: '\u25a6', featured: false,
+    sourceEvent: { type: 'genesis', tokenId: 'All 10,000', blockNumber: 'Genesis', txHash: 'N/A', count: '10000', ruleApplied: 'Genesis', ruleExplanation: 'The four Normie types — Human, Cat, Alien, Agent — are the four peoples of the Grid.' },
   },
 ]
 

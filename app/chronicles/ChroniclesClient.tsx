@@ -17,6 +17,36 @@ function groupByEra(entries: StoryEntry[]) {
 // Fires exactly once per 5-entry bucket. Stable ref prevents re-fires.
 // The API route reads process.env.ANTHROPIC_API_KEY server-side.
 // ─────────────────────────────────────────────────────────────────────────────
+function buildStoryDigest(entries: StoryEntry[]): string {
+  const total = entries.length
+  if (total === 0) return ''
+
+  // Sample evenly across the whole timeline for full story arc
+  const step = Math.max(1, Math.floor(total / 50))
+  const sampled = entries.filter((_, i) => i % step === 0)
+
+  // Always include featured/major entries
+  const featured = entries.filter(e => e.featured)
+
+  // Always include the last 25 for recency
+  const recent = entries.slice(-25)
+
+  // Merge, deduplicate, preserve order
+  const seen = new Set<string>()
+  const merged: StoryEntry[] = []
+  for (const e of [...featured, ...sampled, ...recent]) {
+    if (!seen.has(e.id)) {
+      seen.add(e.id)
+      merged.push(e)
+    }
+  }
+  merged.sort((a, b) => entries.indexOf(a) - entries.indexOf(b))
+
+  return merged
+    .map(e => `[${e.era}] ${e.headline} — ${e.body.slice(0, 130)}`)
+    .join('\n')
+}
+
 function useWarSummary(dynamic: StoryEntry[]) {
   const [summary, setSummary] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -32,18 +62,17 @@ function useWarSummary(dynamic: StoryEntry[]) {
     setLoading(true)
     setError(false)
 
-    const recent = dynamic.slice(-35)
-    const digest = recent
-      .map(e => `[${e.era}] (${e.loreType}) ${e.headline} — ${e.body.slice(0, 100)}`)
-      .join('\n')
+    const digest = buildStoryDigest(dynamic)
     const currentEra = dynamic[dynamic.length - 1]?.era ?? 'Unknown'
+    const totalEntries = dynamic.length
 
-    const prompt = `You are the Grand Chronicler of the Normies War — a living conflict fought over the Grid, a vast contested canvas where factions battle for territory.
+    const prompt = `You are the Grand Chronicler of the Normies — keeper of the living record of the Grid, a vast pixel world of ten thousand faces. The Grid is a real place with factions, territories, sacred relics, sacrifices, and a history still being written.
 
-Latest ${dynamic.length} chronicle entries (current era: "${currentEra}"):
+You have ${totalEntries} chronicle entries spanning the full story so far (current era: "${currentEra}"). Below is a digest of key moments sampled from across the ENTIRE chronicle — from earliest to most recent:
+
 ${digest}
 
-Write exactly 2 paragraphs (3 sentences each). Write as a dramatic war dispatch — present tense, living history. Mention specific factions, regions, commanders named above. Never mention blockchain, pixels, wallets, or transactions. End with what hangs in the balance.`
+Write 3 paragraphs summarizing the FULL story so far — where it began, what has unfolded across the whole arc, and where things stand now. Write as a chronicler from inside the world: present tense, atmospheric, specific. Use the faction names, region names, and events you see. Capture the sweep of the whole story, not just the recent. Never mention blockchain, pixels, wallets, transactions, or anything technical. End with what remains unresolved.`
 
     fetch('/api/summary', {
       method: 'POST',
