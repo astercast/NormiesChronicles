@@ -12,6 +12,7 @@ export function NavBar() {
 
   const links = [
     { href: '/chronicles', label: 'chronicles' },
+    { href: '/characters', label: 'characters' },
     { href: '/how-it-works', label: 'how it works' },
     { href: '/about', label: 'about' },
   ]
@@ -27,7 +28,7 @@ export function NavBar() {
           className="font-mono text-sm font-bold tracking-tight"
           style={{ color: 'var(--text)' }}
         >
-          normies chronicles
+          the chronicles of normia
         </Link>
 
         <div className="flex items-center gap-6">
@@ -45,7 +46,6 @@ export function NavBar() {
               {label}
             </Link>
           ))}
-
           {mounted && (
             <button
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}

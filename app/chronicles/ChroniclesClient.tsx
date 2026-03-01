@@ -2,7 +2,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import type { StoryEntry } from '@/lib/storyGenerator'
+import type { StoryEntry, CharacterKey } from '@/lib/storyGenerator'
 import { CHARACTERS } from '@/lib/storyGenerator'
 import { WarGrid } from '@/components/WarGrid'
 
@@ -97,7 +97,7 @@ function buildAIPrompt(entries: StoryEntry[]): string {
     return `${i + 1}. ${c?.name ?? '?'} — ${e.headline}`
   }).join('\n')
 
-  return `You are the Grand Chronicler of the Grid — a mythic, living digital world of ten thousand Normies. Five presences shape this world: Lyra (the Architect, she builds), Voss (the Breaker, he unmakes and remakes), Cast (the Witness, they record everything), Sable (the Keeper, she tends what others abandon), Echo (the Wanderer, he arrives from the margins).
+  return `You are the Grand Chronicler of Normia — a living world of ten thousand faces. Five presences shape this world: Lyra (the Architect, she builds), Finn (the Breaker, he unmakes and remakes), The Cast (the Witness, it records everything — use it/its pronouns), Cielo (the Keeper, she tends what others abandon), Echo (the Wanderer, he arrives from the margins).
 
 Write a story summary — 3 short paragraphs — in an atmospheric, slightly mythic voice. Write as if narrating from inside the world. No mention of blockchain, pixels, tokens, wallets, NFTs, or anything technical. This is a living world with real history.
 
@@ -231,42 +231,80 @@ function EntryModal({ entry, onClose }: { entry: StoryEntry; onClose: () => void
 
 // ── CHARACTER CARD ────────────────────────────────────────────────────────────
 
-function CharacterRoster({ entries, isDark }: { entries: StoryEntry[]; isDark: boolean }) {
+function CharacterRoster({
+  entries, isDark, focusChar, onFocusChar,
+}: {
+  entries: StoryEntry[]
+  isDark: boolean
+  focusChar: CharacterKey | null
+  onFocusChar: (k: CharacterKey | null) => void
+}) {
   const dyn = entries.filter(e => e.eventType !== 'genesis')
   const summaries = buildCharSummaries(dyn)
-
   const ORDER: (keyof typeof CHARACTERS)[] = ['LYRA', 'VOSS', 'CAST', 'SABLE', 'ECHO']
 
+  // Rank by acts for the "who's winning" display
+  const ranked = [...summaries].sort((a, b) => b.acts - a.acts)
+  const leader = ranked[0]
+
   return (
-    <div style={{ marginBottom: '3rem' }}>
-      <div className="text-2xs uppercase" style={{ color: 'var(--muted)', letterSpacing: '0.22em', marginBottom: '1rem', paddingBottom: '0.6rem', borderBottom: '1px solid var(--border)' }}>
-        the five
+    <div style={{ marginBottom: '2.5rem' }}>
+      {/* Header with rivalry framing */}
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.9rem', paddingBottom: '0.6rem', borderBottom: '1px solid var(--border)' }}>
+        <div className="text-2xs uppercase" style={{ color: 'var(--muted)', letterSpacing: '0.22em' }}>
+          the five — who shapes normia most?
+        </div>
+        {leader && (
+          <div className="text-2xs" style={{ color: 'var(--muted)', opacity: 0.6 }}>
+            leading: <strong style={{ color: 'var(--text)' }}>{leader.name}</strong>
+          </div>
+        )}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem' }}>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem', marginBottom: '0.6rem' }}>
         {ORDER.map(key => {
           const char = CHARACTERS[key]
           const summary = summaries.find(s => s.key === key)
           const isActive = dyn.slice(-8).some(e => e.activeCharacter === key)
+          const isFocused = focusChar === key
+          const rank = summary ? ranked.findIndex(r => r.key === key) + 1 : null
+          const isLeading = rank === 1
+
           return (
-            <div key={key} style={{
-              padding: '0.65rem 0.5rem',
-              border: `1px solid ${isActive ? 'var(--text)' : 'var(--border)'}`,
-              opacity: summary ? 1 : 0.35,
-            }}>
-              <div className="text-2xs font-bold" style={{ color: 'var(--text)', marginBottom: '0.2rem', letterSpacing: '0.05em' }}>{char.name}</div>
-              <div style={{ fontSize: '0.38rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', marginBottom: '0.4rem' }}>{char.title}</div>
-              {summary && (
-                <div style={{ fontSize: '0.38rem', color: 'var(--muted)', opacity: 0.6 }}>{summary.acts} acts</div>
+            <button
+              key={key}
+              onClick={() => onFocusChar(isFocused ? null : key)}
+              style={{
+                padding: '0.65rem 0.5rem',
+                border: `1px solid ${isFocused ? 'var(--text)' : isActive ? 'var(--text)' : 'var(--border)'}`,
+                opacity: summary ? 1 : 0.35,
+                background: isFocused ? 'var(--text)' : 'transparent',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'background 0.15s',
+              }}
+            >
+              {rank && (
+                <div style={{ fontSize: '0.32rem', letterSpacing: '0.12em', color: isFocused ? 'var(--bg)' : (isLeading ? 'var(--text)' : 'var(--muted)'), opacity: isFocused ? 0.7 : (isLeading ? 1 : 0.45), marginBottom: '0.15rem', fontWeight: isLeading ? 700 : 400 }}>
+                  #{rank}
+                </div>
               )}
-              {isActive && (
+              <div className="text-2xs font-bold" style={{ color: isFocused ? 'var(--bg)' : 'var(--text)', marginBottom: '0.2rem', letterSpacing: '0.05em' }}>{char.name}</div>
+              <div style={{ fontSize: '0.36rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: isFocused ? 'var(--bg)' : 'var(--muted)', marginBottom: '0.4rem', opacity: isFocused ? 0.7 : 1 }}>{char.title}</div>
+              {summary ? (
+                <div style={{ fontSize: '0.36rem', color: isFocused ? 'var(--bg)' : 'var(--muted)', opacity: isFocused ? 0.65 : 0.6 }}>{summary.acts} acts</div>
+              ) : (
+                <div style={{ fontSize: '0.34rem', color: isFocused ? 'var(--bg)' : 'var(--muted)', opacity: 0.4, fontStyle: 'italic' }}>not yet</div>
+              )}
+              {isActive && !isFocused && (
                 <div style={{ marginTop: '0.35rem', width: 4, height: 4, background: 'var(--text)' }} />
               )}
-            </div>
+            </button>
           )
         })}
       </div>
-      <p className="text-2xs" style={{ color: 'var(--muted)', opacity: 0.45, marginTop: '0.6rem', fontStyle: 'italic' }}>
-        filled square = active in last 8 acts
+      <p className="text-2xs" style={{ color: 'var(--muted)', opacity: 0.4, fontStyle: 'italic' }}>
+        click a name to see their latest scene · filled square = active recently
       </p>
     </div>
   )
@@ -286,6 +324,7 @@ function NowView({ entries, meta, onSelect, onReadAll, selected, isDark }: {
   const { aiText, loading: summaryLoading } = useAISummary(entries)
   const latest = dynamic[dynamic.length - 1]
   const recent = dynamic.slice(-5, -1).reverse()
+  const [focusChar, setFocusChar] = useState<CharacterKey | null>(null)
 
   return (
     <div style={{ paddingBottom: '5rem' }}>
@@ -298,11 +337,11 @@ function NowView({ entries, meta, onSelect, onReadAll, selected, isDark }: {
             {latest ? `${latest.era} · ${dynamic.length} acts` : '—'}
           </span>
         </div>
-        <WarGrid entries={entries} activeEntry={selected} isDark={isDark} />
+        <WarGrid entries={entries} activeEntry={selected} isDark={isDark} focusChar={focusChar} />
       </div>
 
       {/* ── CHARACTER ROSTER ────────────────────────────────────────────── */}
-      <CharacterRoster entries={entries} isDark={isDark} />
+      <CharacterRoster entries={entries} isDark={isDark} focusChar={focusChar} onFocusChar={setFocusChar} />
 
       {/* ── STORY DISPATCH ──────────────────────────────────────────────── */}
       <div style={{ marginBottom: '3rem', paddingBottom: '3rem', borderBottom: '3px double var(--border)' }}>
@@ -729,7 +768,7 @@ export function ChroniclesClient() {
                       {pageEntries.length === 0 && (
                         <div style={{ padding: '4rem 0', textAlign: 'center' }}>
                           <p className="font-bold" style={{ color: 'var(--text)', marginBottom: '0.5rem' }}>no records match</p>
-                          <p className="text-2xs" style={{ color: 'var(--muted)' }}>try a character name — Lyra, Voss, Cast, Sable, Echo</p>
+                          <p className="text-2xs" style={{ color: 'var(--muted)' }}>try a character name — Lyra, Finn, The Cast, Cielo, Echo</p>
                         </div>
                       )}
                       {totalPages > 1 && (

@@ -16,7 +16,7 @@ export async function POST(req: Request) {
         messages: [
           {
             role: 'system',
-            content: 'You are the Grand Chronicler of the Grid — a keeper of the living record of a vast world of ten thousand faces. Write from inside the world: atmospheric, present tense, grounded in specific names and places. Never mention blockchain, pixels, wallets, transactions, code, or anything technical. This is a living world with real history and real people.',
+            content: 'You are the Grand Chronicler of Normia — keeper of the living record of a world of ten thousand faces. The five presences who shape Normia are: Lyra (she/her), Finn (he/his), The Cast (it/its — never they/them), Cielo (she/her), Echo (he/his). Write from inside the world: atmospheric, present tense, grounded in specific names and places. Never mention blockchain, pixels, wallets, transactions, code, or anything technical. This is a living world with real history and real people.',
           },
           { role: 'user', content: prompt },
         ],

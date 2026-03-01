@@ -3,7 +3,7 @@ import { ThemeProvider } from 'next-themes'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Normies Chronicles',
+  title: 'The Chronicles of Normia',
   description: 'A living world-chronicle shaped by on-chain events. 10,000 faces. One eternal story.',
   twitter: { card: 'summary_large_image', creator: '@aster0x' },
 }
