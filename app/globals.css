@@ -6,19 +6,21 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:      #e8e8e4;
-  --surface: #ddddd8;
-  --border:  #c8c8c2;
-  --muted:   #888880;
-  --text:    #2a2a28;
+  --bg:       #f2f1eb;
+  --surface:  #e8e7e0;
+  --border:   #c4c3bb;
+  --muted:    #7a7970;
+  --dim:      #b0afa6;
+  --text:     #181815;
 }
 
 .dark {
-  --bg:      #141412;
-  --surface: #1e1e1c;
-  --border:  #2e2e2a;
-  --muted:   #666660;
-  --text:    #d4d4cc;
+  --bg:       #0c0c0a;
+  --surface:  #141412;
+  --border:   #222220;
+  --muted:    #525250;
+  --dim:      #2c2c2a;
+  --text:     #deded6;
 }
 
 body {
@@ -27,35 +29,58 @@ body {
   color: var(--text);
   min-height: 100vh;
   font-size: 13px;
-  transition: background 0.2s, color 0.2s;
+  -webkit-font-smoothing: antialiased;
 }
 
 a { color: inherit; text-decoration: none; }
 
-/* scrollbar */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); }
 
-/* loading dots animation */
-@keyframes blink {
-  0%, 100% { opacity: 0.2; }
-  50%       { opacity: 1; }
-}
-.dot-1 { animation: blink 1.4s ease-in-out infinite; }
-.dot-2 { animation: blink 1.4s ease-in-out 0.2s infinite; }
-.dot-3 { animation: blink 1.4s ease-in-out 0.4s infinite; }
+.text-2xs { font-size: 0.62rem; }
 
-/* scanning bar animation */
-@keyframes scan {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(400%); }
-}
-.scan-bar { animation: scan 1.8s ease-in-out infinite; }
+/* animations */
+@keyframes blink { 0%,100%{opacity:.15} 50%{opacity:1} }
+.dot-1{animation:blink 1.4s ease-in-out 0s infinite}
+.dot-2{animation:blink 1.4s ease-in-out .2s infinite}
+.dot-3{animation:blink 1.4s ease-in-out .4s infinite}
 
-/* fade in */
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes scan { 0%{transform:translateX(-100%)} 100%{transform:translateX(500%)} }
+.scan-bar{animation:scan 2s ease-in-out infinite}
+
+@keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+.fade-up{animation:fadeUp .35s ease forwards}
+
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
+.fade-in{animation:fadeIn .3s ease forwards}
+
+@keyframes shimmer { 0%,100%{opacity:.4} 50%{opacity:.7} }
+
+/* grid canvas */
+.war-grid-canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  display: block;
+  width: 100%;
 }
-.fade-up { animation: fadeUp 0.35s ease forwards; }
+
+/* scanline overlay on the grid */
+.scanlines {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,transparent 3px,
+    rgba(0,0,0,.05) 3px,rgba(0,0,0,.05) 4px
+  );
+  z-index: 2;
+}
+.dark .scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,transparent 3px,
+    rgba(0,0,0,.18) 3px,rgba(0,0,0,.18) 4px
+  );
+}
