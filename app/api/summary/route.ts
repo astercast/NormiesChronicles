@@ -3,8 +3,6 @@ import { NextResponse } from 'next/server'
 export const maxDuration = 30
 export const dynamic = 'force-dynamic'
 
-// Uses Pollinations.ai — completely free, no API key required
-// Backed by OpenAI-grade models, anonymous requests always work
 export async function POST(req: Request) {
   try {
     const { prompt } = await req.json()
@@ -15,11 +13,10 @@ export async function POST(req: Request) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'openai',
-        seed: 42,
         messages: [
           {
             role: 'system',
-            content: 'You are the Grand Chronicler of the Normies — keeper of the living record of the Grid, a vast pixel world of ten thousand faces. You write about this world from the inside: its factions, its territories, its sacrifices, its discoveries, its quiet moments and its upheavals. Write with atmospheric weight — vivid, present tense, grounded in specific names and places. Never mention blockchain, pixels, wallets, transactions, or anything technical. This is a real world with real people in it. Not every dispatch is a war report.',
+            content: 'You are the Grand Chronicler of the Grid — a keeper of the living record of a vast world of ten thousand faces. Write from inside the world: atmospheric, present tense, grounded in specific names and places. Never mention blockchain, pixels, wallets, transactions, code, or anything technical. This is a living world with real history and real people.',
           },
           { role: 'user', content: prompt },
         ],
@@ -27,13 +24,29 @@ export async function POST(req: Request) {
     })
 
     if (!response.ok) {
-      console.error('[summary] pollinations error:', response.status)
+      console.error('[summary] error:', response.status)
       return NextResponse.json({ error: 'upstream error' }, { status: 502 })
     }
 
-    // Pollinations returns raw text, not JSON
-    const text = await response.text()
-    return NextResponse.json({ text: text.trim() })
+    // Pollinations returns raw text
+    const raw = await response.text()
+
+    // Guard: if it somehow returns JSON (reasoning model leak), extract text
+    let text = raw.trim()
+    if (text.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(text)
+        // Try common shapes
+        text = parsed?.choices?.[0]?.message?.content
+          || parsed?.content?.[0]?.text
+          || parsed?.text
+          || parsed?.message
+          || ''
+      } catch { text = '' }
+    }
+
+    if (!text) return NextResponse.json({ error: 'no text' }, { status: 502 })
+    return NextResponse.json({ text })
   } catch (err) {
     console.error('[summary] error:', err)
     return NextResponse.json({ error: 'internal error' }, { status: 500 })
