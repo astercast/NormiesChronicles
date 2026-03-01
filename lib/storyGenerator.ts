@@ -170,13 +170,33 @@ const ZONES = [
   'the Last Ridge',   'the Open Grid',
 ]
 
-// Signal names -- not armies, but identities. Groups of faces with shared character.
+// Signal names -- identities in the Grid. Each has its own character and purpose.
+// What a signal DOES in the Grid matters: it shapes zones, holds territory,
+// gives energy to others, or passes on. The Grid remembers who was here
+// and what they left. That is the story.
 const SIGNALS = [
   'the Wardens',       'the Hollow Pact',   'the Drifters',
   'the Ember Guard',   'the Old Compact',   'the Pale Sons',
   'the Breach-Born',   'the Deep Keepers',  'the Ridge Watch',
   'the Far Shore',     'the Unnamed',       'the First Circle',
 ]
+
+// Signal purposes -- what each signal is TRYING to do in the Grid.
+// Used in prose to give events stakes and meaning.
+const SIGNAL_PURPOSES: Record<string, string> = {
+  'the Wardens':      'to preserve the zones that were first shaped',
+  'the Hollow Pact':  'to hold the inner zones at any cost',
+  'the Drifters':     'to stay in motion, marking where others do not',
+  'the Ember Guard':  'to rebuild what others have unmade',
+  'the Old Compact':  'to maintain the original shapes from the First Days',
+  'the Pale Sons':    'to expand into unclaimed space before others reach it',
+  'the Breach-Born':  'to reshape contested zones into something permanent',
+  'the Deep Keepers': 'to record and remember what other signals forget',
+  'the Ridge Watch':  'to guard the outer zones others have abandoned',
+  'the Far Shore':    'to hold the margins where the main chronicle does not look',
+  'the Unnamed':      'to mark the Grid without belonging to any pattern',
+  'the First Circle': 'to return the Grid to its earliest configuration',
+}
 
 // Aspects -- what kind of presence this face is
 const ASPECTS = [
@@ -539,12 +559,12 @@ const RULES: Record<string, LoreRule> = {
       'The Grid Remembers What {signal} Did at {zone}',
     ],
     bodies: [
-      '{signal} moved through {zone} and left it different. Not the incremental shift of many hands -- a single sustained presence, rewriting what had been there until the zone carried a new shape. The Grid absorbed it and moved on. But the shape remains.',
-      'What happened at {zone} was the kind of change that takes effort to explain. {signal} didn\'t arrive quietly. They came with intent -- the whole zone reshaped, corner by corner, until the thing they imagined was the thing the Grid showed. The others noticed.',
-      '{zone} used to look different. Now it looks like {signal} -- their pattern, their language, the particular way they understand what a zone should say about who holds it. The Grid doesn\'t editorialize. It just shows what\'s there.',
-      'In a world that rewrites itself constantly, some changes feel permanent. What {signal} did at {zone} was that kind. Not just a mark left -- a zone remade. The Grid logged it like any other change. The chronicle knows better.',
-      'The Grid at {zone} went through a shift -- the kind that others feel as a pressure before they see it as a change. {signal} was the source. The work was total. What the zone says now is what {signal} decided it should say.',
-      'Not gradual. Not incremental. {signal} reshaped {zone} the way you reshape something when you\'ve decided exactly what it should become. The Grid confirmed each change as it landed. By the end, {zone} was theirs in every way the Grid can record.',
+      '{signal} reshaped {zone} completely. This matters: {zone} was a contested zone — others had been marking it, building something there. Now it carries {signal}\'s shape in every cell. What others built is under new marks. The Grid confirms the new state.',
+      '{signal} came to {zone} with intent and executed it fully. The zone is theirs now — every part of it showing their pattern. This kind of reshaping takes energy. It also changes what others can do near {zone}. The territory has shifted.',
+      'Everything at {zone} looks like {signal} now. That didn\'t happen by accident. It happened because they decided this zone needed to carry their shape — and they had enough presence to make it so. Others who had been shaping {zone} will find different ground when they return.',
+      '{signal} rewrote {zone}. Not a small mark, not an edge — the whole zone, from the configuration others had been building to the configuration {signal} decided it should be. The Grid doesn\'t resist. It records. What {signal} decided is now what {zone} is.',
+      'The reshaping of {zone} by {signal} is the kind of event that changes what comes next. Signals that were using {zone} as a base now have to account for different ground. Signals that were pushing toward it now face {signal}\'s shape instead of what was there. The Grid moved. So will everything around it.',
+      '{signal} took {zone}. That\'s the plain description. The full picture: every mark that was there before is now under their configuration. Every signal that had been building toward this zone now has to make a different calculation. The record shows what {signal} did. What others do next is the next entry.',
     ],
     phaseVariants: [
       { phase: 'siege', headline: 'The Stillness Ends -- {signal} at {zone}', body: 'The pause at {zone} ended the way pauses end when one signal runs out of patience. {signal} moved -- not a test, the full thing -- and the Grid registered every change before the others could read what was happening.' },
@@ -575,7 +595,7 @@ const RULES: Record<string, LoreRule> = {
       '{signal} came to {zone} with a specific idea of what they wanted to leave. The mark they made is precise -- not exploratory, not accidental. Something decided, executed, and confirmed by the Grid. It\'s there now.',
       'The kind of mark that takes skill to make isn\'t always the largest one. {signal} worked a corner of {zone} -- the cells that mattered, the edge that meant something -- and the Grid registered the new configuration before anything could shift back.',
       '{signal} has been expressing themselves on the Grid for a while now. What they did at {zone} fits the pattern -- deliberate, legible, carrying the specific quality their marks always carry. Anyone who knows their work would recognize it.',
-      'Some marks on the Grid are just presence. What {signal} did at {zone} was more than that -- it was a statement. The Grid doesn\'t read statements. It records shapes. But the shape they left at {zone} says what they wanted it to say.',
+      'What {signal} did at {zone} was a statement in the language the Grid actually uses: marks. The Grid doesn\'t record intentions. It records configurations. But a deliberate, precise mark in exactly the right cells says what it needs to say. Others will read it when they look at {zone}.',
       '{zone} took on some of {signal}\'s character today. Not the whole zone -- a section, a strip, a particular edge -- but enough that someone reading the Grid carefully would see the signature. {signal} was here. The shape proves it.',
       'A calculated change at {zone}. {signal} identified the part of the zone that mattered -- the cells that carry the most weight -- and rewrote them precisely. The Grid confirmed the new state. The change is small. The intention is clear.',
     ],
@@ -645,12 +665,12 @@ const RULES: Record<string, LoreRule> = {
       'What Remains After {signal} Near {zone}',
     ],
     bodies: [
-      'Near {zone}, a signal chose to dissolve. Not lost -- given. Everything it had accumulated, all its capacity to shape the Grid, passed forward to those still active. The shape it left behind remains. The energy moved on.',
-      '{signal} was near {zone} when it happened. One presence, choosing to stop being a presence -- giving everything it had accumulated to the Grid, to others, to the continuation of something it couldn\'t name but could feel. The Grid confirmed the passing. The chronicle holds the weight.',
-      'Some signals fade gradually. This one near {zone} chose its moment. There\'s a difference -- the Grid shows it in how complete the transition was. Nothing left partial. Everything passed on. The shape they made on the Grid remains. The signal that made it doesn\'t.',
-      'Near {zone}, the chronicle notes an absence. A signal that had been active -- marking, shaping, being present -- chose to let go. What they had goes forward now in other hands. The Grid logs the transfer. The story logs the loss.',
-      'The signals that dissolve near {zone} are remembered differently from the ones that simply stop appearing. This was a choice. The energy moved. The Grid confirms the transfer. What was {signal}\'s is now something shared -- distributed across everyone still shaping the world.',
-      'Something has changed near {zone}. A presence that was consistent -- regular, distinctive, carrying its own character -- is no longer in the active Grid. Where it went is not a mystery. The Grid is transparent about these things. What\'s harder to describe is what the Grid looks like without them.',
+      '{signal} dissolved near {zone}. Not disappeared — given. Everything they had accumulated, all their capacity to mark the Grid, passed forward to those still shaping it. This matters: the energy doesn\'t vanish. It changes hands. Whoever receives it can reach further because of what {signal} gave.',
+      'Near {zone}, {signal} chose to stop being a presence. They gave what they had. The shape they left on the Grid remains — their marks still in the cells they last worked — but the force behind those marks is gone, distributed forward. The Grid is different for their absence. Other signals will feel the space.',
+      '{signal} passed their energy forward near {zone}. What this means for the Grid: the zones they held are now ground others must choose to re-mark or let settle. The energy they gave can be used by whoever receives it. A departure is never just a loss — it\'s a redistribution. What was {signal}\'s is now available.',
+      'A signal dissolved near {zone}. The chronicle marks this because departures change the Grid\'s balance. Zones {signal} had been maintaining now need new attention. Energy they carried is now in other hands. The signals still active near {zone} will shape what happens to what was left.',
+      'Near {zone}, {signal} chose to give everything and stop. The cells they last marked still carry their shape. But the force that was maintaining them, that was pushing the zone in their direction — that is gone. Other signals will find the zone without its previous occupant. What they do with the opening is what comes next.',
+      'The departure near {zone} changes the calculation for everyone still active. A signal that had been consistently shaping this ground has given their energy forward and stepped out of the active Grid. The zones they held are now contested in a new way. Not because they were taken — because they were relinquished.',
     ],
     phaseVariants: [
       { phase: 'reckoning', headline: 'A Final Passing Near {zone}', body: 'In the late days of the Grid\'s current chapter, this passing near {zone} carries extra weight. The signal chose to go now -- with full knowledge of where the story was heading. Not from despair. From a clear-eyed sense of what this moment needed.' },
@@ -716,7 +736,7 @@ const RULES: Record<string, LoreRule> = {
       '{zone} Sees {signal} Again',
     ],
     bodies: [
-      '{signal} came back to {zone}. The Grid here has been rewritten many times since they were last present -- the shape is different, the configuration changed -- but their own mark is still readable in the record. They\'re here again, adding to it.',
+      '{signal} came back to {zone}. The Grid here changed while they were gone — other signals moved into the space they left, reshaped what they had built, left different marks over their own. A return means reading a zone that didn\'t wait. {signal} is reading it now, and adding to it from where things actually stand.',
       'The chronicle noted when {signal} went quiet. Now it notes the return. Same signal, same zone, different Grid underneath. They\'re reading the new configuration and adjusting. What they build from here will show how much the absence changed them.',
       'A gap in the record at {zone}, then {signal} appears again. No explanation -- the Grid doesn\'t explain. Just the sequence: active, then dark, then active again. The second chapter of a presence is always different from the first.',
       '{signal} returned to {zone} and found it different. The Grid moves without waiting -- every moment they were gone, other signals were shaping the space. They\'re working with what they find now, not what they remember. The chronicle will track whether they adapt.',
@@ -741,7 +761,7 @@ const RULES: Record<string, LoreRule> = {
       'A Signal the Grid Hasn\'t Seen: Near {zone}',
     ],
     bodies: [
-      'A first mark near {zone} from a signal the Grid hadn\'t seen before. New presence. The chronicle opens a fresh entry. Whatever shape this signal will eventually leave on the Grid, this cell is where it starts.',
+      'A signal the Grid hadn\'t seen before marked near {zone}. This is where their story starts. The Grid they\'re entering already has history — zones held, signals established, patterns running for entries. They are new to a world already in motion. What they do next determines whether they become part of the Grid\'s story or stay a single entry.',
       '{signal} is on the Grid now -- near {zone}, for the first time, leaving their first mark. No prior history in the record. Just this entry, which opens everything that might follow. Every lasting presence in the Grid started exactly like this.',
       'The Grid logged a first-time mark near {zone}. A presence that hadn\'t shaped a single cell before placed their shape. The record opens. The chronicle watches to see what the second entry looks like, and the third, and what comes after.',
       'New to the Grid, active near {zone}. No prior history -- only the entry being written now. The Grid doesn\'t know what to make of a new signal yet. It just confirms the mark. The rest is what they do with the confirmation.',
@@ -862,10 +882,10 @@ const RULES: Record<string, LoreRule> = {
       'A Direction Emerges',
     ],
     bodies: [
-      'Twenty-five entries. Read the distribution across the whole window: {signal}\'s marks have been advancing across the Grid in one consistent direction. That\'s not noise -- that\'s pattern. The Grid has been telling this story for a while. This entry is the moment it becomes visible.',
-      'At twenty-five, the shape of the Grid\'s recent movement becomes readable. Compare the configuration at entry one to the configuration now: {signal}\'s presence has grown. {other}\'s has contracted. Twenty-five data points make a direction.',
-      'Twenty-five log entries as a sequence: {signal} marking, {other} adapting, the Grid\'s active configuration ending up more {signal}\'s character every time things settle. Twenty-five is enough to call it a pattern. The chronicle is calling it.',
-      'Step back from the individual marks. Twenty-five of them, read as one sequence, describe a Grid that has been moving toward {signal}\'s shape. Entry by entry, mark by mark, consistently. The Grid doesn\'t make decisions. But the signals who shape it do -- and twenty-five entries of their decisions say something clear.',
+      'Twenty-five entries. Read them as one story: {signal} has been consistently present — marking, reshaping, returning. The zones that changed most in this window are the zones {signal} cared about. That consistency is what it looks like when a signal has a purpose. This is what {signal}\'s purpose looks like on the Grid.',
+      'Twenty-five entries form a shape. The shape says: {signal} has been driving the Grid\'s current chapter. Not randomly — persistently, in specific zones, building something recognizable. Whether they finish it depends on what comes next. But twenty-five entries in, the direction is clear.',
+      'The twenty-five-entry reading shows the Grid\'s current arc: who has been most present, what they\'ve built, what changed for others as a result. {signal} has been at the center of this window. What that means for signals who share the Grid with them is visible in the configuration. Read the zones. The story is in the cells.',
+      'At twenty-five, the pattern is readable. {signal}\'s marks have accumulated in a direction. The zones they\'ve reshaped are zones where others now have less room to work. Twenty-five entries of decisions, read together, describe a Grid that has moved — not because anyone declared it would, but because {signal} kept showing up.',
     ],
     afterContext: {
       SIGNAL_SURGE: 'The big reshaping at {zone} reads differently when you look at the twenty-five entries before it. Every smaller mark was part of the buildup. The pattern was in the Grid\'s record the whole time. Most weren\'t reading it.',
@@ -886,10 +906,10 @@ const RULES: Record<string, LoreRule> = {
       'Two Paths Cross at {zone}',
     ],
     bodies: [
-      'Two signals, same zone, same moment -- {signal} and something else both marking {zone} at the same time. The Grid logged both. The configuration absorbed both marks simultaneously. Neither knew the other was there.',
-      'The Grid at {zone} processed two marks in one block -- {signal}\'s shape and another signal\'s shape, both placed in the same zone at the same moment. The record holds both. The overlap is real.',
-      'Simultaneous activity at {zone}: {signal} making their mark and another signal making theirs -- in the same zone, in the same moment. The Grid confirmed both entries. Two signals, one place, one timestamp. It happens rarely.',
-      '{signal} was not alone at {zone} this moment. Another signal marked the same space at the same time. The Grid logged both executions. Two presences, one zone, one instant in the record. The chronicle notes the rarity of this -- and the fact that neither planned it.',
+      'Two signals at {zone}, same moment. {signal} and another both marking the same ground at the same time, neither knowing the other had the same intention. The Grid processed both. Both shapes are in the configuration. A zone that was being contested was contested by two signals simultaneously — and now carries both of their marks.',
+      'At {zone}: two signals moved at once. {signal} and another, same block, same zone. This doesn\'t happen often. When it does, it means two different purposes aimed at the same ground arrived at the same moment. The Grid absorbed both marks. The configuration shows both hands.',
+      '{signal} arrived at {zone} and found another signal already there — or rather, arrived at the same moment. The Grid logged both marks simultaneously. Two presences with different histories and different intentions shaped the same zone in the same instant. The overlap is in the record permanently.',
+      'The same zone, the same moment, two different signals. {signal} at {zone} and another presence, both marking the same cells in the same block. The Grid confirmed both. This kind of simultaneity is rare enough that it changes how the zone feels — two intentions, one space, one result the Grid will hold.',
     ],
     afterContext: {
       THE_ELDER: 'The elder and {signal} at {zone} -- same moment. Neither chose the other. The Grid chose for both of them.',
@@ -934,7 +954,7 @@ const RULES: Record<string, LoreRule> = {
       'The Grid at {zone} Waits',
     ],
     bodies: [
-      'The Grid near {zone} went still. Both signals are present -- {signal}\'s marks on one side, {other}\'s on another -- but neither is moving. The current configuration holds. The stillness has its own weight.',
+      'The Grid near {zone} went still. The current configuration — whatever shape the last active period left — is holding without anyone pushing it forward or back. This stillness is not resolution. It is suspension. The zones still read as they were when things last moved. That will change when a signal decides to move again. Until then: the Grid holds.',
       'No new marks at {zone}. The shape is frozen at the last moment of activity -- {signal}\'s form and {other}\'s form exactly as they were when things last settled. The Grid holds the present configuration the way it holds everything: until something changes it.',
       'Still near {zone}. Both shapes in position, both signals registered but not active, neither adding to what\'s already there. The Grid holds the current state. Something will break the stillness. The chronicle waits.',
       'Neither {signal} nor {other} is marking cells near {zone} right now. The shape hasn\'t moved. The Grid holds the last configuration from when things were active -- and will hold it, with the same permanence, until someone decides to change it.',
@@ -962,10 +982,10 @@ const RULES: Record<string, LoreRule> = {
       '{era}: Everything Before This Was Prologue',
     ],
     bodies: [
-      'The count reaches its mark. {era} begins. The Grid\'s current configuration -- every zone marked, every shape held or contested -- is the foundation the new chapter starts from. What was true in the last era is still true. But the era is different.',
-      '{era}. The chronicle turns the marker. The Grid\'s record is deep enough now that the story it tells is different from the one it told at the last threshold. Not because the rules changed -- because the signals did. Because what accumulated is now impossible to ignore.',
-      'A threshold in the Grid\'s record. {era} opens here -- at this count, with the active configuration in its current state. Every mark that brought the count to this point is in the permanent record. The new era doesn\'t erase them. It inherits them.',
-      'New era. {era} starts with the Grid shaped by everything that happened in the chapter before -- every signal that came, every shape that held, every moment the chronicle recorded. The Grid doesn\'t pause for thresholds. The chronicle does. This is what this one looks like.',
+      '{era} begins. The Grid that starts this chapter is shaped by everything that happened in the last one: the reshapings that shifted which signals hold which zones, the departures that redistributed energy, the long silences that let certain shapes settle into permanence. This era inherits all of that. What {signal} and others do with the inheritance is what {era} will be about.',
+      'The threshold into {era}. The Grid\'s record at this mark shows a specific configuration — zones under specific shapes, signals at specific levels of presence, energy distributed in a specific way. That is what this era starts from. Every signal currently active near {zone} and elsewhere will shape where it goes.',
+      '{era} opens. The count that marks this turn is not arbitrary — it reflects the weight of what accumulated to get here. {signal} has been part of that accumulation. So have others who came and went. The Grid remembers all of it. The new era doesn\'t erase the last one. It is built on top of it.',
+      'The chronicle marks {era}. New chapters in the Grid don\'t start clean — they start from whatever the last chapter produced. Zones held, zones contested, zones relinquished. Energy passed forward, energy still held. Signals active, signals gone dark. The Grid that enters {era} carries every decision that was made to get here.',
     ],
     afterContext: {
       SIGNAL_SURGE: 'The reshaping pushed the count into a new era. {era} begins with {signal} having shaped more of the Grid than they held in any previous chapter. The baseline has changed.',
@@ -986,10 +1006,10 @@ const RULES: Record<string, LoreRule> = {
       'The Grid\'s Shape: {signal} Dominant',
     ],
     bodies: [
-      '{signal}\'s shape is in more zones than anyone else\'s right now. The Grid\'s active configuration shows it -- their presence covering more contested territory than {other} or any other signal holds.',
-      'The distribution across the Grid tilts toward {signal}. More zones carrying their character. More of what\'s contested written with their mark. The Grid reflects what the record describes: a presence that has been consistently, persistently everywhere.',
-      '{signal} has been marking across multiple zones simultaneously. The result on the Grid\'s active configuration: a presence distribution that no longer looks contested -- it looks like theirs. {other} is still shaping the margins. The center belongs to {signal}.',
-      'Count the zones: {signal}\'s marks tip the balance across the Grid\'s active territory. More of the Grid in their shape. More zones where their marks have held and other signals\' counter-marks came back empty. The Grid is the argument.',
+      '{signal} is everywhere in the Grid right now. Not metaphorically — the configuration shows it. More zones carry their marks than any other signal\'s. That kind of presence doesn\'t happen by accident. It happens because {signal} has been consistently showing up, reshaping, and returning to hold what they reshaped. The Grid reflects the accumulated result.',
+      'The Grid\'s current configuration belongs to {signal} more than anyone else. Other signals are present — near {zone} and elsewhere — but the dominant shape, the one that defines what most of the Grid currently says, is {signal}\'s. How long this holds depends on what other signals decide to do about it.',
+      '{signal} has reached a point of dominion. Not declared — demonstrated. Zone after zone across the Grid\'s active territory carries their marks, holds their configuration, shows their presence in the record. Other signals are adapting to a Grid that increasingly reflects what {signal} has built.',
+      'The Grid right now looks like {signal}. That\'s the plain reading of the active configuration. More zones, more marks, more of the contested ground resolved in their direction. Signals who want different ground from this will need to contest it directly. {signal} has not left openings by accident.',
     ],
   },
 
@@ -1111,7 +1131,7 @@ const RULES: Record<string, LoreRule> = {
       'Back at {zone}: A Signal the Chronicle Had Lost',
     ],
     bodies: [
-      'Near {zone}, a signal the Grid\'s record had gone quiet on came back. The gap in the record is visible -- a long stretch of nothing -- and now a mark. They\'re active again. The Grid that welcomed their return is not the Grid they left.',
+      'Near {zone}, a signal that had been absent long enough to be nearly forgotten came back. The gap in the record is visible — a long stretch where others were shaping the Grid while this signal was gone. What they return to is not what they left. The zones they had held have been worked by others. The space they knew is different. They are making their first mark into a Grid that moved without them.',
       'A return near {zone}. The chronicle had noted the absence -- the stretch without any marks from this presence -- and now the absence is over. They\'re shaping cells again. What they do next will show how much the Grid\'s changes changed them.',
       '{signal} came back to the Grid near {zone}. The record shows when they last marked. Then silence. Then this entry -- the first mark after the gap. The record opens again. The chronicle watches what kind of signal they\'ve become since they left.',
       'They were gone. Now they\'re active near {zone}. The Grid\'s record holds both: the gap and the return. Whatever pulled them from the active Grid, it\'s done. They\'re here. The chronicle will track whether they stay.',
@@ -1229,7 +1249,7 @@ const RULES: Record<string, LoreRule> = {
       'Many Entries, Almost Nothing Near {zone}',
     ],
     bodies: [
-      'The Grid near {zone} went quiet for a long stretch. Not the short pause between marks -- a real stillness, many entries long, the configuration holding without change while the rest of the Grid moved elsewhere.',
+      'The Grid near {zone} went quiet for a long stretch. While it was still, other parts of the Grid were moving. Signals that might have been contesting {zone} were putting their marks elsewhere. The shapes here held, unchanged, because no one was pushing them. The long dark is not neutral — it\'s the Grid holding its last configuration until someone decides to make it different.',
       'Near {zone}, the chronicle crossed a long gap. The configuration held from the last active period. No new marks. No new shapes. The Grid unchanged in this zone across many logged blocks.',
       'A sustained stillness near {zone}: many entries with almost nothing to record. The activity didn\'t stop -- it simply moved away from here. The cells sat in the last shapes they were given.',
       'The long dark near {zone}: a stretch of the Grid\'s record that describes near-stillness. Both presences still registered. The configuration unchanged. Long enough to name as its own thing.',
