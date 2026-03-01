@@ -217,61 +217,110 @@ function buildDigest(entries: StoryEntry[]): string {
   return lines.join('\n')
 }
 
-// ─── AI SUMMARY ───────────────────────────────────────────────────────────────
+// ─── COMPUTED SUMMARY ────────────────────────────────────────────────────────
+// Built directly from data — no AI, no hallucination, no word salad.
+// The story is in the numbers. We just have to read them out.
+
+function computeSummary(dynamic: StoryEntry[]): string {
+  const dyn = dynamic.filter(e => e.eventType !== 'genesis')
+  if (dyn.length < 3) return ''
+
+  const ledger = buildCharacterLedger(dyn)
+  if (ledger.length < 2) return ''
+
+  const top = ledger[0]
+  const second = ledger[1]
+  const third = ledger.length > 2 ? ledger[2] : null
+
+  const eras = [...new Set(dyn.map(e => e.era))]
+  const currentEra = eras[eras.length - 1]
+  const totalEntries = dyn.length
+
+  // Find key turning points
+  const surges = dyn.filter(e => e.loreType === 'SIGNAL_SURGE')
+  const departures = dyn.filter(e => e.loreType === 'DEPARTURE' || e.loreType === 'TWICE_GIVEN')
+  const erashifts = dyn.filter(e => e.loreType === 'ERA_SHIFT')
+  const recentEntries = dyn.slice(-6)
+
+  // Who is active right now?
+  const recentLedger = buildCharacterLedger(recentEntries)
+  const recentTop = recentLedger[0]
+  const recentSecond = recentLedger.length > 1 ? recentLedger[1] : null
+
+  // Build paragraph 1 — the arc
+  const gap = top.count - second.count
+  const isClose = gap <= Math.max(3, Math.round(top.count * 0.1))
+  const dominanceWord = top.count > totalEntries * 0.25
+    ? 'has defined this chronicle'
+    : top.count > totalEntries * 0.15
+    ? 'has led throughout'
+    : 'has been the most present force'
+
+  let p1 = `${top.name} ${dominanceWord} — ${top.count} entries across ${Array.from(top.activeInEras).join(', ')}, centered on ${top.dominantZone}.`
+
+  if (isClose) {
+    p1 += ` ${second.name} has matched that presence step for step: ${second.count} entries, most often at ${second.dominantZone}. The two have been contesting the same chronicle in parallel, neither pulling decisively ahead.`
+  } else {
+    p1 += ` ${second.name} has been the primary counterforce, with ${second.count} entries at ${second.dominantZone}.`
+    if (gap > 10) {
+      p1 += ` The gap between them — ${gap} entries — has widened across ${eras.length > 2 ? 'multiple eras' : currentEra}.`
+    }
+  }
+
+  if (top.surges > 0) {
+    p1 += ` ${top.name} executed ${top.surges === 1 ? 'one major reshaping' : `${top.surges} major reshapings`} — the moments where a zone changed completely.`
+  } else if (second.surges > 0) {
+    p1 += ` ${second.name} executed ${second.surges === 1 ? 'one major reshaping' : `${second.surges} major reshapings`}, the decisive moves that shifted ground.`
+  }
+
+  if (departures.length > 0) {
+    p1 += ` ${departures.length === 1 ? 'One signal dissolved' : `${departures.length} signals dissolved`} across the chronicle, passing energy forward — each departure shifting what the remaining signals could do.`
+  }
+
+  if (third) {
+    p1 += ` ${third.name} has been a consistent third presence, with ${third.count} entries mostly at ${third.dominantZone}.`
+  }
+
+  // Build paragraph 2 — right now
+  let p2 = ''
+  if (recentTop) {
+    const recentZones = [...recentTop.zones.entries()].sort((a,b) => b[1]-a[1])
+    const zone1 = recentZones[0]?.[0] ?? recentTop.dominantZone
+    p2 += `Right now, ${recentTop.name} is the most active presence — ${recentTop.count} of the last ${recentEntries.length} entries, concentrated at ${zone1}.`
+  }
+  if (recentSecond) {
+    p2 += ` ${recentSecond.name} is active alongside them at ${recentSecond.dominantZone}.`
+  }
+
+  // Is the current leader the same as the overall leader?
+  if (recentTop && recentTop.name !== top.name) {
+    p2 += ` Notably, ${recentTop.name} has been more active recently than ${top.name}, who dominated the earlier record — the dynamic is shifting.`
+  } else if (recentTop && recentTop.name === top.name) {
+    p2 += ` ${top.name}'s lead in the current era continues what they built across the whole chronicle.`
+  }
+
+  // Any recent major events?
+  const recentSurge = recentEntries.find(e => e.loreType === 'SIGNAL_SURGE')
+  const recentDeparture = recentEntries.find(e => e.loreType === 'DEPARTURE')
+  if (recentSurge) {
+    const rSig = entrySignal(recentSurge)
+    const rZone = entryZone(recentSurge)
+    p2 += ` ${rSig} recently executed a full reshaping at ${rZone} — the kind of move that changes what others can do near there.`
+  }
+  if (recentDeparture) {
+    const dSig = entrySignal(recentDeparture)
+    p2 += ` ${dSig} recently dissolved and passed their energy forward, opening ground that others are still deciding what to do with.`
+  }
+
+  p2 += ` The chronicle is in ${currentEra}. ${isClose ? 'The outcome is still open.' : `${top.name} leads, but the record keeps moving.`}`
+
+  return p1 + '\n\n' + p2
+}
 
 function useGridSummary(dynamic: StoryEntry[]) {
-  const [summary, setSummary] = useState<string|null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(false)
-  const lastBucket = useRef(-1)
-
-  useEffect(() => {
-    if (!dynamic.length) return
-    const bucket = Math.floor(dynamic.length / 5)
-    if (bucket === lastBucket.current) return
-    lastBucket.current = bucket
-    setLoading(true); setError(false)
-
-    const era = dynamic[dynamic.length - 1]?.era ?? '?'
-    const eraList = [...new Set(dynamic.map(e => e.era))].join(' → ')
-    const surgeCount = dynamic.filter(e => e.loreType === 'SIGNAL_SURGE').length
-    const departureCount = dynamic.filter(e => e.loreType === 'DEPARTURE' || e.loreType === 'TWICE_GIVEN').length
-    const digest = buildDigest(dynamic)
-
-    const prompt = `You are the Chronicler of the Grid. Your job is to write the living record of this world in plain, direct prose that anyone can follow.
-
-THE WORLD IN ONE SENTENCE: Ten thousand signals share a living space called the Grid, shaped by marking its zones — and the story is about which signals became significant, what they did, and what changed as a result.
-
-THE DATA:
-- ${dynamic.length} chronicle entries across eras: ${eraList}
-- Current era: ${era}
-- ${surgeCount} major reshapings, ${departureCount} departures (energy passed forward)
-
-${digest}
-
-YOUR TASK: Write exactly 2 short paragraphs.
-
-Paragraph 1 — THE STORY SO FAR: Using the signal group data and turning points above, tell the story of this Grid like a narrator who was watching the whole time. Name the 2-3 signals who mattered most. Say what they did and why it mattered. Connect events causally — "because X happened, Y followed." Keep it to 4-5 sentences. The reader should understand who the main characters are and what the arc has been.
-
-Paragraph 2 — RIGHT NOW: Based on the recent entries, what is the current state? Who is active? What is happening or building? What feels unresolved? 3-4 sentences, grounded in the specific recent entries listed.
-
-CRITICAL RULES:
-- Never mention blockchain, NFTs, wallets, pixels, or technology
-- Use only signal group names (the Wardens, the Drifters, etc.) and zone names (the Breach, etc.) from the data
-- Write in plain declarative sentences — subject, verb, object. No run-ons. No lists of names.
-- If the data shows one signal dominant, say so clearly. If the story is contested, say so.
-- A reader who knows nothing about this world should understand after reading your 2 paragraphs.`
-
-    fetch('/api/summary', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
-    })
-      .then(async r => { const d = await r.json(); if (d.text) setSummary(d.text); else setError(true) })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false))
-  }, [dynamic])
-
-  return { summary, loading, error }
+  // Computed directly — no async, no AI call, no waiting, no hallucination
+  const summary = useMemo(() => computeSummary(dynamic), [dynamic])
+  return { summary: summary || null, loading: false, error: false }
 }
 
 // ── entry modal ───────────────────────────────────────────────────────────
