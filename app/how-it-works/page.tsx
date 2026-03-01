@@ -1,309 +1,279 @@
-'use client'
-import { useState } from 'react'
-import { NavBar } from '@/components/NavBar'
+import type { Metadata } from 'next'
+import Link from 'next/link'
 
-const ERAS = [
-  ['0',    'The First Days',          'The Grid is new. The first marks are being made. No one knows yet what this will become.'],
-  ['100',  'The Awakening',           'Patterns are emerging. Groups sense each other for the first time.'],
-  ['300',  'The Gathering',           'The Grid fills with presence. Territories begin to mean something.'],
-  ['700',  'Age of Claims',           'The canvas is contested. What was open is now owned or disputed.'],
-  ['1500', 'The Deepening',           'The cost becomes clear. The Grid has a history now.'],
-  ['3000', 'Age of Permanence',       'Some things have been settled. Others are still being decided.'],
-  ['5000', 'The Long Memory',         'Veterans outnumber newcomers. The Grid remembers everything.'],
-  ['8000', 'Approach to Singularity', 'Something approaches. The Grid cannot hold all of this indefinitely.'],
-]
+export const metadata: Metadata = {
+  title: 'How It Works — Normies Chronicles',
+  description: 'How real on-chain decisions become the living story of the Grid.',
+}
 
-const CORE_RULES = [
-  { trigger: '200+ pixels changed',           story: 'Great Claiming — a massive territorial shift. The kind that changes what a place means.' },
-  { trigger: '50–199 pixels changed',         story: 'Contested Ground — a sharp, meaningful exchange over territory.' },
-  { trigger: 'Under 50 pixels',               story: 'Edge Mark — a surgical probe at the margin. Small statements are still statements.' },
-  { trigger: 'Pixel count divisible by 50',   story: 'Formal Claim — perfect precision signals deliberate political intent.' },
-  { trigger: 'Burn 10+ AP',                   story: 'Great Giving — a Normie dissolves so another may carry their strength forward. Permanent.' },
-  { trigger: 'Burn 1–9 AP',                   story: 'Offering — a smaller gift. The world\'s quiet tithe.' },
-  { trigger: 'Veteran burns again',           story: 'Renewed Oath — the giving deepens each time it is repeated.' },
-  { trigger: 'Known presence returns',        story: 'Return — those who have been here before change everything when they come back.' },
-  { trigger: 'First-time presence',           story: 'New Arrival — the Grid grows as new people enter it.' },
-  { trigger: 'Prime-numbered token ID',       story: 'Oracle — mathematically irreducible. Acts only when the moment is exactly right.' },
-  { trigger: 'Token ID under 1,000',         story: 'Ancient Stirs — one of the first to exist, present before the chronicle began.' },
-  { trigger: 'Token ID over 8,000',          story: 'Far Reach — those from the distant edges migrate toward the center.' },
-  { trigger: 'Token ID 5,000–6,000',         story: 'Hollow Ground — the Grid\'s contested heart. Nothing settles here permanently.' },
-  { trigger: 'Every 25th entry',             story: 'Turning Point — the chronicle pauses to read the accumulated pattern.' },
-  { trigger: 'Same presence 3+ entries',     story: 'Dominion Grows — a recurring presence builds something legible and intentional.' },
-  { trigger: 'Block gap over 10,000',        story: 'The Silence — the Grid goes quiet. The world breathes. This is a breath.' },
-  { trigger: 'Era threshold crossed',        story: 'New Age — a new chapter of the world begins. The chronicle names it.' },
-  { trigger: 'Same block, two events',       story: 'Convergence — two paths arrive at the same place at the same moment, uncoordinated.' },
-  { trigger: 'Rare transaction hash pattern', story: 'Discovery — something ancient surfaces. The Grid gives up a secret.' },
-]
+const MAX = '42rem'
+const S: React.CSSProperties = { maxWidth: MAX, margin: '0 auto', padding: '0 1.5rem' }
 
-const FILLER_RULES = [
-  { trigger: 'Returns within 500 blocks',       story: 'Gathering — an urgent meeting. The situation has moved faster than the planning.' },
-  { trigger: 'Token ID 2,000–3,000',           story: 'Mapping — the cartographers survey the shifting terrain between events.' },
-  { trigger: 'Token under 500, later in story', story: 'Old Ghost — ancient presences resurface. History folds back into the present.' },
-  { trigger: 'Active presence goes quiet',      story: 'Departure — someone who was here has stopped appearing. No explanation given.' },
-  { trigger: 'Every 10th entry',               story: 'Tally — the chronicler counts what has accumulated. Numbers tell a different story.' },
-  { trigger: 'Returns after 20,000+ blocks',   story: 'Return from Absence — back after a very long silence. From wherever they went.' },
-  { trigger: 'Veteran gives again',            story: 'Debt Paid — the cumulative cost of commitment becomes visible in the record.' },
-  { trigger: 'New presence, quiet entry',      story: 'A Story Heard — the world seen fresh, through eyes that don\'t yet know it.' },
-  { trigger: 'Block gap over 50,000',          story: 'The Long Dark — the Grid went silent for a very long time. Then resumed.' },
-  { trigger: 'Token 8,500+ reactivates',       story: 'Edge Report — news arrives from the far margin. Not what anyone expected.' },
-  { trigger: 'Veteran breaks pattern',         story: 'Changed Course — the world teaches and those who read it adapt.' },
-  { trigger: 'Within 3 entries of next era',   story: 'Vigil — every act carries the weight of the approaching change.' },
-  { trigger: 'New presence, first event',      story: 'Neutral Ground — not yet committed. Watching the larger story from the outside.' },
-  { trigger: 'Exactly 1 pixel or 1 AP',        story: 'Ghost Mark — the smallest possible trace. The chronicle misses nothing.' },
-  { trigger: 'Token 1,000–2,000, new face',   story: 'Messenger — word arrives from another part of the Grid. The world is larger.' },
-  { trigger: 'Every 40th entry',              story: 'The Long Count — the world measured against the Grid\'s 40×40 architecture.' },
-  { trigger: 'Short gap after busy cluster',  story: 'Between Fires — the lull between events. Ordinary things happen. The world prepares.' },
-  { trigger: 'Presence with 3+ entries',      story: 'Dynasty — a lineage recognized by the chronicle. Three entries become a pattern.' },
-  { trigger: 'Activity at range edges',       story: 'Crossing — known faces move through territory they have never touched.' },
-  { trigger: 'Token 2,000–3,000, fallback',  story: 'The Road — the unglamorous work that makes everything else possible.' },
-  { trigger: 'General fallback',             story: 'Night Watch — the watchers who hold the Grid\'s state between active events.' },
-]
+function Divider() {
+  return <div style={{ height: 1, background: 'var(--border)', margin: '2.5rem 0' }} />
+}
 
-const CONNECTORS = [
-  { trigger: 'After Great Claiming, next event follows quickly', story: 'Aftermath — auto-inserted. The world doesn\'t cut directly from a major event to the next.' },
-  { trigger: '3+ consecutive major entries',                     story: 'Between Fires — auto-inserted. Breaks up consecutive events with a breath.' },
-  { trigger: 'Activity surges across the Grid',                  story: 'Escalation — inserted when the chronicler detects a significant acceleration in pace.' },
-  { trigger: 'Cumulative givings cross a threshold',             story: 'The Toll — marks when total sacrifices cross a milestone. The record grows heavy.' },
-]
-
-const WAR_PHASES = [
-  { phase: 'Opening',    trigger: 'Default start — first events',               effect: 'Careful moves. The world is new and neither side knows the full shape of things.' },
-  { phase: 'Escalating', trigger: '5,000+ pixels or 300+ entries',              effect: 'Urgency climbs. The experienced start acting like the experienced.' },
-  { phase: 'Siege',      trigger: '600+ pixels in recent window or 20,000 total', effect: 'Exhaustion sets in. Entrenched positions. Every gain costs more.' },
-  { phase: 'Sacrifice',  trigger: '400+ AP given cumulatively',                 effect: 'Giving becomes part of the rhythm. Every entry carries that weight.' },
-  { phase: 'Reckoning',  trigger: '800+ AP given and 500+ entries',             effect: 'Final-chapter weight. Every act feels like it could be the last.' },
-]
-
-function Footer() {
+function Rule({ name, trigger, body }: { name: string; trigger: string; body: string }) {
   return (
-    <footer style={{ borderTop: '1px solid var(--border)', marginTop: '4rem' }}>
-      <div className="max-w-2xl mx-auto px-6 py-4 flex items-center justify-between">
-        <p className="font-mono text-xs" style={{ color: 'var(--muted)' }}>normies chronicles · ethereum · cc0</p>
-        <a href="https://x.com/aster0x" target="_blank" rel="noopener noreferrer"
-          className="font-mono text-xs hover:opacity-60" style={{ color: 'var(--muted)' }}>
-          @aster0x
-        </a>
+    <div style={{ display: 'flex', gap: '1.5rem', paddingBottom: '1.25rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ minWidth: '9rem', flexShrink: 0 }}>
+        <div style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '0.06em', lineHeight: 1.4, marginBottom: '0.2rem' }}>{name}</div>
+        <div style={{ fontSize: '0.58rem', color: 'var(--muted)', letterSpacing: '0.06em', fontStyle: 'italic' }}>{trigger}</div>
       </div>
-    </footer>
-  )
-}
-
-function ExpandSection({ label, sub, children }: { label: string; sub?: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div style={{ borderTop: '1px solid var(--border)' }}>
-      <button onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between py-4 text-left group">
-        <div>
-          <span className="font-mono text-2xs uppercase tracking-widest" style={{ color: 'var(--muted)' }}>{label}</span>
-          {sub && <span className="font-mono text-2xs ml-3" style={{ color: 'var(--muted)', opacity: 0.6 }}>{sub}</span>}
-        </div>
-        <span className="font-mono text-xs group-hover:opacity-60" style={{ color: 'var(--muted)' }}>
-          {open ? '↑ hide' : '↓ show'}
-        </span>
-      </button>
-      {open && <div className="pb-8">{children}</div>}
+      <p style={{ color: 'var(--muted)', fontSize: '0.72rem', lineHeight: '1.85', flex: 1 }}>{body}</p>
     </div>
   )
 }
 
-function RuleTable({ rules }: { rules: { trigger: string; story: string }[] }) {
+function SectionHead({ label }: { label: string }) {
   return (
-    <div>
-      {rules.map((r, i) => (
-        <div key={i} className="py-3 grid grid-cols-12 gap-4" style={{ borderBottom: '1px solid var(--border)' }}>
-          <div className="col-span-5">
-            <p className="font-mono text-2xs" style={{ color: 'var(--muted)' }}>{r.trigger}</p>
-          </div>
-          <p className="col-span-7 font-mono text-xs leading-relaxed" style={{ color: 'var(--text)' }}>{r.story}</p>
-        </div>
-      ))}
+    <div style={{ paddingBottom: '0.65rem', marginBottom: '1.5rem', borderBottom: '2px solid var(--text)' }}>
+      <span style={{ fontSize: '0.6rem', fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--text)' }}>{label}</span>
     </div>
   )
 }
 
-export default function HowItWorksPage() {
+export default function HowItWorks() {
   return (
-    <>
-      <NavBar />
-      <main className="min-h-screen pt-11">
-        <div className="max-w-2xl mx-auto px-6 pt-10 pb-16">
+    <main style={{ minHeight: '100vh', paddingTop: '2.75rem', paddingBottom: '6rem' }}>
 
-          <h1 className="font-mono font-bold leading-none mb-10"
-            style={{ fontSize: 'clamp(3rem, 8vw, 5.5rem)', color: 'var(--text)' }}>
+      {/* back */}
+      <div style={{ borderBottom: '1px solid var(--border)' }}>
+        <div style={{ ...S, height: '2.1rem', display: 'flex', alignItems: 'center' }}>
+          <Link href="/chronicles" style={{ fontSize: '0.6rem', color: 'var(--muted)', letterSpacing: '0.1em' }}>← chronicles</Link>
+        </div>
+      </div>
+
+      <div style={S}>
+
+        {/* title */}
+        <div style={{ paddingTop: '2.5rem', paddingBottom: '2.5rem', borderBottom: '3px double var(--border)', marginBottom: '3rem' }}>
+          <h1 style={{ fontSize: 'clamp(2.2rem,7vw,3.8rem)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.025em', lineHeight: 0.9, marginBottom: '1.2rem' }}>
             how it<br />works
           </h1>
+          <p style={{ color: 'var(--muted)', fontSize: '0.78rem', lineHeight: '2.05', maxWidth: '28rem' }}>
+            The Normies Chronicles translates real on-chain events into a living story. No writers. No editors. The story emerges from real decisions made by real people — pixel edits, energy transfers — run through a rule system that gives each event its place in the Grid's history.
+          </p>
+        </div>
 
-          <div className="mb-10 space-y-4">
-            <p className="font-mono text-sm leading-relaxed" style={{ color: 'var(--text)' }}>
-              The Normies Chronicles is a living story generated from real events on the Normies canvas — 
-              but the story never mentions them directly. What happens on the canvas becomes what happens 
-              in the world: territorial moves, discoveries, sacrifices, silences, arrivals, departures. 
-              The Grid is a real place. Its inhabitants are real people. The chronicle records what they do.
-            </p>
-            <p className="font-mono text-sm leading-relaxed" style={{ color: 'var(--text)' }}>
-              40 rules — one for each row and column of the 40×40 Grid — interpret every canvas event 
-              and decide what it means to the story. The same event produces different prose depending 
-              on where the story currently is: early or late, tense or quiet, fresh or weathered. 
-              Nothing is random — the same event always generates the same entry.
-            </p>
-            <p className="font-mono text-sm leading-relaxed" style={{ color: 'var(--muted)' }}>
-              The world is not always about conflict. The chronicle has politics, exploration, mystery, 
-              daily life, old stories, new arrivals, quiet seasons, and moments of real weight. 
-              The canvas is still new — we are in <span style={{ color: 'var(--text)' }}>The First Days</span>. 
-              The eras ahead are long. What this world becomes depends on what happens in it.
+        {/* THE WORLD */}
+        <div style={{ marginBottom: '3.5rem' }}>
+          <SectionHead label="The World" />
+          <p style={{ color: 'var(--muted)', fontSize: '0.76rem', lineHeight: '2.05', marginBottom: '1.1rem' }}>
+            The Grid is the world. Not a map of something else — the world itself. Ten thousand faces live in it, each one capable of shaping the spaces it touches. The Grid has twenty named zones: the Breach, the Pale Shore, the Hollow, the Still Water, and sixteen others. It has twelve signals — named presences that move through its zones. Twelve aspects. Twelve artifacts. Ten rival forces.
+          </p>
+          <p style={{ color: 'var(--muted)', fontSize: '0.76rem', lineHeight: '2.05', marginBottom: '1.1rem' }}>
+            A signal's identity — which signal group it belongs to, which zone it occupies, which aspect it carries — is derived deterministically from its token ID. The same token always maps to the same identity. The same transaction always produces the same story entry.
+          </p>
+          <p style={{ color: 'var(--muted)', fontSize: '0.76rem', lineHeight: '2.05' }}>
+            The story has memory. Signals that appear repeatedly accumulate history — becoming known, then storied, then legendary. The dominant presence is tracked. Key moments are stored and referenced in future entries. The chronicle is continuous, not episodic.
+          </p>
+        </div>
+
+        <Divider />
+
+        {/* THE EVENTS */}
+        <div style={{ marginBottom: '3.5rem' }}>
+          <SectionHead label="Two Events" />
+          <p style={{ color: 'var(--muted)', fontSize: '0.76rem', lineHeight: '2.05', marginBottom: '2rem' }}>
+            Two things happen on-chain. Both become story.
+          </p>
+
+          <div style={{ marginBottom: '2rem' }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>PixelsTransformed</div>
+            <p style={{ color: 'var(--muted)', fontSize: '0.75rem', lineHeight: '2.0' }}>
+              When a Normie's pixels are edited on-chain, a presence shapes its zone. The pixel count determines the weight of the moment. One pixel is the quietest possible mark — still permanent, still in the record. Fifty is a deliberate statement. Two hundred reshapes a zone entirely.
             </p>
           </div>
 
-          <div style={{ borderTop: '1px solid var(--border)' }}>
-
-            <ExpandSection label="how it runs">
-              <div>
-                {[
-                  ['index',      'The site reads every pixel edit and burn from the Normies canvas on Ethereum mainnet, in order, from the beginning. Every act ever taken on the Grid, in sequence.'],
-                  ['cache',      'Events are stored so subsequent loads are fast. Only new blocks are fetched on each update. The cache refreshes automatically on a regular cycle.'],
-                  ['world state','As events are processed in sequence, a world state accumulates: total marks made, total givings, recent activity levels, current phase, and what the last major entry was. Every rule reads this state.'],
-                  ['match',      'Each event runs through 40 rules in priority order. The first rule that fits fires. The rule then selects the most contextually fitting text based on the current phase and what came before — so quiet after a great claiming reads as aftermath, not generic silence.'],
-                  ['connect',    'After each entry, the engine checks whether a synthetic connector should be inserted — an Aftermath after a major event, a Toll milestone when enough has been given, or a note when the pace surges.'],
-                  ['fill',       'Names and places are seeded by token ID and block number — fully deterministic. The same canvas event always maps to the same region, faction, and relic. The world is consistent.'],
-                ].map(([label, text]) => (
-                  <div key={label} className="py-4 grid grid-cols-12 gap-4" style={{ borderBottom: '1px solid var(--border)' }}>
-                    <p className="col-span-2 font-mono text-2xs uppercase tracking-widest pt-0.5" style={{ color: 'var(--muted)' }}>{label}</p>
-                    <p className="col-span-10 font-mono text-xs leading-relaxed" style={{ color: 'var(--text)' }}>{text}</p>
-                  </div>
-                ))}
-              </div>
-            </ExpandSection>
-
-            <ExpandSection label="on-canvas events">
-              <div className="space-y-3">
-                {[
-                  { name: 'Pixel Edit', desc: 'A holder spends action points to change their Normie\'s pixel data. In the story: a territorial move — a great claiming, a skirmish, a formal declaration, an edge probe, a discovery. The extent, the token ID, the block timing, and the holder\'s history all shape which rule fires and how the prose reads.' },
-                  { name: 'Burn', desc: 'A holder burns a Normie to transfer its action points to another. Permanent on-chain. In the story: a giving — the dissolved Normie\'s strength carried forward into those who remain. The amount given determines whether it is a Great Giving, an Offering, a Renewed Oath, or a Ghost Mark.' },
-                ].map(e => (
-                  <div key={e.name} className="p-4" style={{ border: '1px solid var(--border)' }}>
-                    <p className="font-mono text-xs font-bold mb-1" style={{ color: 'var(--text)' }}>{e.name}</p>
-                    <p className="font-mono text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>{e.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </ExpandSection>
-
-            <ExpandSection label="19 core rules" sub="the major beats of the story">
-              <p className="font-mono text-xs leading-relaxed mb-5" style={{ color: 'var(--muted)' }}>
-                Core rules fire on the most significant patterns and produce the main beats of the 
-                story — great claimings, givings, discoveries, silences, new arrivals, turning points, 
-                new ages. Each core rule is tracked by the world state so subsequent entries can react 
-                to it contextually. Phase-specific variants produce different prose early vs. late.
-              </p>
-              <RuleTable rules={CORE_RULES} />
-            </ExpandSection>
-
-            <ExpandSection label="21 filler rules" sub="texture between the main beats">
-              <p className="font-mono text-xs leading-relaxed mb-5" style={{ color: 'var(--muted)' }}>
-                Filler rules fire on subtler patterns and fill the space between major events — 
-                gatherings, cartography, old stories, quiet departures, edge reports, dynasties, 
-                the patient watch. Most fillers have afterContext variants: they react to the last 
-                major rule that fired, so a quiet entry after a great claiming reads as aftermath 
-                rather than ordinary silence.
-              </p>
-              <RuleTable rules={FILLER_RULES} />
-            </ExpandSection>
-
-            <ExpandSection label="4 connector rules" sub="auto-inserted for narrative coherence">
-              <p className="font-mono text-xs leading-relaxed mb-5" style={{ color: 'var(--muted)' }}>
-                Connectors are synthetic entries — not tied to a single canvas event, but inserted 
-                when the story needs a bridge. They prevent consecutive major events with no breathing 
-                room, mark giving milestones, and note periods of acceleration. They appear in the 
-                chronicle as part of the flow.
-              </p>
-              <RuleTable rules={CONNECTORS} />
-            </ExpandSection>
-
-            <ExpandSection label="5 story phases" sub="the prose changes as the world accumulates">
-              <p className="font-mono text-xs leading-relaxed mb-5" style={{ color: 'var(--muted)' }}>
-                As events accumulate, the world state transitions through phases. Every rule has 
-                access to the current phase — core rules use it to select phase-specific prose. 
-                The same trigger produces different writing in the Opening than in the Reckoning. 
-                We are currently in the Opening phase. The phases ahead require much more to reach.
-              </p>
-              <div>
-                {WAR_PHASES.map((p, i) => (
-                  <div key={i} className="py-3 grid grid-cols-12 gap-4" style={{ borderBottom: '1px solid var(--border)' }}>
-                    <div className="col-span-3">
-                      <p className="font-mono text-xs font-bold" style={{ color: 'var(--text)' }}>{p.phase}</p>
-                      <p className="font-mono text-2xs mt-0.5" style={{ color: 'var(--muted)' }}>{p.trigger}</p>
-                    </div>
-                    <p className="col-span-9 font-mono text-xs leading-relaxed" style={{ color: 'var(--text)' }}>{p.effect}</p>
-                  </div>
-                ))}
-              </div>
-            </ExpandSection>
-
-            <ExpandSection label="eras">
-              <p className="font-mono text-xs leading-relaxed mb-5" style={{ color: 'var(--muted)' }}>
-                The chronicle moves through eras as the entry count grows. Each era represents a 
-                genuine shift in what the world means — not just a label change, but a different 
-                texture to every entry. Eras are long by design: the canvas is new and the story 
-                has barely started. We are in The First Days.
-              </p>
-              <div>
-                {ERAS.map(([threshold, name, note]) => (
-                  <div key={name} className="py-3 grid grid-cols-12 gap-4" style={{ borderBottom: '1px solid var(--border)' }}>
-                    <p className="col-span-2 font-mono text-2xs" style={{ color: 'var(--muted)' }}>{threshold}+</p>
-                    <div className="col-span-10">
-                      <p className="font-mono text-xs font-bold" style={{ color: 'var(--text)' }}>{name}</p>
-                      <p className="font-mono text-2xs mt-0.5" style={{ color: 'var(--muted)' }}>{note}</p>
-                    </div>
-                  </div>
-                ))}
-                <div className="py-3">
-                  <p className="font-mono text-xs" style={{ color: 'var(--muted)', fontStyle: 'italic' }}>
-                    ··· Age of Conflict — begins when Normies Arena PVP launches on-chain
-                  </p>
-                </div>
-              </div>
-            </ExpandSection>
-
-            <ExpandSection label="the world">
-              <p className="font-mono text-xs leading-relaxed mb-4" style={{ color: 'var(--text)' }}>
-                Every entry draws from a consistent world: 20 regions, 12 factions, 12 commanders, 
-                10 rivals, 12 relics. All selections are seeded by token ID and block number — 
-                deterministic, never random. The same canvas event always maps to the same names.
-              </p>
-              <div className="space-y-3">
-                {[
-                  { label: 'Regions (20)', items: 'the Void Margin · the Glitch Fields · the Pixel Wastes · the Null Shore · the Signal Reaches · the Deep Frame · the Fracture Line · the Synth Lowlands · the Migration Coast · the Dead Channel · the Origin Heights · the Phantom Quarter · the Drift Plains · the Threshold · the Unrendered Dark · the Eternal Row · the Latent Basin · the Corrupted Archive · the Hollow Center · the First Grid' },
-                  { label: 'Factions (12)', items: 'the Voidborn · the Pixel Wardens · the Glitch Collective · the Synth Host · the Upload Faithful · the Eternal Compile · the Null Covenant · the Render Guard · the Migration Front · the Signal Corps · the Unnamed · the Origin Keepers' },
-                  { label: 'Relics (12)', items: 'the First Pixel · the Null Crown · the Shattered Grid Key · the Eternal Brush · the Origin Stone · the Void Codex · the Glitch Sigil · the Last Clean Frame · the Singularity Seed · the Migration Ledger · the Signal Throne · the Grid Bell' },
-                ].map(({ label, items }) => (
-                  <div key={label} className="p-3" style={{ border: '1px solid var(--border)' }}>
-                    <p className="font-mono text-2xs uppercase tracking-widest mb-2" style={{ color: 'var(--muted)' }}>{label}</p>
-                    <p className="font-mono text-xs leading-relaxed" style={{ color: 'var(--text)' }}>{items}</p>
-                  </div>
-                ))}
-              </div>
-            </ExpandSection>
-
-            <ExpandSection label="the ai dispatch">
-              <p className="font-mono text-xs leading-relaxed mb-3" style={{ color: 'var(--text)' }}>
-                The dispatch at the top of the Now view is generated by AI — it reads the last 35 
-                chronicle entries and writes a summary as a chronicler from inside the world. 
-                Present tense, atmospheric, grounded in the specific names and events it sees. 
-                If the entries describe a quiet season, the dispatch reads like a quiet season.
-              </p>
-              <p className="font-mono text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
-                The dispatch regenerates every 5 new chronicle entries. It never mentions canvas 
-                mechanics, blockchain, or anything technical — only the story. As the world grows 
-                and the eras advance, the dispatch will read differently. It is always a live 
-                picture of the world as it currently stands.
-              </p>
-            </ExpandSection>
-
+          <div>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '0.1em', marginBottom: '0.6rem' }}>BurnRevealed</div>
+            <p style={{ color: 'var(--muted)', fontSize: '0.76rem', lineHeight: '2.0' }}>
+              When a Normie's energy is transferred to another on-chain, a signal passes something forward. Not loss — passage. The chronicle treats these moments with particular weight: they are among the most significant things a signal can do. The energy doesn't disappear. It changes hands.
+            </p>
           </div>
         </div>
-        <Footer />
-      </main>
-    </>
+
+        <Divider />
+
+        {/* THE 40 RULES */}
+        <div style={{ marginBottom: '3.5rem' }}>
+          <SectionHead label="40 Rules" />
+
+          <p style={{ color: 'var(--muted)', fontSize: '0.76rem', lineHeight: '2.05', marginBottom: '0.85rem' }}>
+            Every on-chain event is evaluated by a rule engine that examines the event's properties, its position in the story's timeline, and the accumulated state of the world. The rule selected determines what kind of story moment gets written.
+          </p>
+          <p style={{ color: 'var(--muted)', fontSize: '0.76rem', lineHeight: '2.05', marginBottom: '2.5rem' }}>
+            There are exactly 40 rules — one for each cell in a Normie's 40×40 pixel grid. Each Normie is a 40×40 field of cells; the chronicle is a 40-rule field of story possibilities. The symmetry is intentional: the world is built at the same resolution as the faces that inhabit it.
+          </p>
+
+          {/* Group 1: Structural */}
+          <div style={{ marginBottom: '2rem' }}>
+            <div style={{ fontSize: '0.56rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '1.1rem', paddingBottom: '0.4rem', borderBottom: '1px solid var(--border)' }}>
+              Structural milestones — always fire first
+            </div>
+            <Rule name="Deep Reading" trigger="every 40th entry" body="The chronicle steps back after every fortieth entry and reads the shape of the full arc — what forty separate decisions describe as one sequence. Forty entries. Forty cells. The same count." />
+            <Rule name="The Reading" trigger="every 25th entry" body="Twenty-five entries is enough to name a direction. The chronicle marks what it sees taking shape." />
+            <Rule name="Pulse" trigger="every 10th entry" body="A breath, a tally. The rhythm of the chronicle's count." />
+            <Rule name="Era Shift" trigger="at 100, 300, 700, 1500, 3000, 5000, 8000 entries" body="The world crosses into a new era. Each era has its own character and name. The chronicle marks the transition." />
+            <Rule name="Vigil" trigger="3 entries before era threshold" body="The world holds its breath before a turn. The chronicle names the waiting." />
+          </div>
+
+          {/* Group 2: Rare */}
+          <div style={{ marginBottom: '2rem' }}>
+            <div style={{ fontSize: '0.56rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '1.1rem', paddingBottom: '0.4rem', borderBottom: '1px solid var(--border)' }}>
+              Rare conditions — fire when matched
+            </div>
+            <Rule name="Relic Found" trigger="rare transaction hash pattern" body="A transaction hash ending in a repeating pattern surfaces an artifact — something old and significant found in the Grid." />
+            <Rule name="Convergence" trigger="two events in the same block" body="Two signals acting at the exact same moment. The chronicle marks the rarity of two paths crossing at once." />
+            <Rule name="The Elder" trigger="prime number token IDs" body="Prime-numbered signals are elders. They act at precise moments, always with weight. The chronicle pays attention when they move." />
+            <Rule name="Ancient Stirs" trigger="token ID under 1,000" body="Signals from the Grid's earliest register. They were shaping the Grid before most current signals existed." />
+            <Rule name="Far Signal" trigger="token ID over 8,000" body="Signals from the outer reaches of the register. The edges of the story that the main chronicle under-tracks." />
+            <Rule name="Contested Zone" trigger="token ID 5,000–6,000" body="This middle section of the Grid never holds one shape. The chronicle acknowledges the cycle." />
+          </div>
+
+          {/* Group 3: Arc pacing */}
+          <div style={{ marginBottom: '2rem' }}>
+            <div style={{ fontSize: '0.56rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '1.1rem', paddingBottom: '0.4rem', borderBottom: '1px solid var(--border)' }}>
+              Arc pacing — shapes emotional rhythm
+            </div>
+            <Rule name="Resonance" trigger="surge followed by another surge within 2,000 blocks" body="Two large moments close together. The chronicle marks the harmonic." />
+            <Rule name="Acceleration" trigger="500+ pixels changed in recent window" body="The Grid is moving fast. Something is building." />
+            <Rule name="Weight" trigger="cumulative energy transfer thresholds" body="The toll accumulates. At certain totals of passed energy, the chronicle marks the scale of what has been given." />
+            <Rule name="Interval" trigger="between active events, arc-paced" body="A natural pause. The chronicle breathes." />
+          </div>
+
+          {/* Group 4: Block gaps */}
+          <div style={{ marginBottom: '2rem' }}>
+            <div style={{ fontSize: '0.56rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '1.1rem', paddingBottom: '0.4rem', borderBottom: '1px solid var(--border)' }}>
+              Block gaps — time as a character
+            </div>
+            <Rule name="Long Dark" trigger="50,000+ block gap" body="The Grid was genuinely still for a long stretch. The chronicle names it as a long dark." />
+            <Rule name="The Quiet" trigger="10,000+ block gap" body="A significant pause between events. Both presences held their positions without moving." />
+          </div>
+
+          {/* Group 5: Signal history */}
+          <div style={{ marginBottom: '2rem' }}>
+            <div style={{ fontSize: '0.56rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '1.1rem', paddingBottom: '0.4rem', borderBottom: '1px solid var(--border)' }}>
+              Signal history — memory shapes the story
+            </div>
+            <Rule name="Return" trigger="signal reappears after absence" body="A signal comes back. The chronicle notes the gap and what it might mean." />
+            <Rule name="Wanderer" trigger="20,000+ block absence" body="Gone long enough to be almost forgotten. The chronicle marks the return explicitly." />
+            <Rule name="The Builder" trigger="rapid successive activity from same signal" body="The same signal acting in quick succession. Something is being made with urgency." />
+            <Rule name="Dynasty" trigger="signal with sustained dominance streak" body="One signal consistently present over many entries. The Grid takes on their character." />
+            <Rule name="Dominion" trigger="dominant signal across recent window" body="A presence that is currently everywhere. The chronicle names the weight of that." />
+            <Rule name="First Light" trigger="signal's very first appearance" body="A new signal enters the record for the first time." />
+          </div>
+
+          {/* Group 6: Event scale */}
+          <div style={{ marginBottom: '2rem' }}>
+            <div style={{ fontSize: '0.56rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '1.1rem', paddingBottom: '0.4rem', borderBottom: '1px solid var(--border)' }}>
+              Event scale — size of mark determines weight
+            </div>
+            <Rule name="Signal Surge" trigger="200+ pixels changed" body="A zone reshaped entirely. The largest kind of presence event. The Grid absorbed it and moved on — but the shape remains." />
+            <Rule name="Declaration" trigger="50–199 pixels, round count" body="A precise, formal statement. The count's roundness reads as intent." />
+            <Rule name="Mark Made" trigger="50–199 pixels" body="Deliberate, personal, visible. A signal expressing itself on the Grid." />
+            <Rule name="Ghost Touch" trigger="1 pixel" body="The smallest possible presence. Still permanent. Still in the record." />
+            <Rule name="Departure" trigger="10+ AP energy transferred" body="A signal choosing to dissolve. Everything it accumulated passes forward. Not destruction — passage." />
+            <Rule name="Twice Given" trigger="veteran signal transfers energy again" body="A signal that gave before gives again. The second time carries more weight." />
+            <Rule name="Passing" trigger="small energy transfer" body="A quiet gift between signals. Small in scale. The chronicle holds it briefly." />
+          </div>
+
+          {/* Group 7: Character texture */}
+          <div style={{ marginBottom: '2rem' }}>
+            <div style={{ fontSize: '0.56rem', fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '1.1rem', paddingBottom: '0.4rem', borderBottom: '1px solid var(--border)' }}>
+              Character texture — adds variety and depth
+            </div>
+            <Rule name="New Blood" trigger="recently active signal, early phase" body="A signal making its presence known in the Grid's formative period." />
+            <Rule name="Old Ghost" trigger="token ID under 500, veteran" body="One of the very first signals. Ancient by the Grid's measure." />
+            <Rule name="Story Told" trigger="legend-level signal, reflective phase" body="A signal with deep enough history that the chronicle steps back and acknowledges what it has become." />
+            <Rule name="Gone" trigger="signal absent after sustained activity" body="A presence that has stopped. The Grid shows where they were." />
+            <Rule name="Cartographer" trigger="token ID 2,000–3,000 range" body="Signals from the survey band — the zone where the Grid's middle character was established." />
+            <Rule name="Pivot" trigger="signal changes behavior pattern" body="Something shifts in how a signal acts. The chronicle notes the change." />
+            <Rule name="Unaligned" trigger="signal with no faction match" body="A presence that doesn't fit neatly into the Grid's named structures. The chronicle acknowledges the exception." />
+            <Rule name="The Steady" trigger="consistent low-level activity" body="A signal that shows up without drama, over and over. The chronicle acknowledges reliability." />
+            <Rule name="Nightwatch" trigger="activity in low-volume stretches" body="Marking the Grid when most others are absent. The chronicle notes the vigil." />
+          </div>
+        </div>
+
+        <Divider />
+
+        {/* NARRATIVE MEMORY */}
+        <div style={{ marginBottom: '3.5rem' }}>
+          <SectionHead label="Narrative Memory" />
+          <p style={{ color: 'var(--muted)', fontSize: '0.76rem', lineHeight: '2.05', marginBottom: '1.1rem' }}>
+            The chronicle remembers. Every signal that appears is tracked: how many times, how many marks, whether it has returned after absence, and its legend level — unknown, known (3+ entries), storied (8+), legend (20+).
+          </p>
+          <p style={{ color: 'var(--muted)', fontSize: '0.76rem', lineHeight: '2.05', marginBottom: '1.1rem' }}>
+            Key moments are stored and referenced in future entries. When a major reshaping happens, the zone is noted. When a signal dissolves, the loss is remembered. Future entries can reference these moments — the story is continuous, not episodic.
+          </p>
+          <p style={{ color: 'var(--muted)', fontSize: '0.76rem', lineHeight: '2.05' }}>
+            The dominant signal — the one most consistently present — is tracked. When one signal has dominated long enough, the chronicle marks a shift in the world's atmosphere. When something breaks the pattern, it registers as a turning point.
+          </p>
+        </div>
+
+        <Divider />
+
+        {/* THE VISUALIZATION */}
+        <div style={{ marginBottom: '3.5rem' }}>
+          <SectionHead label="The Visualization" />
+          <p style={{ color: 'var(--muted)', fontSize: '0.76rem', lineHeight: '2.05', marginBottom: '1.1rem' }}>
+            The 80×80 pixel canvas is not a map. It is a living portrait of the Grid's current story state — a visual representation of what the Grid feels like at this moment, animated in real time.
+          </p>
+          <p style={{ color: 'var(--muted)', fontSize: '0.76rem', lineHeight: '2.05', marginBottom: '1.1rem' }}>
+            Each story mood has a distinct visual language: a signal surge produces radial burst waves with geometric spokes; departure produces a spiral vortex of energy unwinding outward; discovery produces an expanding crystal lattice; wonder produces 12-fold mandala symmetry; chaos produces high-frequency interference static; quiet produces two gentle overlapping wave fields. The visualization updates with every new story entry.
+          </p>
+          <p style={{ color: 'var(--muted)', fontSize: '0.76rem', lineHeight: '2.05' }}>
+            The intensity bar shows the arc's current charge. The mood history dots show what has happened recently. Selecting an entry triggers a brief visual response — the canvas reflects the moment you're reading.
+          </p>
+        </div>
+
+        <Divider />
+
+        {/* EIGHT ERAS */}
+        <div style={{ marginBottom: '3.5rem' }}>
+          <SectionHead label="Eight Eras" />
+          <p style={{ color: 'var(--muted)', fontSize: '0.76rem', lineHeight: '2.05', marginBottom: '2rem' }}>
+            The chronicle divides itself into eight eras based on accumulated entries. Each era has its own character.
+          </p>
+          {([
+            ['The First Days', '0+', 'The Grid is new. Every mark is the first of its kind.'],
+            ['The Awakening', '100+', 'Signals sense each other. The quiet is ending.'],
+            ['The Gathering', '300+', 'Territory begins to mean something. The Grid is building a history.'],
+            ['Age of Claims', '700+', 'Every mark is a statement. The zones are contested.'],
+            ['The Deepening', '1,500+', 'The cost of presence is becoming clear. So is its value.'],
+            ['Age of Permanence', '3,000+', 'Some things have been decided. The record runs very deep.'],
+            ['The Long Memory', '5,000+', 'Veterans outnumber newcomers. The Grid forgets nothing.'],
+            ['The Reckoning', '8,000+', 'Something is ending. Something else is beginning.'],
+          ] as [string,string,string][]).map(([name,threshold,desc])=>(
+            <div key={name} style={{ display:'flex', gap:'1rem', paddingBottom:'0.9rem', marginBottom:'0.9rem', borderBottom:'1px solid var(--border)', alignItems:'baseline' }}>
+              <span style={{ fontSize:'0.65rem', fontWeight:700, color:'var(--text)', minWidth:'9rem', flexShrink:0 }}>{name}</span>
+              <span style={{ fontSize:'0.55rem', color:'var(--muted)', opacity:0.5, minWidth:'3rem', flexShrink:0 }}>{threshold}</span>
+              <span style={{ fontSize:'0.72rem', color:'var(--muted)', lineHeight:'1.8' }}>{desc}</span>
+            </div>
+          ))}
+        </div>
+
+        <Divider />
+
+        {/* DETERMINISM */}
+        <div style={{ marginBottom: '3.5rem' }}>
+          <SectionHead label="Determinism" />
+          <p style={{ color: 'var(--muted)', fontSize: '0.76rem', lineHeight: '2.05', marginBottom: '1.1rem' }}>
+            The chronicle is deterministic. Given the same sequence of on-chain events, it always produces the same story. Nothing was chosen by a person after the system was built.
+          </p>
+          <p style={{ color: 'var(--muted)', fontSize: '0.76rem', lineHeight: '2.05' }}>
+            The story emerges from the decisions of ten thousand people who don't know they're writing it. The chronicle is a function — it takes the Grid's history and produces the account. The world is real because the decisions that made it were.
+          </p>
+        </div>
+
+        {/* footer nav */}
+        <div style={{ paddingTop: '1rem' }}>
+          <Link href="/chronicles" style={{ fontSize: '0.75rem', color: 'var(--text)', borderBottom: '1px solid var(--border)', paddingBottom: '1px' }}>
+            read the chronicle →
+          </Link>
+        </div>
+      </div>
+    </main>
   )
 }
