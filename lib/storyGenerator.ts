@@ -75,6 +75,14 @@ interface WorldMemory {
   dominantSignalName: string | null
   dominantStreak: number
   reckoningBuilding: boolean  // dominant too long -- tension building
+  // Signal group activity tracking
+  signalGroupCounts: Map<string, number>   // signalName -> total entries
+  secondSignalName: string | null          // second-most-active signal group
+  // The 3 main characters — tracked across the whole story
+  // protagonist = most active overall; rival = second most; witness = third
+  protagonist: string
+  rival: string  
+  witness: string
   // Key moments stored for prose back-references
   lastSurgeSignal: string | null
   lastSurgeZone: string | null
@@ -96,6 +104,11 @@ function freshWorldMemory(): WorldMemory {
     dominantSignalName: null,
     dominantStreak: 0,
     reckoningBuilding: false,
+    signalGroupCounts: new Map(),
+    secondSignalName: null,
+    protagonist: 'the Wardens',
+    rival: 'the Drifters',
+    witness: 'the Old Compact',
     lastSurgeSignal: null,
     lastSurgeZone: null,
     lastSurgeCount: 0,
@@ -255,11 +268,16 @@ function pick<T>(arr: T[], s: number): T { return arr[Math.abs(s) % arr.length] 
 
 interface WorldCtx {
   zone: string        // the zone this signal occupies
-  signal: string      // this signal's identity name
-  other: string       // another presence in the world (not an enemy, just other)
+  signal: string      // this signal's identity name (the actual token's group)
+  other: string       // the second-most-active signal group — real narrative counterpart
   aspect: string      // their role/voice
   artifact: string    // an artifact that might be found
   era: string
+  // The 3 main characters — persistent across the whole story
+  // Use these in prose for narrative continuity
+  protagonist: string   // most active signal group overall
+  rival: string         // second most active — the counterforce
+  witness: string       // third most active — the observer/recorder
   // Narrative enrichment -- prose-ready back-references
   lastSurgeRef: string      // "after what happened at the Breach" -- or empty
   lastDepartureRef: string  // "since the signal went dark at the Hollow" -- or empty
@@ -280,7 +298,11 @@ function buildCtx(
   const t = Number(tokenId)
   const zone     = pick(ZONES,    t)
   const signal   = pick(SIGNALS,  (t * 7 + 3)  % SIGNALS.length)
-  const other    = pick(OTHERS,   (t * 11 + 5) % OTHERS.length)
+  // Use the actual second-most-active signal group as {other}
+  // This makes {other} a real recurring character, not a random name
+  const other    = world.secondSignalName && world.secondSignalName !== signal
+    ? world.secondSignalName
+    : pick(SIGNALS, (t * 11 + 5) % SIGNALS.length)
   const aspect   = pick(ASPECTS,  (t * 13 + 7) % ASPECTS.length)
   const artifact = pick(ARTIFACTS,(t * 17 + 2) % ARTIFACTS.length)
 
@@ -314,6 +336,9 @@ function buildCtx(
 
   return {
     zone, signal, other, aspect, artifact, era,
+    protagonist: world.protagonist,
+    rival: world.rival,
+    witness: world.witness,
     lastSurgeRef,
     lastDepartureRef,
     dominantRef,
@@ -331,6 +356,9 @@ function fill(t: string, c: WorldCtx): string {
     .replace(/{aspect}/g,         c.aspect)
     .replace(/{artifact}/g,       c.artifact)
     .replace(/{era}/g,            c.era)
+    .replace(/{protagonist}/g,    c.protagonist)
+    .replace(/{rival}/g,          c.rival)
+    .replace(/{witness}/g,        c.witness)
     .replace(/{lastSurge}/g,      c.lastSurgeRef   || 'in the last great shift')
     .replace(/{lastDeparture}/g,  c.lastDepartureRef || 'since the last signal faded')
     .replace(/{dominant}/g,       c.dominantRef    || c.signal)
@@ -385,16 +413,37 @@ function updateWorldMemory(
   else if (mem.totalEntries >= 8)  mem.legendLevel = 2
   else if (mem.totalEntries >= 3)  mem.legendLevel = 1
 
-  // ── Dominant signal tracking ──────────────────────────────────────────────
-  // Find the signal with most entries overall
-  let topName = signalName
-  let topCount = 0
-  const nameCounts = new Map<string, number>()
-  for (const s of world.signals.values()) {
-    const c = (nameCounts.get(s.name) ?? 0) + s.totalEntries
-    nameCounts.set(s.name, c)
-    if (c > topCount) { topCount = c; topName = s.name }
+  // ── Signal group tracking ─────────────────────────────────────────────────
+  // Track which SIGNAL GROUPS (not individual wallets) are most active
+  // This ensures {other} and dominant are persistent narrative characters
+  world.signalGroupCounts.set(signalName,
+    (world.signalGroupCounts.get(signalName) ?? 0) + 1)
+
+  // Find top-2 signal groups
+  let topName = signalName, topCount = 0
+  let secondName: string | null = null, secondCount = 0
+  for (const [name, count] of world.signalGroupCounts) {
+    if (count > topCount) {
+      secondName = topName; secondCount = topCount
+      topCount = count; topName = name
+    } else if (count > secondCount) {
+      secondName = name; secondCount = count
+    }
   }
+  world.secondSignalName = secondName
+
+  // Update the 3 main characters from real data
+  if (topName) world.protagonist = topName
+  if (secondName) world.rival = secondName
+  // witness = third most active
+  let thirdName: string | null = null, thirdCount = 0
+  for (const [name, count] of world.signalGroupCounts) {
+    if (name !== topName && name !== secondName && count > thirdCount) {
+      thirdCount = count; thirdName = name
+    }
+  }
+  if (thirdName) world.witness = thirdName
+
   if (topName === world.dominantSignalName) {
     world.dominantStreak++
     world.reckoningBuilding = world.dominantStreak >= 15
@@ -559,12 +608,12 @@ const RULES: Record<string, LoreRule> = {
       'The Grid Remembers What {signal} Did at {zone}',
     ],
     bodies: [
-      '{signal} reshaped {zone} completely. This matters: {zone} was a contested zone — others had been marking it, building something there. Now it carries {signal}\'s shape in every cell. What others built is under new marks. The Grid confirms the new state.',
-      '{signal} came to {zone} with intent and executed it fully. The zone is theirs now — every part of it showing their pattern. This kind of reshaping takes energy. It also changes what others can do near {zone}. The territory has shifted.',
-      'Everything at {zone} looks like {signal} now. That didn\'t happen by accident. It happened because they decided this zone needed to carry their shape — and they had enough presence to make it so. Others who had been shaping {zone} will find different ground when they return.',
-      '{signal} rewrote {zone}. Not a small mark, not an edge — the whole zone, from the configuration others had been building to the configuration {signal} decided it should be. The Grid doesn\'t resist. It records. What {signal} decided is now what {zone} is.',
-      'The reshaping of {zone} by {signal} is the kind of event that changes what comes next. Signals that were using {zone} as a base now have to account for different ground. Signals that were pushing toward it now face {signal}\'s shape instead of what was there. The Grid moved. So will everything around it.',
-      '{signal} took {zone}. That\'s the plain description. The full picture: every mark that was there before is now under their configuration. Every signal that had been building toward this zone now has to make a different calculation. The record shows what {signal} did. What others do next is the next entry.',
+      '{signal} reshaped {zone} completely. {rival} had been building here — the zone carried marks from both sides. Now it carries {signal}\'s shape in every cell. What {rival} built is under new marks. The Grid confirms the new state. {rival} will find different ground when they return.',
+      '{signal} came to {zone} with intent and executed it fully. This is the kind of reshaping that changes what {rival} can do next. The territory that {rival} had been treating as accessible is now clearly {signal}\'s. The calculation shifts.',
+      '{signal} rewrote {zone}. Every mark that was there before — {rival}\'s positioning, {witness}\'s quiet observations — is now under their configuration. The Grid doesn\'t resist. It records. What {signal} decided is now what {zone} shows.',
+      '{protagonist} moved on {zone}. The reshaping is total. {rival} has been working near here — this changes their situation directly. {witness} is noting the new configuration. The Grid moved. What {rival} does next is what matters.',
+      'The reshaping of {zone} came from {signal}, but the story is in what it means for {rival}. {rival} had been building toward this ground. Now they face {signal}\'s shape here instead. The Grid shifted. So does every calculation that depended on {zone} being open.',
+      '{signal} took {zone}. The full picture: {rival} loses the access they had here. {protagonist} extends their reach. {witness} records the change. Three different signals, one event, three different implications. The Grid shows them all.',
     ],
     phaseVariants: [
       { phase: 'siege', headline: 'The Stillness Ends -- {signal} at {zone}', body: 'The pause at {zone} ended the way pauses end when one signal runs out of patience. {signal} moved -- not a test, the full thing -- and the Grid registered every change before the others could read what was happening.' },
@@ -665,12 +714,12 @@ const RULES: Record<string, LoreRule> = {
       'What Remains After {signal} Near {zone}',
     ],
     bodies: [
-      '{signal} dissolved near {zone}. Not disappeared — given. Everything they had accumulated, all their capacity to mark the Grid, passed forward to those still shaping it. This matters: the energy doesn\'t vanish. It changes hands. Whoever receives it can reach further because of what {signal} gave.',
-      'Near {zone}, {signal} chose to stop being a presence. They gave what they had. The shape they left on the Grid remains — their marks still in the cells they last worked — but the force behind those marks is gone, distributed forward. The Grid is different for their absence. Other signals will feel the space.',
-      '{signal} passed their energy forward near {zone}. What this means for the Grid: the zones they held are now ground others must choose to re-mark or let settle. The energy they gave can be used by whoever receives it. A departure is never just a loss — it\'s a redistribution. What was {signal}\'s is now available.',
-      'A signal dissolved near {zone}. The chronicle marks this because departures change the Grid\'s balance. Zones {signal} had been maintaining now need new attention. Energy they carried is now in other hands. The signals still active near {zone} will shape what happens to what was left.',
-      'Near {zone}, {signal} chose to give everything and stop. The cells they last marked still carry their shape. But the force that was maintaining them, that was pushing the zone in their direction — that is gone. Other signals will find the zone without its previous occupant. What they do with the opening is what comes next.',
-      'The departure near {zone} changes the calculation for everyone still active. A signal that had been consistently shaping this ground has given their energy forward and stepped out of the active Grid. The zones they held are now contested in a new way. Not because they were taken — because they were relinquished.',
+      '{signal} dissolved near {zone}. Not disappeared — given. The energy they carried passes forward. This matters to {rival} and {protagonist} directly: the ground {signal} was holding is now open. The shape they left still shows in the cells. The force behind it is gone.',
+      'Near {zone}, {signal} chose to stop. They gave what they had. {protagonist} and {rival} will both feel the space — one more directly than the other, depending on whose path ran closest to {signal}\'s zones. A departure is a redistribution. What was {signal}\'s is now available.',
+      '{signal} passed their energy forward near {zone} and stepped out. The zones they maintained are now ground {protagonist} and {rival} will have to decide about. Hold what\'s there or let it drift. The Grid doesn\'t choose. They do.',
+      'The departure near {zone} changes the balance between {protagonist} and {rival}. A third presence that had been shaping this ground is gone — the zones between them contract. {rival} and {protagonist} are now more directly in contact. The buffer is gone.',
+      '{signal} gave everything near {zone} and dissolved. What they built here remains. {protagonist} is the most likely to move into the space first — they\'ve been most consistent. {rival} will be watching. {witness} is recording the opening.',
+      'Near {zone}, a signal stopped. Their zones are open now. The chronicle marks this because departures always change what {protagonist} and {rival} are working with. One less presence between them. One more set of zones to contest, hold, or let settle.',
     ],
     phaseVariants: [
       { phase: 'reckoning', headline: 'A Final Passing Near {zone}', body: 'In the late days of the Grid\'s current chapter, this passing near {zone} carries extra weight. The signal chose to go now -- with full knowledge of where the story was heading. Not from despair. From a clear-eyed sense of what this moment needed.' },
@@ -882,10 +931,10 @@ const RULES: Record<string, LoreRule> = {
       'A Direction Emerges',
     ],
     bodies: [
-      'Twenty-five entries. Read them as one story: {signal} has been consistently present — marking, reshaping, returning. The zones that changed most in this window are the zones {signal} cared about. That consistency is what it looks like when a signal has a purpose. This is what {signal}\'s purpose looks like on the Grid.',
-      'Twenty-five entries form a shape. The shape says: {signal} has been driving the Grid\'s current chapter. Not randomly — persistently, in specific zones, building something recognizable. Whether they finish it depends on what comes next. But twenty-five entries in, the direction is clear.',
-      'The twenty-five-entry reading shows the Grid\'s current arc: who has been most present, what they\'ve built, what changed for others as a result. {signal} has been at the center of this window. What that means for signals who share the Grid with them is visible in the configuration. Read the zones. The story is in the cells.',
-      'At twenty-five, the pattern is readable. {signal}\'s marks have accumulated in a direction. The zones they\'ve reshaped are zones where others now have less room to work. Twenty-five entries of decisions, read together, describe a Grid that has moved — not because anyone declared it would, but because {signal} kept showing up.',
+      'Twenty-five entries, read as one story. {protagonist} has been the most consistent presence in this window — marking, reshaping, returning. {rival} has been adapting to the space {protagonist} leaves or takes. The Grid\'s current shape is the result of that back-and-forth. Twenty-five entries in, the direction is clear enough to name.',
+      'The shape of the last twenty-five: {protagonist} driving the configuration, {rival} responding, the Grid moving in one direction across the whole window. Not because anyone declared it would. Because {protagonist} kept showing up and {rival} kept having to account for it.',
+      'Step back from the individual marks. The twenty-five-entry window describes a story with recurring characters: {protagonist} most present, {rival} most affected, {witness} in the margins watching both. Read the zones. The story is in who keeps returning to them.',
+      'At twenty-five, the arc is readable. {protagonist} has been building something across this window — zone by zone, mark by mark. {rival} has been contesting it or working around it. {witness} has been noting what changes. Twenty-five entries of real decisions add up to a direction the chronicle can now name.',
     ],
     afterContext: {
       SIGNAL_SURGE: 'The big reshaping at {zone} reads differently when you look at the twenty-five entries before it. Every smaller mark was part of the buildup. The pattern was in the Grid\'s record the whole time. Most weren\'t reading it.',
@@ -982,10 +1031,10 @@ const RULES: Record<string, LoreRule> = {
       '{era}: Everything Before This Was Prologue',
     ],
     bodies: [
-      '{era} begins. The Grid that starts this chapter is shaped by everything that happened in the last one: the reshapings that shifted which signals hold which zones, the departures that redistributed energy, the long silences that let certain shapes settle into permanence. This era inherits all of that. What {signal} and others do with the inheritance is what {era} will be about.',
-      'The threshold into {era}. The Grid\'s record at this mark shows a specific configuration — zones under specific shapes, signals at specific levels of presence, energy distributed in a specific way. That is what this era starts from. Every signal currently active near {zone} and elsewhere will shape where it goes.',
-      '{era} opens. The count that marks this turn is not arbitrary — it reflects the weight of what accumulated to get here. {signal} has been part of that accumulation. So have others who came and went. The Grid remembers all of it. The new era doesn\'t erase the last one. It is built on top of it.',
-      'The chronicle marks {era}. New chapters in the Grid don\'t start clean — they start from whatever the last chapter produced. Zones held, zones contested, zones relinquished. Energy passed forward, energy still held. Signals active, signals gone dark. The Grid that enters {era} carries every decision that was made to get here.',
+      '{era} begins. The Grid that starts this chapter was built by {protagonist}, {rival}, and everyone else who shaped it in the last one. {protagonist} enters {era} with the most accumulated presence. {rival} enters it as the primary counterforce. What they do with what\'s been built is what {era} will be about.',
+      'The threshold into {era}. This chapter starts from a specific configuration: {protagonist} has been the most consistent shaping force, {rival} the most persistent response to it. The zones that carry the most history are the zones those two have been contesting. {era} inherits all of it.',
+      '{era} opens. {protagonist} has been building something across the previous chapter. {rival} has been contesting or countering it. {witness} has been in the margins, recording. The new era doesn\'t erase what they\'ve built. It asks what they do next.',
+      'The chronicle marks {era}. The Grid that crosses this threshold carries everything that happened to get here: every time {protagonist} reshaped a zone, every time {rival} pushed back, every departure that redistributed what someone had built. {era} starts from the accumulated result of all of it.',
     ],
     afterContext: {
       SIGNAL_SURGE: 'The reshaping pushed the count into a new era. {era} begins with {signal} having shaped more of the Grid than they held in any previous chapter. The baseline has changed.',
@@ -1006,10 +1055,10 @@ const RULES: Record<string, LoreRule> = {
       'The Grid\'s Shape: {signal} Dominant',
     ],
     bodies: [
-      '{signal} is everywhere in the Grid right now. Not metaphorically — the configuration shows it. More zones carry their marks than any other signal\'s. That kind of presence doesn\'t happen by accident. It happens because {signal} has been consistently showing up, reshaping, and returning to hold what they reshaped. The Grid reflects the accumulated result.',
-      'The Grid\'s current configuration belongs to {signal} more than anyone else. Other signals are present — near {zone} and elsewhere — but the dominant shape, the one that defines what most of the Grid currently says, is {signal}\'s. How long this holds depends on what other signals decide to do about it.',
-      '{signal} has reached a point of dominion. Not declared — demonstrated. Zone after zone across the Grid\'s active territory carries their marks, holds their configuration, shows their presence in the record. Other signals are adapting to a Grid that increasingly reflects what {signal} has built.',
-      'The Grid right now looks like {signal}. That\'s the plain reading of the active configuration. More zones, more marks, more of the contested ground resolved in their direction. Signals who want different ground from this will need to contest it directly. {signal} has not left openings by accident.',
+      '{protagonist} is the dominant presence on the Grid right now. Not declared — demonstrated. Zone after zone carries their configuration. {rival} is still active but has been adapting to a Grid that increasingly reflects {protagonist}\'s choices rather than their own.',
+      'The Grid belongs to {protagonist} more than anyone else right now. Their marks are in more zones, their shape shows in more contested ground. {rival} holds the margins. {witness} records from the edges. The center belongs to {protagonist}.',
+      '{protagonist} has accumulated dominion. The shape of the Grid right now is the result of {protagonist} showing up consistently while {rival} has been contesting, responding, or regrouping. The balance is real but the tilt is visible.',
+      'The active configuration says one thing clearly: {protagonist} leads. More zones carry their shape, more contested ground has resolved in their direction. {rival} knows this. So does {witness}. The question now is what {rival} does about it.',
     ],
   },
 
@@ -1028,10 +1077,10 @@ const RULES: Record<string, LoreRule> = {
       'A Tally of What\'s Happened',
     ],
     bodies: [
-      'Ten entries. Read the distribution across the last ten: {signal} marking, {other} responding, the Grid\'s active configuration ending up more {signal}\'s character every time things settle. Ten data points. One direction.',
-      'The tally at ten: {signal} ahead in every measure the chronicle tracks -- zones marked, shapes held, counter-marks answered. {other} is behind. The gap has been widening.',
-      'Ten log entries, read as one sequence: {signal} shaping the Grid, {other} yielding ground, the configuration moving toward {signal}\'s character without reversing once across the window. Ten is enough to call a pattern.',
-      'At ten, the chronicle adds it up. {signal} more present, more active, more legible across every one of the ten entries than {other}. Ten is the Grid\'s smallest pattern. This one is clear.',
+      'Ten entries. The shape of the last ten: {protagonist} most present, {rival} accounting for what {protagonist} is building, {witness} in the background. Ten data points. One direction.',
+      'The tally at ten: {protagonist} leads in zones marked, shapes held, presence confirmed. {rival} is close — they\'ve been active too, but on different ground or in response to {protagonist}\'s moves. Ten entries in, the story is legible.',
+      'Ten entries as one sequence: {protagonist} shaping, {rival} responding, the Grid moving in the direction {protagonist}\'s consistency has been pushing it. Ten is the Grid\'s smallest window. This one is enough to read.',
+      'At ten, the pattern: {protagonist} and {rival} are the two signals most present in this window. {protagonist} is ahead. {rival} is adapting. The chronicle will keep watching.',
     ],
   },
 
@@ -1048,10 +1097,10 @@ const RULES: Record<string, LoreRule> = {
       'The Full Arc at Forty',
     ],
     bodies: [
-      'Forty entries. The chronicle reads back across all forty and finds a direction: {signal}\'s character spreading across the Grid, entry by entry, consistently. Not dramatic in any single moment. Undeniable in aggregate.',
-      'At forty, the chronicle steps back from the individual mark to the sequence. What forty entries describe: a Grid in motion, a direction, and {signal} on the shaping side of it. Forty entries of choices made by real signals producing a shape that no single choice explains.',
-      'The deep reading at forty. Forty separate entries, read as one sequence: {signal} present and active, {other} adapting, the active Grid moving in one direction across all forty. The Grid doesn\'t decide this. The signals do. Forty entries of their decisions.',
-      'At forty, the pattern is undeniable. {signal}\'s presence across forty entries -- near {zone} and elsewhere -- describes a signal that understands what it\'s doing. The long game. The accumulated mark. The Grid shows it.',
+      'Forty entries. Read as one story, they describe a world with three main presences: {protagonist}, who has been the most persistent force on the Grid this whole window; {rival}, who has been the primary counterweight; and {witness}, who has been recording and adapting in the background. Forty entries of real decisions. One unmistakable shape.',
+      'The forty-entry view shows the Grid\'s current arc clearly. {protagonist} has been driving changes — reshaping zones, returning to hold them, marking with purpose. {rival} has been responding, contesting, working with what {protagonist} leaves. The configuration of the Grid right now is the product of that ongoing exchange.',
+      'At forty, the chronicle reads the whole sequence. The story\'s main characters are clear by now: {protagonist} as the shaping force, {rival} as the persistent counterforce, {witness} as the one who moves through the margins and records what the others overlook. Forty entries of choices. One direction.',
+      'The deep reading at forty: {protagonist} has accumulated more presence on the Grid than anyone in this window. Not through one dramatic moment — through consistency. {rival} has been the signal that made {protagonist}\'s presence meaningful, the resistance that gave the shaping something to push against. Forty marks. One story.',
     ],
   },
 
@@ -1068,10 +1117,10 @@ const RULES: Record<string, LoreRule> = {
       'Final Moments of the Current Chapter',
     ],
     bodies: [
-      'The chronicle is near a threshold. The Grid is in its final entries before the next era -- every mark made now is part of what the record holds as the close of this chapter. The Grid doesn\'t pause for thresholds. The chronicle notes them.',
-      'Near the mark. The activity near {zone} continues toward a count that changes the era name. What {signal} and {other} do in these cells now is what the era ends on. The Grid will remember -- the Grid remembers everything.',
-      'Something is about to change in the chronicle\'s account of the Grid. Not the Grid itself -- the name the chronicle gives to this period. The count is close. Every mark near {zone} right now is part of how this chapter closes.',
-      'The vigil before the turn: the chronicle approaching the entry count that closes this era. The Grid continues. The count advances with every new mark. What\'s being built near {zone} right now will be part of the next era\'s foundation.',
+      'The chronicle is near a threshold. The Grid\'s next era is close. Every mark made now — by {protagonist}, by {rival}, by anyone still shaping — is part of how this chapter closes. The Grid doesn\'t pause for thresholds. The chronicle notes them.',
+      'Near the turn. {protagonist} is building toward something in these final entries of the current chapter. {rival} is adjusting their position. What both of them do in the next few marks is what the era closes on. The Grid will hold all of it.',
+      'Something is about to change in the chronicle\'s account of the Grid. Not the Grid itself — the name the chronicle gives to this period. {protagonist} and {rival} are shaping the last moments of this chapter without knowing it. The count is close.',
+      'The vigil before the next era: {protagonist} ahead, {rival} close behind, {witness} in the margins. The chapter closes on whatever they build in the next few entries. The next era begins from there.',
     ],
   },
 

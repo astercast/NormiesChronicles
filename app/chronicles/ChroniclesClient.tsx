@@ -40,50 +40,184 @@ const MAJOR_TYPES = new Set([
 ])
 
 // ── AI summary ────────────────────────────────────────────────────────────
-function buildDigest(entries: StoryEntry[]) {
-  if (!entries.length) return ''
+// ─── CHARACTER LEDGER ─────────────────────────────────────────────────────────
+// Mirror the exact seeding from storyGenerator.ts so character names match
 
-  // Group by era so the AI understands this as chapters
-  const byEra = new Map<string, StoryEntry[]>()
+const SIGNAL_NAMES_CLIENT = [
+  'the Wardens', 'the Hollow Pact', 'the Drifters',
+  'the Ember Guard', 'the Old Compact', 'the Pale Sons',
+  'the Breach-Born', 'the Deep Keepers', 'the Ridge Watch',
+  'the Far Shore', 'the Unnamed', 'the First Circle',
+]
+
+const ZONE_NAMES_CLIENT = [
+  'the Breach', 'the Pale Shore', 'the Hollow',
+  'the Far Fields', 'the Black Margin', 'the Cradle',
+  'the Dust Road', 'the Outer Ring', 'the Deep Well',
+  'the Shatter Line', 'the Twin Peaks', 'the Old Border',
+  'the Narrow Gate', 'the Salt Flats', 'the Grey Basin',
+  'the High Ground', 'the Ember Fields', 'the Still Water',
+  'the Last Ridge', 'the Open Grid',
+]
+
+function entrySignal(e: StoryEntry): string {
+  const raw = e.sourceEvent?.tokenId ?? ''
+  const m = raw.match(/#(\d+)/)
+  if (!m) return 'the Unnamed'
+  const t = parseInt(m[1])
+  const n = SIGNAL_NAMES_CLIENT.length
+  return SIGNAL_NAMES_CLIENT[((t * 7 + 3) % n + n) % n]
+}
+
+function entryZone(e: StoryEntry): string {
+  const raw = e.sourceEvent?.tokenId ?? ''
+  const m = raw.match(/#(\d+)/)
+  if (!m) return 'the Open Grid'
+  const t = parseInt(m[1])
+  return ZONE_NAMES_CLIENT[t % ZONE_NAMES_CLIENT.length]
+}
+
+interface SignalProfile {
+  name: string
+  count: number
+  surges: number
+  departures: number
+  firstEra: string
+  lastEra: string
+  dominantZone: string
+  zones: Map<string, number>
+  activeInEras: Set<string>
+}
+
+function buildCharacterLedger(entries: StoryEntry[]): SignalProfile[] {
+  const profiles = new Map<string, SignalProfile>()
   for (const e of entries) {
-    if (!byEra.has(e.era)) byEra.set(e.era, [])
-    byEra.get(e.era)!.push(e)
+    if (e.eventType === 'genesis') continue
+    const sig = entrySignal(e)
+    const zone = entryZone(e)
+    if (!profiles.has(sig)) {
+      profiles.set(sig, {
+        name: sig, count: 0, surges: 0, departures: 0,
+        firstEra: e.era, lastEra: e.era,
+        dominantZone: zone, zones: new Map(), activeInEras: new Set(),
+      })
+    }
+    const p = profiles.get(sig)!
+    p.count++
+    p.lastEra = e.era
+    p.activeInEras.add(e.era)
+    p.zones.set(zone, (p.zones.get(zone) ?? 0) + 1)
+    if (e.loreType === 'SIGNAL_SURGE') p.surges++
+    if (e.loreType === 'DEPARTURE' || e.loreType === 'TWICE_GIVEN') p.departures++
   }
+  for (const p of profiles.values()) {
+    let max = 0
+    for (const [z, c] of p.zones) { if (c > max) { max = c; p.dominantZone = z } }
+  }
+  return Array.from(profiles.values()).sort((a, b) => b.count - a.count)
+}
+
+// ─── NARRATIVE SKELETON ───────────────────────────────────────────────────────
+// Find the actual turning points — the entries that changed something real.
+
+interface TurningPoint {
+  era: string
+  type: string
+  signal: string
+  zone: string
+  headline: string
+  why: string  // why this mattered
+}
+
+function buildNarrativeSkeleton(entries: StoryEntry[]): TurningPoint[] {
+  const points: TurningPoint[] = []
+  const dyn = entries.filter(e => e.eventType !== 'genesis')
+
+  for (const e of dyn) {
+    let why = ''
+    if (e.loreType === 'SIGNAL_SURGE') {
+      why = 'zone completely reshaped — shifted what others could do here'
+    } else if (e.loreType === 'ERA_SHIFT') {
+      why = `world crossed into ${e.era} — the story changed character`
+    } else if (e.loreType === 'DEPARTURE' || e.loreType === 'TWICE_GIVEN') {
+      why = 'energy passed forward — redistributed what was possible'
+    } else if (e.loreType === 'CONVERGENCE') {
+      why = 'two signals moved at the same moment — rare simultaneity'
+    } else if (e.loreType === 'RELIC_FOUND') {
+      why = 'artifact surfaced — changed the weight of the zone'
+    } else if (e.loreType === 'DOMINION') {
+      why = 'one signal reached dominant position across the Grid'
+    } else if (e.loreType === 'LONG_DARK') {
+      why = 'extended silence — the Grid held still for a long stretch'
+    } else {
+      continue  // only include genuine turning points
+    }
+
+    const sigMatch = e.headline.match(/(the [A-Z][a-z]+(?: [A-Z][a-z]+)*)/)
+    const zoneMatch = e.body?.match(/(the [A-Z][a-z]+(?: [A-Z][a-z]+)*)/)
+
+    points.push({
+      era: e.era,
+      type: e.loreType,
+      signal: sigMatch?.[1] ?? 'unknown signal',
+      zone: zoneMatch?.[1] ?? 'the Grid',
+      headline: e.headline,
+      why,
+    })
+  }
+
+  // Keep at most 12 turning points — the real skeleton
+  return points.slice(0, 12)
+}
+
+// ─── DIGEST (era-structured chapter summaries) ────────────────────────────────
+
+function buildDigest(entries: StoryEntry[]): string {
+  const dyn = entries.filter(e => e.eventType !== 'genesis')
+  if (!dyn.length) return ''
 
   const lines: string[] = []
 
-  // For each era: pick 1-2 turning-point events + 1 texture event
-  for (const [era, eraEntries] of byEra) {
-    const major = eraEntries.filter(e => MAJOR_TYPES.has(e.loreType) || e.featured)
-    const minor = eraEntries.filter(e => !MAJOR_TYPES.has(e.loreType) && !e.featured)
-
-    lines.push(`\n=== ${era} (${eraEntries.length} entries) ===`)
-
-    // Key turning points
-    const highlights = major.slice(0, 3)
-    if (highlights.length === 0 && minor.length > 0) highlights.push(minor[0])
-    for (const e of highlights) {
-      const tag = MAJOR_TYPES.has(e.loreType) ? '[MAJOR]' : '[event]'
-      lines.push(`${tag} ${e.loreType}: ${e.headline}`)
-      lines.push(`  → ${e.body.slice(0, 140)}`)
-    }
-
-    // One texture entry to show mood
-    if (minor.length > 0) {
-      const tex = minor[Math.floor(minor.length / 2)]
-      lines.push(`[texture] ${tex.loreType}: ${tex.headline}`)
+  // 1. Character ledger — who has been doing what
+  const ledger = buildCharacterLedger(dyn)
+  if (ledger.length > 0) {
+    lines.push('=== SIGNAL GROUPS (persistent characters) ===')
+    for (const p of ledger.slice(0, 6)) {
+      const eras = Array.from(p.activeInEras).join(', ')
+      const detail = [
+        `${p.count} entries`,
+        p.surges > 0 ? `${p.surges} major reshaping${p.surges > 1 ? 's' : ''}` : null,
+        p.departures > 0 ? `${p.departures} departure${p.departures > 1 ? 's' : ''}` : null,
+        `most present at ${p.dominantZone}`,
+        `active in: ${eras}`,
+      ].filter(Boolean).join(', ')
+      lines.push(`${p.name}: ${detail}`)
     }
   }
 
-  // Recent 10 entries — what is happening RIGHT NOW
-  const recent = entries.slice(-10)
-  lines.push('\n=== RECENT (last 10 entries — current state) ===')
+  // 2. Turning points — actual events that mattered
+  const skeleton = buildNarrativeSkeleton(dyn)
+  if (skeleton.length > 0) {
+    lines.push('\n=== TURNING POINTS (events that changed things) ===')
+    for (const tp of skeleton) {
+      lines.push(`[${tp.era}] ${tp.type}: "${tp.headline}"`)
+      lines.push(`  ↳ ${tp.why}`)
+    }
+  }
+
+  // 3. Recent entries — what is happening right now
+  const recent = dyn.slice(-8)
+  lines.push('\n=== RIGHT NOW (last 8 entries) ===')
   for (const e of recent) {
-    lines.push(`${e.loreType}: ${e.headline} — ${e.body.slice(0, 80)}`)
+    const sigM = e.headline.match(/(the [A-Z][a-z]+(?: [A-Z][a-z]+)*)/)
+    lines.push(`${e.loreType} [${e.era}]: ${e.headline}`)
+    if (e.body) lines.push(`  ${e.body.slice(0, 100)}`)
   }
 
   return lines.join('\n')
 }
+
+// ─── AI SUMMARY ───────────────────────────────────────────────────────────────
 
 function useGridSummary(dynamic: StoryEntry[]) {
   const [summary, setSummary] = useState<string|null>(null)
@@ -93,47 +227,48 @@ function useGridSummary(dynamic: StoryEntry[]) {
 
   useEffect(() => {
     if (!dynamic.length) return
-    const bucket = Math.floor(dynamic.length/5)
-    if (bucket===lastBucket.current) return
-    lastBucket.current=bucket
+    const bucket = Math.floor(dynamic.length / 5)
+    if (bucket === lastBucket.current) return
+    lastBucket.current = bucket
     setLoading(true); setError(false)
 
-    const era = dynamic[dynamic.length-1]?.era ?? '?'
-    const totalEntries = dynamic.length
-    const surges = dynamic.filter(e => e.loreType === 'SIGNAL_SURGE').length
-    const departures = dynamic.filter(e => e.loreType === 'DEPARTURE' || e.loreType === 'TWICE_GIVEN').length
-    const eraNames = [...new Set(dynamic.map(e => e.era))]
+    const era = dynamic[dynamic.length - 1]?.era ?? '?'
+    const eraList = [...new Set(dynamic.map(e => e.era))].join(' → ')
+    const surgeCount = dynamic.filter(e => e.loreType === 'SIGNAL_SURGE').length
+    const departureCount = dynamic.filter(e => e.loreType === 'DEPARTURE' || e.loreType === 'TWICE_GIVEN').length
+    const digest = buildDigest(dynamic)
 
-    const prompt = `You are the Chronicler of the Grid. You write the living record of ten thousand signals — presences that shape a world called the Grid by marking its zones.
+    const prompt = `You are the Chronicler of the Grid. Your job is to write the living record of this world in plain, direct prose that anyone can follow.
 
-THE WORLD: The Grid has twenty named zones (the Breach, the Pale Shore, the Hollow, etc.). Twelve named signal groups move through it (the Wardens, the Drifters, the Old Compact, etc.). Signals shape zones by marking cells. Some signals become storied legends. Some dissolve and pass their energy to others. Some go dark. Some come back.
+THE WORLD IN ONE SENTENCE: Ten thousand signals share a living space called the Grid, shaped by marking its zones — and the story is about which signals became significant, what they did, and what changed as a result.
 
-WHAT MAKES THIS A STORY: Signals have purposes. When one reshapes a zone, something changes for others who hold it. When a signal departs, their energy passes forward and shapes what comes next. When someone returns after long absence, they find a Grid that moved without them. These are not abstract events — they are decisions made by real presences with real stakes.
-
-RECORD SO FAR:
-- ${totalEntries} entries across ${eraNames.length} eras: ${eraNames.join(' → ')}
+THE DATA:
+- ${dynamic.length} chronicle entries across eras: ${eraList}
 - Current era: ${era}
-- Major reshapings: ${surges}
-- Departures (energy passed forward): ${departures}
+- ${surgeCount} major reshapings, ${departureCount} departures (energy passed forward)
 
-THE ENTRIES (organized as chapters):
-${buildDigest(dynamic)}
+${digest}
 
-WRITE exactly 2 paragraphs:
+YOUR TASK: Write exactly 2 short paragraphs.
 
-Paragraph 1 — THE ARC: What is the story of this Grid? Name the eras as chapters. Name the signals who shaped things most. What were the turning points — the reshapings that changed what was possible, the departures that shifted who held energy, the long silences that meant something? Give me causes and effects: not just "X happened" but "X happened, which is why Y followed." Make it feel like a story with a spine, not a list of events.
+Paragraph 1 — THE STORY SO FAR: Using the signal group data and turning points above, tell the story of this Grid like a narrator who was watching the whole time. Name the 2-3 signals who mattered most. Say what they did and why it mattered. Connect events causally — "because X happened, Y followed." Keep it to 4-5 sentences. The reader should understand who the main characters are and what the arc has been.
 
-Paragraph 2 — RIGHT NOW: What is the current state? Who is most present? What tension or movement is happening in these most recent entries? What is unresolved or building? Ground this in the RECENT entries from the digest. Be specific — name actual signals, zones, lore types from the entries.
+Paragraph 2 — RIGHT NOW: Based on the recent entries, what is the current state? Who is active? What is happening or building? What feels unresolved? 3-4 sentences, grounded in the specific recent entries listed.
 
-RULES: Write from inside the world. Present tense for current state. Past tense for the arc. Short, declarative sentences — no flowery run-ons. Never mention blockchain, NFTs, wallets, or pixels. Never say "the chronicle" — you ARE the chronicle. The voice of someone who has watched this world for a long time and knows what matters.`
+CRITICAL RULES:
+- Never mention blockchain, NFTs, wallets, pixels, or technology
+- Use only signal group names (the Wardens, the Drifters, etc.) and zone names (the Breach, etc.) from the data
+- Write in plain declarative sentences — subject, verb, object. No run-ons. No lists of names.
+- If the data shows one signal dominant, say so clearly. If the story is contested, say so.
+- A reader who knows nothing about this world should understand after reading your 2 paragraphs.`
 
     fetch('/api/summary', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ prompt }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
     })
-      .then(async r => { const d=await r.json(); if(d.text) setSummary(d.text); else setError(true) })
-      .catch(()=>setError(true))
-      .finally(()=>setLoading(false))
+      .then(async r => { const d = await r.json(); if (d.text) setSummary(d.text); else setError(true) })
+      .catch(() => setError(true))
+      .finally(() => setLoading(false))
   }, [dynamic])
 
   return { summary, loading, error }
