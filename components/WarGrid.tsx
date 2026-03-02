@@ -9,7 +9,7 @@ const W = GW * CELL, H = GH * CELL
 type PixelFn = (x: number, y: number, t: number, intensity: number) => number
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
-const noise = (x: number, y: number, s: number) => {
+const noise = (x: number, y: number, s: number): number => {
   let n = ((x * 1619 + y * 31337 + s * 6271) >>> 0)
   n = ((n ^ (n >>> 16)) * 0x45d9f3b) >>> 0
   n = ((n ^ (n >>> 16)) * 0x45d9f3b) >>> 0
@@ -19,401 +19,741 @@ const dist = (x: number, y: number, cx: number, cy: number) =>
   Math.sqrt((x - cx) ** 2 + (y - cy) ** 2)
 const rect = (rx: number, ry: number, px: number, py: number, w: number, h: number) =>
   px >= rx && px < rx + w && py >= ry && py < ry + h
+const clamp01 = (v: number) => Math.max(0, Math.min(1, v))
 
-// Pixel-art figure silhouette. feet = y of feet. Returns brightness or 0.
+// Bayer 4x4 ordered dither
+const BAYER: number[][] = [
+  [ 0,  8,  2, 10], [12,  4, 14,  6],
+  [ 3, 11,  1,  9], [15,  7, 13,  5],
+]
+const dither = (x: number, y: number, v: number, spread = 0.1): number =>
+  clamp01(v + (BAYER[y & 3][x & 3] / 16 - 0.5) * spread)
+
+// Detailed pixel-art figure
 const figure = (cx: number, feet: number, px: number, py: number, bright = 0.88): number => {
-  const head = feet - 12
-  if (dist(px, py, cx, head + 2) < 2.5) return bright
-  if (px === Math.round(cx) && py >= head + 4 && py <= head + 6) return bright * 0.9
-  if (Math.abs(px - cx) <= 2 && py >= head + 6 && py <= head + 10) return bright * 0.85
-  if (py === head + 7 && Math.abs(px - cx) <= 4) return bright * 0.7
+  const head = feet - 13
+  if (dist(px, py, cx, head + 2) < 2.8) return bright
+  if (px === Math.round(cx) && py === head + 5) return bright * 0.85
+  if (Math.abs(px - cx) <= 1 && py >= head + 6 && py <= head + 10) return bright * 0.85
+  if (py === head + 7 && Math.abs(px - cx) <= 4) return bright * 0.75
+  if (py === head + 8 && Math.abs(px - cx) === 4) return bright * 0.65
   if (py >= head + 11 && py <= feet) {
     if (px === Math.round(cx) - 1 || px === Math.round(cx) + 1) return bright * 0.8
   }
+  if (py === feet && Math.abs(px - cx) <= 2) return bright * 0.7
   return 0
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SCENES — 20 distinct pixel art animations, pure monochrome
-// ─────────────────────────────────────────────────────────────────────────────
+// Cloaked hooded figure (Cast)
+const figCast = (cx: number, feet: number, px: number, py: number, bright = 0.88): number => {
+  const head = feet - 13
+  if (dist(px, py, cx, head + 2) < 2.8) return bright
+  const bodyW = Math.min(5, 1 + Math.floor((py - head) * 0.35))
+  if (py >= head + 4 && py <= feet && Math.abs(px - cx) <= bodyW)
+    return bright * clamp01(0.9 - Math.abs(px - cx) * 0.07)
+  if (py === feet && Math.abs(px - cx) <= 3) return bright * 0.55
+  return 0
+}
 
-// LYRA — building towers, architectural city
-const sceneConstruction: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100, ground = 58
-  if (y > ground) return y === ground + 1 ? 0.15 : 0.04
-  const towers = [
-    { cx: 14, w: 6, h: 28 }, { cx: 28, w: 9, h: 20 },
-    { cx: 46, w: 7, h: 32 }, { cx: 64, w: 6, h: 16 },
-  ]
-  for (const tw of towers) {
-    const top = ground - tw.h - Math.round(Math.sin(t * 0.3 + tw.cx * 0.1) * I * 2)
-    if (x >= tw.cx - tw.w / 2 && x <= tw.cx + tw.w / 2 && y >= top && y <= ground) {
-      if ((x - tw.cx + 2) % 3 === 0 && (y - top) % 5 === 1 && y < ground - 2) return 0.92
-      if (x === Math.round(tw.cx - tw.w / 2) || x === Math.round(tw.cx + tw.w / 2)) return 0.45
-      return 0.18 + (1 - (y - top) / tw.h) * 0.1
-    }
+// Tower with windows
+const tower = (tx: number, ty: number, tw: number, th: number, px: number, py: number, bright: number): number => {
+  if (px < tx || px >= tx + tw || py < ty || py >= ty + th) return 0
+  if (px === tx || px === tx + tw - 1) return bright * 0.55
+  if (py === ty) return bright * 0.72
+  const wx = (px - tx - 1) % 4, wy = (py - ty) % 5
+  if (wx === 1 && wy >= 1 && wy <= 3) return bright * 0.92
+  return bright * 0.18
+}
+
+// Perspective grid floor
+const perspGrid = (x: number, y: number, gy: number, t: number, spd = 1): number => {
+  if (y < gy) return 0
+  const d = (y - gy) / (GH - gy + 0.01)
+  const spacing = Math.max(1, 8 / (d + 0.15))
+  const onVert = Math.abs((x - GW / 2) % Math.max(1, spacing / (d * 2 + 0.5))) < 0.7
+  const onHoriz = y % Math.max(2, Math.round(spacing)) === 0
+  if (onVert || onHoriz) return dither(x, y, 0.08 + d * 0.1)
+  return 0.02
+}
+
+
+// ═════════════════════════════════════════════════════════════════════════════
+// SCENES — 38 distinct pixel-art animations
+// ═════════════════════════════════════════════════════════════════════════════
+
+// L1: Lyra building — layered city skyline, she works at base of main tower
+const sceneL1: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 60
+  if (y > ground) return dither(x, y, 0.05 + (y - ground) * 0.02)
+  if (y === ground) return 0.16
+  const towers: [number, number, number][] = [[11,7,24],[26,9,32],[47,11,40],[64,7,18]]
+  for (const [tcx, tw, th] of towers) {
+    const top = ground - th + Math.round(Math.sin(t * 0.35 + tcx * 0.07) * v * 2)
+    const r = tower(tcx - (tw >> 1), top, tw, ground - top, x, y, 0.84)
+    if (r > 0) return dither(x, y, r)
   }
-  const fig = figure(46, ground, x, y, 0.95)
+  const fig = figure(47, ground, x, y, 0.95)
   if (fig > 0) return fig
-  if (y === 28 && x > 14 && x < 64 && x % 6 === 0) return 0.28 * I
-  const grid = (x % 10 === 0 || y % 10 === 0) ? 0.04 * I : 0
-  const glow = Math.exp(-(dist(x, y, 46, ground - 32) ** 2) / 120) * 0.35 * I
-  return Math.min(1, grid + glow)
+  const buildTop = ground - 40
+  const glow = Math.exp(-(dist(x, y, 47, buildTop) ** 2) / 22) * 0.75 * v * (Math.sin(t * 3) * 0.2 + 0.8)
+  return dither(x, y, Math.min(1, glow + ((x % 12 === 0 || y % 12 === 0) ? 0.04 * v : 0)))
 }
 
-// LYRA KEYSTONE — single massive tower, full structural moment
-const sceneLyraKeystone: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100, ground = 60
-  if (y > ground) return 0.05
-  const top = ground - 48
-  // Main tower
-  if (x >= 33 && x <= 47 && y >= top && y <= ground) {
-    if ((x - 33) % 4 === 0 && (y - top) % 6 === 0) return 0.95
-    if (x === 33 || x === 47) return 0.55
-    return 0.22
-  }
-  // Flanking towers
-  for (const twx of [16, 64]) {
-    if (Math.abs(x - twx) <= 4 && y >= ground - 22 && y <= ground) {
-      if (Math.abs(x - twx) === 4) return 0.38
-      if ((y - (ground - 22)) % 5 === 0) return 0.75
-      return 0.14
-    }
-  }
-  // Pinnacle glow
-  const pin = Math.exp(-(dist(x, y, 40, top) ** 2) / 180) * (0.65 + Math.sin(t * 2) * 0.25) * I
-  // Observers
-  const fig = figure(40, ground, x, y, 1.0); if (fig > 0) return fig
-  for (const fx of [10, 14, 66, 70]) {
-    const wf = figure(fx, ground, x, y, 0.55); if (wf > 0) return wf
-  }
-  return Math.min(1, pin)
-}
-
-// FINN — fractures from center, Finn at epicenter
-const sceneDestruction: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100, ground = 65
-  if (y > ground) return 0.06
-  const cx = GW / 2, cy = GH * 0.44
-  const angle = Math.atan2(y - cy, x - cx)
-  const d = dist(x, y, cx, cy)
-  const crackA = Math.round(angle / (Math.PI / 6)) * (Math.PI / 6)
-  if (Math.abs(angle - crackA) < 0.07 && d > 3 && d < 35)
-    return 0.55 + Math.sin(t * 3.5 + d * 0.3) * 0.3 * I
-  const fig = figure(cx, cy, x, y, 1.0); if (fig > 0) return fig
-  const fSeed = Math.floor(x / 7) * 100 + Math.floor(y / 7)
-  const frag = noise(x, y, fSeed + Math.floor(t * 1.5)) > 0.82 && d > 8 ? 0.38 * I : 0
-  const ringR = ((t * 14) % 38) + 6
-  const ring = Math.abs(d - ringR) < 1.8 ? 0.65 * I : 0
-  return Math.min(1, frag + ring)
-}
-
-// FINN LARGE — building collapsing, Finn arms raised
-const sceneFinnLarge: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100, ground = 62, cx = GW / 2
-  if (y > ground) return 0.06
-  const blocks = [
-    { bx: 18, by: 22, vx: -0.7, vy: 1.1, s: 1 }, { bx: 33, by: 16, vx: 0.4, vy: 1.4, s: 2 },
-    { bx: 50, by: 24, vx: 1.0, vy: 1.0, s: 3 }, { bx: 60, by: 17, vx: -0.4, vy: 1.7, s: 4 },
-  ]
-  for (const bl of blocks) {
-    const bx = Math.round(bl.bx + bl.vx * t * 3) % GW
-    const by = Math.min(ground - 5, Math.round(bl.by + bl.vy * t * 3))
-    if (rect(bx, by, x, y, 8, 5)) return x === bx || x === bx + 7 ? 0.8 : 0.5
-  }
-  const fig = figure(cx, ground, x, y, 1.0); if (fig > 0) return fig
-  const dust = Math.exp(-(dist(x, y, cx, ground - 12) ** 2) / 350) * 0.28 * I
-  if (y === ground && Math.abs(x - cx) < 22 && Math.abs(x - cx) % 3 === 0) return 0.28
-  return Math.min(1, dust)
-}
-
-// FINN BURN — dissolution, Finn scattering upward
-const sceneFinnBurn: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100, cx = GW / 2, cy = GH * 0.63
-  const diss = Math.min(0.85, t * 0.04)
-  const fig = figure(cx, cy, x, y, 1.0)
-  if (fig > 0) return fig * (noise(x, y, Math.floor(t * 4)) > diss ? 1 : 0)
-  for (let i = 0; i < 5; i++) {
-    const sx = cx + Math.sin(i * 1.26 + t * 0.3) * 12
-    if (Math.abs(x - Math.round(sx + Math.sin(y * 0.15 + t) * 3)) < 1.5 && y < cy - 4) {
-      return (0.55 + Math.sin(t * 4 + y * 0.3 + i) * 0.25) * ((cy - y) / cy) * I
-    }
-  }
-  const scatter = noise(x, y, Math.floor(t * 2)) > 0.91 ? 0.5 * I : 0
-  const ring = Math.abs(dist(x, y, cx, cy) - 9 - Math.sin(t * 2) * 3) < 1.5 ? 0.38 * I : 0
-  return Math.min(1, scatter + ring)
-}
-
-// CAST — lone figure watching, perspective grid, stars
-const sceneVigil: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100, horizon = GH * 0.56
-  if (Math.abs(y - horizon) < 0.9) return 0.3
-  const fig = figure(GW / 2, Math.floor(horizon), x, y, 0.9); if (fig > 0) return fig
-  if (y > horizon) {
-    const d = (y - horizon) / (GH - horizon)
-    const gv = Math.abs(Math.sin((x - GW / 2) / (d * 10 + 0.5))) > 0.9 ? 0.12 * (1 - d) : 0
-    const gh = y % Math.max(2, Math.round(5 / (d + 0.2))) === 0 ? 0.07 * (1 - d) : 0
-    return gv + gh
-  }
-  const castD = dist(x, y, GW / 2, Math.floor(horizon))
-  const rings = Math.sin(castD * 0.5 - t * 0.9) > 0.85 ? 0.07 * I : 0
-  const stars = noise(x, y, 7) > 0.975 ? 0.55 : 0
-  return rings + stars
-}
-
-// CAST RETURN — Cast walking back, columns of data to the right
-const sceneCastReturn: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100, ground = 62
-  if (y > ground) return 0.05
-  const castX = Math.round(18 + Math.min(28, t * 5))
-  const fig = figure(castX, ground, x, y, 0.95); if (fig > 0) return fig
-  for (let col = 48; col < 78; col += 11) {
-    for (let row = 14; row < 56; row += 4) {
-      if (x === col && y === row) return 0.6
-      if (x >= col + 1 && x <= col + 8 && y === row) return noise(x, row, col) > 0.35 ? 0.3 : 0
-    }
-    if (x === col + 9) return 0.1
-  }
-  const presence = noise(x, y, 2) > (0.89 - I * 0.1) && y < ground - 4 ? 0.25 * I : 0
-  if (y === ground) return 0.18
-  return presence
-}
-
-// CIELO — tending patches, moving through the maintained zones
-const sceneTending: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100, ground = 64
-  if (y > ground) return 0.05
-  const pX = Math.floor(x / 12), pY = Math.floor(y / 10)
-  const base = noise(pX, pY, 5) > 0.4 ? 0.2 : 0.04
-  if (x % 12 === 0 || y % 10 === 0) return 0.1
-  const cX = 14 + (t * 4) % 52
-  const fig = figure(Math.round(cX), ground, x, y, 0.88); if (fig > 0) return fig
-  const tendGlow = Math.exp(-(dist(x, y, cX - 9, ground - 14) ** 2) / 55) * 0.38 * I
-  return Math.min(1, base + tendGlow)
-}
-
-// CIELO QUIET — Cielo at rest, maintained structures, warmth
-const sceneCieloQuiet: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100, ground = 65
+// L2: Lyra keystone — single massive tower, figure at apex, observers below
+const sceneL2: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 62, top = 5
   if (y > ground) return 0.04
-  const items = [
-    { x: 10, y: ground - 9, w: 7, h: 9 }, { x: 26, y: ground - 6, w: 5, h: 6 },
-    { x: 46, y: ground - 13, w: 9, h: 13 }, { x: 62, y: ground - 7, w: 6, h: 7 },
+  const r = tower(30, top, 18, ground - top, x, y, 0.9)
+  if (r > 0) return dither(x, y, r * (0.7 + 0.3 * (1 - (y - top) / (ground - top))))
+  for (const tx of [8, 62]) {
+    const fr = tower(tx, ground - 20, 8, 20, x, y, 0.68)
+    if (fr > 0) return dither(x, y, fr)
+  }
+  const pd = dist(x, y, 39, top)
+  const pin = Math.exp(-pd * pd / 55) * (0.78 + Math.sin(t * 3) * 0.2) * v
+  const fig = figure(39, top + 2, x, y, 1.0)
+  if (fig > 0) return fig
+  for (const fx of [5, 11, 67, 73]) {
+    const wf = figure(fx, ground, x, y, 0.42); if (wf > 0) return wf
+  }
+  const ang = Math.atan2(y - top, x - 39)
+  const rayA = Math.round(ang / (Math.PI / 8)) * (Math.PI / 8)
+  const beam = Math.abs(ang - rayA) < 0.055 && pd > 12 && pd < 50 ? 0.15 * v : 0
+  return dither(x, y, Math.min(1, pin + beam))
+}
+
+// L3: Lyra chain — connected build nodes, pulsing data lines across map
+const sceneL3: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 66
+  if (y > ground) return 0.04
+  const nodes: [number, number][] = [[10,50],[23,32],[40,55],[56,26],[70,44]]
+  for (const [nx, ny] of nodes) {
+    const d = dist(x, y, nx, ny)
+    if (d < 3) return dither(x, y, 0.92 + Math.sin(t * 2.5 + nx) * 0.06)
+    if (d < 5) return dither(x, y, 0.42 * v)
+  }
+  for (let i = 0; i < nodes.length - 1; i++) {
+    const [x1, y1] = nodes[i], [x2, y2] = nodes[i + 1]
+    const dx = x2 - x1, dy = y2 - y1, len = Math.sqrt(dx * dx + dy * dy)
+    for (let s = 0; s <= len; s += 0.65) {
+      const lx = Math.round(x1 + dx * s / len), ly = Math.round(y1 + dy * s / len)
+      if (x === lx && y === ly) {
+        const pulse = (s / len + t * 0.55) % 1
+        return dither(x, y, (0.2 + Math.sin(pulse * Math.PI * 2) * 0.18) * v)
+      }
+    }
+  }
+  const fig = figure(70, ground, x, y, 0.88)
+  if (fig > 0) return fig
+  if (y === ground && x % 8 === 0) return 0.1
+  return 0
+}
+
+// L4: Lyra sector — top-down grid, her claimed zones glowing
+const sceneL4: PixelFn = (x, y, t, I) => {
+  const v = I / 100, cW = 16, cH = 14
+  const sX = Math.floor(x / cW), sY = Math.floor(y / cH)
+  if (x % cW === 0 || y % cH === 0) return dither(x, y, 0.14 + Math.sin(t * 0.3) * 0.03)
+  const owned: [number,number][] = [[1,1],[3,2],[0,3],[2,0],[4,1],[3,3]]
+  if (owned.some(([a, b]) => a === sX && b === sY)) {
+    return dither(x, y, (0.35 + Math.sin(sX * 3 + sY * 5 + t * 0.8) * 0.2) * v)
+  }
+  if (sX === 2 && sY === 2) return dither(x, y, Math.abs(Math.sin(t * 4)) * 0.28 * v)
+  return noise(x, y, 3) > 0.97 ? 0.22 : 0.04
+}
+
+// L5: Lyra foundation — underground structure revealed beneath the surface
+const sceneL5: PixelFn = (x, y, t, I) => {
+  const surface = 30, v = I / 100
+  if (y > surface) {
+    const depth = y - surface
+    if (x % 8 === 0 || (y - surface) % 6 === 0) return dither(x, y, clamp01(0.22 - depth * 0.003))
+    for (const nx of [16, 32, 48, 64]) {
+      if (dist(x, y, nx, surface + 10) < 4) return dither(x, y, clamp01((0.7 - depth * 0.015) * v))
+    }
+    return dither(x, y, clamp01(0.08 - depth * 0.001) * v)
+  }
+  if (y === surface) return 0.28
+  const tw = tower(30, 8, 14, surface - 8, x, y, 0.75)
+  if (tw > 0) return dither(x, y, tw)
+  const fig = figure(54, surface, x, y, 0.92)
+  if (fig > 0) return fig
+  const glow = Math.exp(-(dist(x, y, 40, surface) ** 2) / 110) * 0.32 * v * (Math.sin(t * 1.5) * 0.2 + 0.8)
+  return dither(x, y, Math.min(1, glow))
+}
+
+// F1: Finn clearing — 8 fracture lines radiating from impact, shockwave ring
+const sceneF1: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 64, cx = 40, cy = 40
+  if (y > ground) return 0.05
+  const ang = Math.atan2(y - cy, x - cx)
+  const d = dist(x, y, cx, cy)
+  for (let i = 0; i < 8; i++) {
+    const crA = (i / 8) * Math.PI * 2
+    const diff = Math.abs(((ang - crA + Math.PI * 3) % (Math.PI * 2)) - Math.PI)
+    if (diff < 0.04 + d * 0.003 && d > 4 && d < 36)
+      return dither(x, y, (0.65 + Math.sin(t * 3 + d * 0.4) * 0.28) * v)
+  }
+  const fig = figure(cx, cy, x, y, 1.0)
+  if (fig > 0) return fig
+  const ring = ((t * 16) % 42) + 3
+  if (Math.abs(d - ring) < 2) return dither(x, y, 0.55 * v)
+  const debris = noise(x, y, Math.floor(t * 1.5) + 1) > 0.87 && d > 10 ? 0.34 * v : 0
+  if (y === ground) return 0.16
+  return dither(x, y, debris)
+}
+
+// F2: Finn large collapse — building mid-fall, blocks airborne, Finn at center
+const sceneF2: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 64, cx = 40
+  if (y > ground) return 0.05
+  const blocks: [number,number,number,number][] = [
+    [14,18,-1.2,0.9],[30,12,0.6,1.3],[47,22,1.4,0.7],[58,14,-0.3,1.8],[22,30,-0.8,1.1],[54,28,0.9,1.0]
   ]
-  for (const it of items) {
-    if (rect(it.x, it.y, x, y, it.w, it.h)) {
-      if (x === it.x || x === it.x + it.w - 1 || y === it.y) return 0.42
+  for (const [bx0, by0, vx, vy] of blocks) {
+    const bx = Math.round(bx0 + vx * t * 3.5) % GW
+    const by = Math.min(ground - 4, Math.round(by0 + vy * t * 3.5))
+    if (rect(bx, by, x, y, 9, 6)) return (x === bx || x === bx + 8 || y === by) ? 0.82 : dither(x, y, 0.45)
+  }
+  const fig = figure(cx, ground, x, y, 1.0)
+  if (fig > 0) return fig
+  const dust = Math.exp(-(dist(x, y, cx, ground - 16) ** 2) / 420) * 0.28 * v
+  if (y === ground && Math.abs(x - cx) < 28 && x % 4 !== 0) return 0.18
+  return dither(x, y, dust)
+}
+
+// F3: Finn burn — figure dissolving into rising particle streams
+const sceneF3: PixelFn = (x, y, t, I) => {
+  const v = I / 100, cx = 40, cy = 50
+  const diss = clamp01(t * 0.035)
+  const fig = figure(cx, cy, x, y, 1.0)
+  if (fig > 0 && noise(x, y, Math.floor(t * 5)) > diss) return fig
+  for (let i = 0; i < 7; i++) {
+    const sx = cx + Math.sin(i * 0.9 + t * 0.25) * 14 + Math.sin(i * 2.1) * 4
+    if (Math.abs(x - Math.round(sx + Math.sin(y * 0.12 + t) * 2.5)) < 1.5 && y < cy - 4)
+      return dither(x, y, (0.6 + Math.sin(t * 5 + y * 0.25 + i) * 0.28) * ((cy - y) / cy) * v)
+  }
+  const scatter = noise(x, y, Math.floor(t * 2.5)) > 0.91 ? 0.48 * v : 0
+  const cd = dist(x, y, cx, cy)
+  const ring = Math.abs(cd - 10 - Math.sin(t * 2.2) * 4) < 1.5 ? 0.4 * v : 0
+  return dither(x, y, Math.min(1, scatter + ring))
+}
+
+// F4: Finn contested — cracking apart Lyra's zone, fractures visible
+const sceneF4: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 62, cx = 40, cy = 46
+  if (y > ground) return 0.04
+  const towerDefs: [number,number][] = [[14,22],[30,34],[58,26],[70,16]]
+  for (const [tcx, th] of towerDefs) {
+    const top = ground - th
+    if (Math.abs(x - tcx) <= 4 && y >= top && y <= ground) {
+      const damage = clamp01(1 - dist(x, y, cx, cy) / 28)
+      if (noise(x, y, Math.floor(t) + 2) > 0.85 - damage * 0.3) return dither(x, y, 0.05)
+      if (x === tcx - 4 || x === tcx + 4) return clamp01(0.5 - damage * 0.3)
+      if ((x - tcx + 2) % 3 === 0 && (y - top) % 5 === 1) return 0.88
+      return dither(x, y, 0.17)
+    }
+  }
+  const fig = figure(cx - 4, Math.round(cy), x, y, 0.95)
+  if (fig > 0) return fig
+  const d = dist(x, y, cx, cy)
+  const ang = Math.atan2(y - cy, x - cx)
+  const crA = Math.round(ang / (Math.PI / 5)) * (Math.PI / 5)
+  if (Math.abs(ang - crA) < 0.05 && d > 3 && d < 22)
+    return dither(x, y, (0.5 + Math.sin(t * 4 + d * 0.5) * 0.3) * v)
+  if (y === ground) return 0.14
+  return 0
+}
+
+// F5: Finn aftermath — rubble, empty space, Finn walking away
+const sceneF5: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 64
+  if (y > ground) return 0.04
+  if (y === ground) return 0.15
+  if (y === ground - 1 && noise(x, ground - 1, 7) > 0.68) return dither(x, y, 0.42)
+  if (y === ground - 2 && noise(x, ground - 2, 9) > 0.82) return 0.28
+  if (Math.abs(x - 24) <= 3 && y >= ground - 9) {
+    if (y === ground - 9 && noise(x, y, 3) > 0.4) return 0.6
+    return (x === 21 || x === 27) ? 0.38 : 0.1
+  }
+  const walkX = Math.round(52 + Math.min(18, t * 2.5))
+  const fig = figure(walkX, ground, x, y, 0.68)
+  if (fig > 0) return fig
+  const dust = Math.exp(-(dist(x, y, 40, ground - 10) ** 2) / (200 + t * 30)) * 0.22 * v * clamp01(1 - t * 0.04)
+  return dither(x, y, Math.min(1, dust))
+}
+
+// F6: Finn shockwave — pure radial energy rings expanding outward
+const sceneF6: PixelFn = (x, y, t, I) => {
+  const v = I / 100, cx = 40, cy = 40
+  const d = dist(x, y, cx, cy)
+  let total = 0
+  for (let w = 0; w < 4; w++) {
+    const r = ((t * 22 + w * 14) % 56) + 2
+    total += Math.exp(-((d - r) ** 2) / 2.5) * (0.8 - w * 0.15) * v
+  }
+  const flash = d < 5 ? (1 - d / 5) * Math.abs(Math.sin(t * 8)) * v : 0
+  if ((x === 40 || y === 40) && d < 18) total += 0.14 * v * (1 - d / 18)
+  return dither(x, y, Math.min(1, total + flash))
+}
+
+// C1: Cast watching — cloaked at horizon, vast grid below
+const sceneC1: PixelFn = (x, y, t, I) => {
+  const v = I / 100, horizon = 48
+  if (Math.abs(y - horizon) < 1) return 0.28 + Math.sin(x * 0.08 + t * 0.2) * 0.06
+  const fig = figCast(40, horizon, x, y, 0.92)
+  if (fig > 0) return fig
+  if (y > horizon) return perspGrid(x, y, horizon, t, 0.6)
+  const stars = noise(x, y, 11) > 0.976 ? 0.55 + Math.sin(t * 2 + x) * 0.1 : 0
+  const rings = Math.sin(dist(x, y, 40, horizon) * 0.45 - t * 0.7) > 0.88 ? 0.07 * v : 0
+  return dither(x, y, stars + rings)
+}
+
+// C2: Cast return — walks back in from left, data columns on right
+const sceneC2: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 62
+  if (y > ground) return 0.04
+  if (y === ground) return 0.14
+  const castX = Math.min(40, Math.round(6 + t * 4.5))
+  const fig = figCast(castX, ground, x, y, 0.9)
+  if (fig > 0) return fig
+  for (let col = 52; col <= 76; col += 10) {
+    if (x === col) {
+      const row = ((y + Math.floor(t * 8) + col * 7) + GH * 10) % GH
+      return noise(row, col, col) > 0.44 ? 0.55 : 0.1
+    }
+    if (x >= col + 1 && x <= col + 7 && (y + col) % 4 === 0)
+      return dither(x, y, noise(x, y, col) > 0.45 ? 0.28 : 0.07)
+    if (x === col + 8) return 0.1
+  }
+  return 0
+}
+
+// C3: Cast night watch — darkness, rotating scanner beam, stars
+const sceneC3: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 62
+  if (y > ground) return 0.03
+  if (y === ground) return 0.13
+  const fig = figCast(40, ground, x, y, 0.76)
+  if (fig > 0) return fig
+  const ang = t * 0.8
+  for (let s = 6; s < 38; s += 0.8) {
+    const bx = Math.round(40 + Math.cos(ang) * s)
+    const by = Math.round(ground - 3 + Math.sin(ang) * s * 0.35)
+    if (x === bx && y === by && y < ground)
+      return dither(x, y, (1 - s / 38) * 0.45 * (Math.sin(t * 5) * 0.2 + 0.8) * v)
+  }
+  const hv = (x * 13 + y * 7) % 97
+  if (hv < 5) return 0.18 + Math.sin(t * 1.5 + hv) * 0.12
+  return 0
+}
+
+// C4: Cast panorama — elevated above all five figures, sees everything
+const sceneC4: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 68
+  if (y > ground) return 0.04
+  if (y === ground) return 0.17
+  for (const fx of [8, 22, 40, 58, 72]) {
+    const wf = figure(fx, ground, x, y, 0.58); if (wf > 0) return wf
+  }
+  const fig = figCast(40, ground - 22, x, y, 0.88)
+  if (fig > 0) return fig
+  const hY = ground - 20
+  if (Math.abs(y - hY) < 1) return 0.18
+  if (y < hY) return Math.sin(y * 0.15 + t * 0.1) > 0.75 ? dither(x, y, 0.06 * v) : 0
+  return perspGrid(x, y, hY, t, 0.4) * v
+}
+
+// C5: Cast ledger — the record as giant document, eye scanning it
+const sceneC5: PixelFn = (x, y, t, I) => {
+  const v = I / 100, colW = 16
+  for (let col = 6; col < GW - 6; col += colW) {
+    if (x === col) return dither(x, y, 0.65)
+    if (x === col + colW - 2) return 0.1
+    for (let row = 6; row < GH - 6; row += 4) {
+      if (y === row && x >= col + 1 && x <= col + colW - 4)
+        return dither(x, y, noise(x, y, row * 5 + col) > 0.35 ? 0.4 : 0.08)
+    }
+  }
+  const eD = dist(x, y, 40, 9)
+  if (eD < 8) return Math.sin(t * 0.5) > 0.93 ? 0 : (1 - eD / 8) * 0.9
+  const scanY = 14 + ((t * 7.5) % (GH - 24))
+  if (Math.abs(y - scanY) < 1.2) return 0.43 * v
+  return 0
+}
+
+// Ci1: Cielo tending — patchwork terrain, she moves across maintaining
+const sceneCi1: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 65
+  if (y > ground) return 0.04
+  const pBase = noise(Math.floor(x / 13), Math.floor(y / 10), 5) > 0.4 ? 0.18 : 0.05
+  if (x % 13 === 0 || y % 10 === 0) return 0.1
+  const cX = 12 + ((t * 3.5) % 56)
+  const fig = figure(Math.round(cX), ground, x, y, 0.85)
+  if (fig > 0) return fig
+  const glow = Math.exp(-(dist(x, y, cX - 8, ground - 12) ** 2) / 60) * 0.4 * v
+  return dither(x, y, Math.min(1, pBase + glow))
+}
+
+// Ci2: Cielo repair — patching broken wall section
+const sceneCi2: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 65, wallY = ground - 12
+  if (y === wallY && x >= 10 && x < 70) {
+    if (x < 36) return dither(x, y, 0.75)
+    const gap = x - 36
+    if (gap % 6 < 3) return dither(x, y, 0.25 * (Math.sin(t * 2.5 + x) * 0.3 + 0.7))
+  }
+  if (y > wallY && y < wallY + 5 && x >= 10 && x < 36)
+    return (x === 10 || x === 35) ? 0.48 : dither(x, y, 0.18)
+  const cX = Math.round(36 + (Math.sin(t * 0.35) * 0.5 + 0.5) * 30)
+  const fig = figure(cX, ground, x, y, 0.88)
+  if (fig > 0) return fig
+  const rg = Math.exp(-(dist(x, y, cX, wallY) ** 2) / 22) * 0.55 * v * (Math.sin(t * 3.5) * 0.28 + 0.72)
+  if (y === ground) return 0.1
+  if (y > ground) return 0.04
+  return dither(x, y, Math.min(1, rg))
+}
+
+// Ci3: Cielo quiet — maintained structures, warmth, stillness
+const sceneCi3: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 65
+  if (y > ground) return 0.04
+  const structs: [number,number,number,number][] = [
+    [8,ground-10,8,10],[24,ground-7,6,7],[44,ground-14,10,14],[60,ground-8,7,8]
+  ]
+  for (const [sx, sy, sw, sh] of structs) {
+    if (rect(sx, sy, x, y, sw, sh)) {
+      if (x === sx || x === sx + sw - 1 || y === sy) return 0.44
+      const wx = (x - sx - 1) % 3, wy = (y - sy) % 4
+      if (wx === 1 && wy >= 1 && wy <= 2) return 0.72 * v
       return 0.13
     }
   }
-  const fig = figure(74, ground, x, y, 0.8); if (fig > 0) return fig
-  const warmth = Math.sin(x * 0.08 + t * 0.2) * Math.sin(y * 0.06 + t * 0.15) * 0.5 + 0.5
-  return warmth * 0.07 * I
+  const fig = figure(76, ground, x, y, 0.7)
+  if (fig > 0) return fig
+  const warmth = (Math.sin(x * 0.07 + t * 0.18) * Math.sin(y * 0.05 + t * 0.13) * 0.5 + 0.5)
+  if (y === ground) return 0.14
+  return dither(x, y, warmth * 0.07 * v)
 }
 
-// ECHO — figure emerging from edge fog
-const sceneArrival: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100, ground = 58
-  const fogBound = Math.min(GW * 0.55, t * 3 + 12)
-  const fog = x < fogBound ? (1 - x / fogBound) * (noise(x, y, Math.floor(t * 2)) * 0.3 + 0.1) : 0
-  const echoX = Math.round(Math.min(GW * 0.38, 8 + t * 1.5))
-  const fig = figure(echoX, ground, x, y, 0.95)
-  if (fig > 0) return fig * (1 - Math.max(0, (fogBound - echoX) / fogBound) * 0.55)
-  if (y === ground) return 0.16
-  const edgeSig = x > GW * 0.84 && noise(x, y, 3) > 0.93 ? 0.58 * I : 0
-  if (y === ground - 1 && x < echoX + 4) return 0.09
-  return Math.min(1, fog + edgeSig)
-}
-
-// ECHO DISCOVERY — Echo examines glowing artifact in the ground
-const sceneEchoDiscovery: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100, ground = 62, dX = 44, dY = ground
-  const fig = figure(dX - 7, ground, x, y, 0.9); if (fig > 0) return fig
-  if (y >= dY - 9 && y <= dY + 1 && Math.abs(x - dX) <= 7) {
-    const g = Math.exp(-(dist(x, y, dX, dY - 4) ** 2) / 22) * (0.75 + Math.sin(t * 2) * 0.2) * I
-    if (rect(dX - 5, dY - 8, x, y, 10, 8)) {
-      return (x - (dX - 5)) % 3 === 0 || (y - (dY - 8)) % 2 === 0 ? Math.max(0.55, g) : g * 0.5
-    }
-    return g
-  }
-  const dD = dist(x, y, dX, dY - 2)
-  const radiance = Math.exp(-dD * dD / 160) * 0.42 * I * (Math.sin(t * 1.5) * 0.3 + 0.7)
-  if (y > ground) return 0.06
-  if (y === ground) return 0.18
-  return Math.min(1, radiance)
-}
-
-// CONVERGENCE — two figures meeting, beams joining
-const sceneConvergence: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100, ground = 64
+// Ci4: Cielo keeper — atop a hill, surveys all she holds
+const sceneCi4: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 70
+  const hillY = Math.round(46 + Math.sin(x * 0.07) * 7 + Math.sin(x * 0.17 + 1) * 3)
+  if (y > hillY && y <= ground) return dither(x, y, 0.08 + (y - hillY) * 0.005)
+  if (y === hillY) return dither(x, y, 0.22)
   if (y > ground) return 0.05
-  const sep = Math.max(6, 30 - t * 2.5)
-  const f1 = figure(GW / 2 - sep, ground, x, y, 0.9)
-  const f2 = figure(GW / 2 + sep, ground, x, y, 0.9)
-  if (f1 > 0 || f2 > 0) return Math.max(f1, f2)
-  const mid = GW / 2, bY = ground - 9
-  const b1 = Math.abs(y - (bY + (x - (mid - sep)) * 0.18)) < 1.5 && x < mid ? 0.6 * I : 0
-  const b2 = Math.abs(y - (bY + (mid + sep - x) * 0.18)) < 1.5 && x > mid ? 0.6 * I : 0
-  const col = Math.exp(-(dist(x, y, mid, bY) ** 2) / 38) * (0.85 + Math.sin(t * 5) * 0.15) * I
-  if (y === ground) return 0.2
-  return Math.min(1, b1 + b2 + col)
-}
-
-// ERA SHIFT — all five figures walking through digital rain / rewrite
-const sceneReckoning: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100
-  const col = Math.floor(x / 4)
-  const speed = (col * 7 + 3) % 5 + 2
-  const dropY = ((t * speed * 5) + col * 13) % GH
-  const trail = Math.max(0, 1 - Math.abs(y - dropY) / 10)
-  const scanY = (t * 20) % GH
-  const onScan = Math.abs(y - scanY) < 2 ? (1 - Math.abs(y - scanY) / 2) : 0
-  const grid = (x % 8 === 0 || y % 8 === 0) ? 0.07 * (1 - I * 0.4) : 0
-  for (const fx of [10, 22, 40, 58, 70]) {
-    const fig = figure(fx, GH - 9, x, y, 0.8 + I * 0.15); if (fig > 0) return fig
+  const hillTop = Math.round(46 + Math.sin(40 * 0.07) * 7 + Math.sin(40 * 0.17 + 1) * 3)
+  const fig = figure(40, hillTop, x, y, 0.88)
+  if (fig > 0) return fig
+  for (const bx of [14, 62]) {
+    const tw = tower(bx - 3, hillY - 14, 7, 14, x, y, 0.58)
+    if (tw > 0) return dither(x, y, tw)
   }
-  return Math.min(1, trail * 0.65 * I + onScan * 0.9 + grid)
+  return dither(x, y, (Math.sin(y * 0.1 + t * 0.06) * 0.5 + 0.5) * 0.06 * v)
 }
 
-// QUIET — gentle wave fields, faint city on horizon
-const sceneQuiet: PixelFn = (x, y, t) => {
-  const w1 = Math.sin(x / GW * 10 + t * 0.3) * Math.sin(y / GH * 8 + t * 0.2) * 0.5 + 0.5
-  const w2 = Math.cos(x / GW * 7 - y / GH * 9 + t * 0.15) * 0.5 + 0.5
-  const hY = GH * 0.65
-  if (Math.abs(y - hY) < 1) return 0.18
-  if (y > hY && y < hY + 6 && noise(Math.floor(x / 3), 0, 9) > 0.5) return 0.1
-  const dots = noise(x, y, 3) > 0.97 ? 0.4 : 0
-  return w1 * 0.07 + w2 * 0.05 + dots + 0.02
+// Ci5: Cielo edge — patching fraying zone margins
+const sceneCi5: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 65
+  if (y > ground) return 0.04
+  if (x < 12) {
+    const fray = noise(x, y, 6) > (0.6 + x * 0.04)
+    return fray ? dither(x, y, 0.35 * (Math.sin(t * 2 + y * 0.3) * 0.3 + 0.7)) : 0.04
+  }
+  if (x > 68) {
+    const fray2 = noise(x, y, 7) > (0.6 + (80 - x) * 0.04)
+    return fray2 ? dither(x, y, 0.35 * (Math.sin(t * 2 + y * 0.3 + 1) * 0.3 + 0.7)) : 0.04
+  }
+  if (x % 14 === 0 || y % 11 === 0) return 0.1
+  const base = noise(Math.floor(x / 14), Math.floor(y / 11), 5) > 0.4 ? 0.16 : 0.05
+  const cX = Math.round(8 + Math.sin(t * 0.3) * 4)
+  const fig = figure(cX, ground, x, y, 0.88)
+  if (fig > 0) return fig
+  if (y === ground) return 0.11
+  return dither(x, y, base)
 }
 
-// DAWN — sun rising, single new figure on horizon
-const sceneDawn: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100
-  const sunY = GH - 22 + Math.sin(t * 0.15) * 2
-  const d = dist(x, y, GW / 2, sunY)
-  const sun = d < 9 ? (1 - d / 9) * 0.95 : 0
-  const glow = Math.exp(-(d ** 2) / 900) * 0.65 * I
-  const angle = Math.atan2(y - sunY, x - GW / 2)
-  const rayA = Math.round(angle / (Math.PI / 8)) * (Math.PI / 8)
-  const ray = Math.abs(angle - rayA) < 0.06 && d > 10 && d < 45 ? 0.14 * I : 0
-  const fig = figure(GW / 2 + 16, Math.round(GH * 0.45), x, y, 0.68); if (fig > 0) return fig
-  if (y > GH * 0.5) return 0.06 + glow * 0.28
-  return Math.min(1, sun + glow + ray)
+// E1: Echo arrival — emerging from fog at left edge
+const sceneE1: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 60
+  const echoX = Math.min(30, Math.round(5 + t * 1.8))
+  const fogBound = echoX + 14 + Math.sin(t * 0.3) * 4
+  const fog = x < fogBound ? (1 - x / fogBound) * (noise(x, y, Math.floor(t * 1.5)) * 0.35 + 0.12) : 0
+  const fig = figure(echoX, ground, x, y, 0.95)
+  if (fig > 0) return fig * (1 - Math.max(0, (fogBound - echoX - 6) / 16) * 0.6)
+  if (y === ground) return 0.13
+  const edgePing = x > 68 && noise(x, y, 4) > 0.92 ? 0.55 * v : 0
+  if (y === ground - 1 && x < echoX + 6 && x % 3 === 0) return 0.1
+  if (y > ground) return 0.04
+  return dither(x, y, fog + edgePing)
 }
 
-// THE READING / PULSE — giant ledger, Cast's eye scanning
-const sceneReading: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100
-  const colW = 14
-  for (let col = 5; col < GW - 5; col += colW) {
-    for (let row = 10; row < GH - 8; row += 3) {
-      if (x === col && y === row) return 0.72
-      if (x >= col + 1 && x <= col + colW - 4 && y === row)
-        return noise(x, y, row + col) > 0.35 ? 0.32 : 0
+// E2: Echo discovery — kneels examining glowing artifact
+const sceneE2: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 64, dX = 46, dY = ground
+  const fig = figure(dX - 9, ground - 3, x, y, 0.88)
+  if (fig > 0) return fig
+  if (y >= dY - 10 && y <= dY && Math.abs(x - dX) <= 9) {
+    const g = Math.exp(-(dist(x, y, dX, dY - 5) ** 2) / 28) * (0.8 + Math.sin(t * 2.2) * 0.18) * v
+    if (rect(dX - 7, dY - 9, x, y, 14, 9)) {
+      return dither(x, y, (x - dX + 7) % 3 === 0 || (y - (dY - 9)) % 2 === 0 ? Math.max(0.6, g) : g * 0.5)
     }
-    if (x === col + colW - 3) return 0.1
+    return dither(x, y, g)
   }
-  const eD = dist(x, y, GW / 2, 13)
-  if (eD < 9) {
-    const blink = Math.sin(t * 0.5) > 0.92 ? 0 : 1 - eD / 9
-    return blink * 0.92
+  const rad = Math.exp(-(dist(x, y, dX, dY - 4) ** 2) / 200) * 0.36 * v * (Math.sin(t * 1.4) * 0.3 + 0.7)
+  if (y > ground) return 0.05
+  if (y === ground) return 0.15
+  return dither(x, y, rad)
+}
+
+// E3: Echo edge scan — far margin, rays fanning inward, distant beacon
+const sceneE3: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 65, eX = 7
+  const fig = figure(eX, ground, x, y, 0.9)
+  if (fig > 0) return fig
+  for (let ray = 0; ray < 5; ray++) {
+    const rayAng = (ray - 2) * 0.18, rayLen = 28 + ray * 7
+    for (let s = 8; s < rayLen; s += 1) {
+      const rx = Math.round(eX + Math.cos(rayAng) * s)
+      const ry = Math.round(ground - 5 + Math.sin(rayAng) * s)
+      if (x === rx && y === ry)
+        return dither(x, y, (1 - s / rayLen) * 0.55 * (Math.sin(t * 2.5 + s * 0.18) * 0.35 + 0.65) * v)
+    }
   }
-  const scanY = 22 + ((t * 9) % (GH - 32))
-  if (Math.abs(y - scanY) < 1) return 0.38 * I
+  const bD = dist(x, y, 66, ground - 12)
+  const beacon = Math.exp(-bD * bD / 35) * 0.7 * (Math.sin(t * 2) * 0.25 + 0.75) * v
+  if (y === ground) return x % 5 === 0 ? 0.17 : 0.08
+  if (y > ground) return 0.04
+  return dither(x, y, Math.min(1, beacon))
+}
+
+// E4: Echo outer zones — crossing the desolate far sector
+const sceneE4: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 65
+  if (y > ground) return 0.03
+  if (y === ground) return dither(x, y, 0.12 + noise(x, 0, 3) * 0.06)
+  if (Math.abs(x - 18) <= 5 && y >= ground - 14) {
+    if (x === 13 || x === 23) return noise(y, x, 2) > 0.4 ? 0.42 : 0
+    if (y === ground - 14) return noise(x, y, 4) > 0.3 ? 0.35 : 0
+    return 0.08
+  }
+  const walkX = 28 + (t * 2.5) % 36
+  const fig = figure(Math.round(walkX), ground, x, y, 0.88)
+  if (fig > 0) return fig
+  const pings: [number,number][] = [[72,20],[75,44],[70,58]]
+  for (const [px, py] of pings) {
+    const pd = dist(x, y, px, py)
+    const pingVal = Math.exp(-pd * pd / 18) * 0.55 * (Math.sin(t * 3 + px) * 0.3 + 0.7) * v
+    if (pingVal > 0.05) return dither(x, y, pingVal)
+  }
+  return noise(x, y, 9) > 0.984 ? 0.38 : 0
+}
+
+// E5: Echo surfacing — buried structure rising from data layer
+const sceneE5: PixelFn = (x, y, t, I) => {
+  const v = I / 100, surface = 38
+  const rise = clamp01(t * 0.03)
+  const structTop = surface + Math.round((1 - rise) * 22)
+  if (x >= 28 && x <= 52 && y >= structTop && y <= surface) {
+    if (x === 28 || x === 52 || y === structTop) return dither(x, y, 0.78 * rise)
+    const ix = x - 28, iy = y - structTop
+    if (ix % 8 === 0 || iy % 6 === 0) return dither(x, y, 0.52 * rise)
+    return dither(x, y, 0.22 * rise)
+  }
+  const fig = figure(20, surface + 2, x, y, 0.88)
+  if (fig > 0) return fig
+  if (y === surface) return 0.24
+  if (y > surface) return dither(x, y, 0.04 + (y - surface) * 0.003)
+  return dither(x, y, Math.min(1, Math.exp(-(dist(x, y, 40, structTop) ** 2) / 180) * 0.38 * v))
+}
+
+// S1: Convergence — two figures closing, beams meeting at midpoint
+const sceneS1: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 64, mid = 40
+  if (y > ground) return 0.04
+  const sep = Math.max(5, 34 - t * 2.8)
+  const f1 = figure(Math.round(mid - sep), ground, x, y, 0.9)
+  const f2 = figure(Math.round(mid + sep), ground, x, y, 0.9)
+  if (f1 > 0 || f2 > 0) return Math.max(f1, f2)
+  const bY = ground - 11
+  const b1 = Math.abs(y - (bY + (x - (mid - sep)) * 0.22)) < 1.4 && x < mid ? 0.65 * v : 0
+  const b2 = Math.abs(y - (bY + (mid + sep - x) * 0.22)) < 1.4 && x > mid ? 0.65 * v : 0
+  const col = Math.exp(-(dist(x, y, mid, bY) ** 2) / 32) * (0.9 + Math.sin(t * 6) * 0.1) * v
+  if (y === ground) return 0.16
+  return dither(x, y, Math.min(1, b1 + b2 + col))
+}
+
+// S2: Era shift — digital rain rewrites the world, all five figures below
+const sceneS2: PixelFn = (x, y, t, I) => {
+  const v = I / 100
+  const col = Math.floor(x / 3)
+  const speed = (col * 5 + 3) % 6 + 2
+  const dropY = ((t * speed * 6) + col * 17) % GH
+  const trail = Math.max(0, 1 - Math.abs(y - dropY) / 12) * 0.72 * v
+  const scanY = (t * 28) % GH
+  const scan = Math.abs(y - scanY) < 1.5 ? (1 - Math.abs(y - scanY) / 1.5) * 0.85 : 0
+  const ground = GH - 7
+  for (const fx of [8, 20, 40, 60, 72]) {
+    const wf = figure(fx, ground, x, y, 0.82 + v * 0.15); if (wf > 0) return wf
+  }
+  return dither(x, y, Math.min(1, trail + scan + ((x % 8 === 0 && y % 8 === 0) ? 0.09 * (1 - v * 0.5) : 0)))
+}
+
+// S3: Long dark — ghost silhouettes, empty world, sparse stars
+const sceneS3: PixelFn = (x, y, t) => {
+  const hY = 52
+  if (Math.abs(y - hY) < 1) return dither(x, y, 0.18 + Math.sin(x * 0.06 + t * 0.1) * 0.04)
+  if (y > hY) return noise(x, y, 1) > 0.88 ? 0.12 : 0.03
+  for (const fx of [12, 38, 66]) {
+    const gf = figure(fx, Math.floor(hY), x, y, 0.18); if (gf > 0) return gf
+  }
+  if ((x % 18 === 0 || y % 18 === 0) && y < hY - 4) return 0.04
+  return noise(x, y, 5) > 0.985 ? 0.45 + Math.sin(t * 2 + x) * 0.1 : 0
+}
+
+// S4: Departure — figure dissolving into expanding waves
+const sceneS4: PixelFn = (x, y, t, I) => {
+  const v = I / 100, cx = 40, cy = 52
+  const diss = clamp01(t * 0.038)
+  const fig = figure(cx, cy, x, y, 1.0)
+  if (fig > 0 && noise(x, y, Math.floor(t * 3.5)) > diss) return fig
+  const d = dist(x, y, cx, cy)
+  for (let w = 0; w < 3; w++) {
+    const wR = ((t * 18 + w * 24) % 52) + 4
+    if (Math.abs(d - wR) < 1.8) return dither(x, y, (0.6 - w * 0.14) * v)
+  }
+  const frag = noise(x, y, Math.floor(t * 1.8)) > (0.87 + diss * 0.09) ? 0.52 * v : 0
+  if (y > cy + 8) return dither(x, y, 0.04)
+  return dither(x, y, Math.min(1, frag))
+}
+
+// S5: Relic found — five figures circling ancient glowing artifact
+const sceneS5: PixelFn = (x, y, t, I) => {
+  const v = I / 100, rX = 40, rY = 46
+  const d = dist(x, y, rX, rY)
+  if (d < 9) {
+    const ang = Math.atan2(y - rY, x - rX)
+    return dither(x, y, (Math.cos(ang * 3) * 0.55 + 0.38) * (Math.sin(t * 1.8) * 0.22 + 0.78))
+  }
+  for (const angle of [0, 72, 144, 216, 288].map(a => a * Math.PI / 180)) {
+    const fx = Math.round(rX + Math.cos(angle + t * 0.12) * 20)
+    const fy = Math.round(rY + Math.sin(angle + t * 0.12) * 14)
+    const fig = figure(fx, fy, x, y, 0.72); if (fig > 0) return fig
+  }
+  const ground = Math.round(GH * 0.78)
+  if (y > ground) return 0.04
+  if (y === ground) return 0.13
+  return dither(x, y, Math.min(1, Math.exp(-d * d / 200) * 0.48 * v))
+}
+
+// S6: Dual zone event — two sectors lit simultaneously, overhead view
+const sceneS6: PixelFn = (x, y, t, I) => {
+  const v = I / 100, cW = 20, cH = 16
+  if (x % cW === 0 || y % cH === 0) return dither(x, y, 0.13 + Math.sin(t * 0.5 + x * 0.1) * 0.04)
+  const sX = Math.floor(x / cW), sY = Math.floor(y / cH)
+  const cX = sX * cW + cW / 2, cY = sY * cH + cH / 2
+  const d = dist(x, y, cX, cY)
+  if ((sX === 1 && sY === 1) || (sX === 3 && sY === 3))
+    return dither(x, y, Math.min(1, Math.exp(-d * d / 22) * (0.85 + Math.sin(t * 5) * 0.14) * v))
+  return dither(x, y, Math.exp(-d * d / 30) * 0.22 * v)
+}
+
+// S7: Vigil — all five waiting at threshold, horizon glow building
+const sceneS7: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 67
+  if (y > ground) return 0.04
+  for (const fx of [8, 20, 40, 60, 72]) {
+    const fig = figure(fx, ground, x, y, 0.75 + v * 0.2); if (fig > 0) return fig
+  }
+  const hY = Math.round(GH * 0.32)
+  const hG = Math.exp(-((y - hY) ** 2) / 110) * (0.55 + Math.sin(t * 1.8) * 0.26) * v
+  if (y === hY) return 0.42 + Math.sin(t * 2.2) * 0.12
+  if (y === ground && x % 5 === 0 && x > 4 && x < 76) return 0.2
+  return dither(x, y, hG)
+}
+
+// S8: Quiet — wave interference, minimal city silhouette on horizon
+const sceneS8: PixelFn = (x, y, t) => {
+  const hY = GH * 0.68
+  const skylineH = [4, 6, 4, 7, 5, 3, 8, 6, 4, 5]
+  const sH = skylineH[Math.floor(x / 8) % skylineH.length]
+  if (y > hY - sH && y <= hY && x % 8 >= 1 && x % 8 <= 6) return 0.08
+  if (Math.abs(y - hY) < 1) return dither(x, y, 0.15 + Math.sin(x * 0.05 + t * 0.15) * 0.03)
+  if (y > hY) return noise(x, y, 1) > 0.92 ? 0.1 : 0.03
+  const w1 = Math.sin(x / 22 + t * 0.28) * Math.sin(y / 18 + t * 0.19) * 0.5 + 0.5
+  const w2 = Math.cos(x / 16 - y / 20 + t * 0.14) * 0.5 + 0.5
+  return dither(x, y, w1 * 0.06 + w2 * 0.04 + (noise(x, y, 4) > 0.975 ? 0.38 : 0) + 0.02)
+}
+
+// S9: First light — sunrise over horizon, single new figure
+const sceneS9: PixelFn = (x, y, t, I) => {
+  const v = I / 100, sY = GH * 0.52
+  const sD = dist(x, y, 40, sY)
+  const sun = sD < 10 ? (1 - sD / 10) * 0.96 : 0
+  const glow = Math.exp(-sD * sD / 950) * 0.7 * v
+  const ang = Math.atan2(y - sY, x - 40)
+  const rayA = Math.round(ang / (Math.PI / 8)) * (Math.PI / 8)
+  const ray = Math.abs(ang - rayA) < 0.05 && sD > 11 && sD < 48 ? 0.15 * v : 0
+  const hY = Math.round(GH * 0.58)
+  const fig = figure(42, hY, x, y, 0.62)
+  if (fig > 0) return fig
+  if (Math.abs(y - hY) < 1) return 0.16
+  if (y > hY) return 0.05 + glow * 0.22
+  return dither(x, y, Math.min(1, sun + glow + ray))
+}
+
+// S10: Reading — massive ledger, Cast eye scanning entries
+const sceneS10: PixelFn = (x, y, t, I) => {
+  const v = I / 100, colW = 16
+  for (let col = 6; col < GW - 6; col += colW) {
+    if (x === col) return dither(x, y, 0.65)
+    if (x === col + colW - 2) return 0.1
+    for (let row = 6; row < GH - 6; row += 4) {
+      if (y === row && x >= col + 1 && x <= col + colW - 4)
+        return dither(x, y, noise(x, y, row * 5 + col) > (0.35 + (row / GH) * 0.2) ? 0.42 : 0.08)
+    }
+  }
+  const eD = dist(x, y, 40, 9)
+  if (eD < 8) return Math.sin(t * 0.5) > 0.93 ? 0 : (1 - eD / 8) * 0.9
+  const scanY = 14 + ((t * 7.5) % (GH - 24))
+  if (Math.abs(y - scanY) < 1.2) return 0.44 * v
   return 0
 }
 
-// DEPARTURE — figure dissolving, waves radiating out
-const sceneDeparture: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100, cx = GW / 2, cy = GH * 0.58
-  const diss = Math.min(0.9, t * 0.04)
-  const fig = figure(cx, cy, x, y, 1.0)
-  if (fig > 0) return fig * (noise(x, y, Math.floor(t * 3)) > diss ? 1 : 0)
+// S11: Ghost touch — single pulsing point, minimal presence
+const sceneS11: PixelFn = (x, y, t) => {
+  const cx = 40, cy = 40
+  if (x === cx && y === cy) return 0.92
+  if ((Math.abs(x - cx) === 1 && y === cy) || (Math.abs(y - cy) === 1 && x === cx)) return 0.45
   const d = dist(x, y, cx, cy)
-  for (let w = 0; w < 3; w++) {
-    const wR = ((t * 16 + w * 22) % 48) + 5
-    if (Math.abs(d - wR) < 1.5) return (0.55 - w * 0.12) * I
-  }
-  const frag = noise(x, y, Math.floor(t * 1.5)) > (0.88 + diss * 0.08) ? 0.48 * I : 0
-  if (y > cy) return 0.05
-  return Math.min(1, frag)
+  return dither(x, y, Math.min(1, Math.exp(-d * d / 28) * (Math.sin(t * 2.2) * 0.28 + 0.2) + ((x % 20 === 0 || y % 20 === 0) ? 0.04 : 0)))
 }
 
-// LONG DARK — ghost silhouettes, empty world
-const sceneLongDark: PixelFn = (x, y, t) => {
-  const hY = GH * 0.6
-  if (Math.abs(y - hY) < 1) return 0.22
-  if (y > hY) return noise(x, y, 1) > 0.9 ? 0.14 : 0.04
-  const ghost = (x % 16 === 0 || y % 16 === 0) ? 0.05 : 0
-  const star = noise(x, y, 5) > 0.983 ? 0.52 : 0
-  for (const fx of [14, 40, 66]) {
-    const gf = figure(fx, Math.floor(hY), x, y, 0.22); if (gf > 0) return gf
-  }
-  return ghost + star
+// S12: Passing — token arcing between two figures
+const sceneS12: PixelFn = (x, y, t, I) => {
+  const v = I / 100, ground = 66, sep = 24
+  const f1 = figure(40 - sep, ground, x, y, 0.8)
+  const f2 = figure(40 + sep, ground, x, y, 0.8)
+  if (f1 > 0 || f2 > 0) return Math.max(f1, f2)
+  const p = (Math.sin(t * 0.75) * 0.5 + 0.5)
+  const tX = Math.round((40 - sep) + p * sep * 2)
+  const tY = Math.round(ground - 7 - 12 * Math.sin(p * Math.PI))
+  const tD = dist(x, y, tX, tY)
+  if (y === ground) return 0.15
+  if (y > ground) return 0.04
+  return dither(x, y, Math.min(1, Math.exp(-tD * tD / 7) * 0.82 * v))
 }
 
-// RELIC — five figures circling ancient glowing artifact
-const sceneRelic: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100, rX = GW / 2, rY = GH * 0.55
-  const d = dist(x, y, rX, rY)
-  if (d < 8) {
-    const ang = Math.atan2(y - rY, x - rX)
-    const hex = Math.cos(ang * 3) * 0.5 + 0.5
-    return (hex * 0.5 + 0.4) * (Math.sin(t * 1.5) * 0.2 + 0.8)
-  }
-  const angs = [0, 72, 144, 216, 288].map(a => a * Math.PI / 180)
-  for (const angle of angs) {
-    const fx = Math.round(rX + Math.cos(angle) * 22)
-    const fy = Math.round(rY + Math.sin(angle) * 16)
-    const fig = figure(fx, fy, x, y, 0.75); if (fig > 0) return fig
-  }
-  const glow = Math.exp(-d * d / 190) * 0.48 * I
-  const ground = Math.round(GH * 0.72)
-  if (y > ground) return 0.05
-  if (y === ground) return 0.14
-  return Math.min(1, glow)
-}
-
-// GHOST TOUCH — single point, faint pulse
-const sceneGhostTouch: PixelFn = (x, y, t) => {
-  const cx = GW / 2, cy = GH / 2
-  if (x === cx && y === cy) return 0.9
-  if ((x === cx + 1 || x === cx - 1) && y === cy) return 0.42
-  if ((y === cy + 1 || y === cy - 1) && x === cx) return 0.42
-  const d = dist(x, y, cx, cy)
-  const pulse = Math.exp(-d * d / 32) * (Math.sin(t * 2) * 0.3 + 0.22)
-  return Math.min(1, pulse + ((x % 20 === 0 || y % 20 === 0) ? 0.04 : 0))
-}
-
-// VIGIL BEFORE ERA — all five waiting at horizon's edge, glow building
-const sceneVigilEra: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100, ground = 66
-  if (y > ground) return 0.05
-  for (const fx of [10, 22, 40, 58, 70]) {
-    const fig = figure(fx, ground, x, y, 0.78 + I * 0.18); if (fig > 0) return fig
-  }
-  const hY = GH * 0.34
-  const hG = Math.exp(-((y - hY) ** 2) / 90) * (0.52 + Math.sin(t * 1.5) * 0.22) * I
-  if (y === Math.floor(hY)) return 0.42 + Math.sin(t * 2) * 0.1
-  if (y === ground && x % 4 === 0 && x > 4 && x < 76) return 0.22
-  return hG
-}
-
-// PASSING — small quiet transfer, two figures, token between them
-const scenePassing: PixelFn = (x, y, t, intensity) => {
-  const I = intensity / 100, ground = 65
-  if (y > ground) return 0.05
-  const sep = 22
-  const f1 = figure(GW / 2 - sep, ground, x, y, 0.82); if (f1 > 0) return f1
-  const f2 = figure(GW / 2 + sep, ground, x, y, 0.82); if (f2 > 0) return f2
-  // Token traveling between them
-  const tX = Math.round(GW / 2 - sep + (Math.sin(t * 0.8) * 0.5 + 0.5) * sep * 2)
-  const tD = dist(x, y, tX, ground - 6)
-  const token = Math.exp(-tD * tD / 8) * 0.75 * I
-  // Path
-  if (y === ground - 6 && Math.abs(x - GW / 2) < sep + 2) return 0.12
-  if (y === ground) return 0.16
-  return Math.min(1, token)
+// S13: Pulse — sector map, all zones pulsing in rhythm
+const sceneS13: PixelFn = (x, y, t, I) => {
+  const v = I / 100, cW = 16, cH = 14
+  const sX = Math.floor(x / cW), sY = Math.floor(y / cH)
+  const cX = sX * cW + cW / 2, cY = sY * cH + cH / 2
+  if (x % cW === 0 || y % cH === 0) return dither(x, y, 0.12)
+  const d = dist(x, y, cX, cY)
+  const phase = (sX * 2 + sY * 5) % 11
+  return dither(x, y, Math.exp(-d * d / 40) * 0.6 * (Math.sin(t * 1.4 + phase * 0.58) * 0.4 + 0.6) * v)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -421,43 +761,39 @@ const scenePassing: PixelFn = (x, y, t, intensity) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SCENES: Record<string, PixelFn> = {
-  construction: sceneConstruction,
-  lyra_keystone: sceneLyraKeystone,
-  destruction: sceneDestruction,
-  finn_large: sceneFinnLarge,
-  finn_burn: sceneFinnBurn,
-  sacrifice: sceneFinnBurn,
-  vigil: sceneVigil,
-  cast_return: sceneCastReturn,
-  tending: sceneTending,
-  cielo_quiet: sceneCieloQuiet,
-  arrival: sceneArrival,
-  echo_discovery: sceneEchoDiscovery,
-  convergence: sceneConvergence,
-  reckoning: sceneReckoning,
-  quiet: sceneQuiet,
-  dawn: sceneDawn,
-  reading: sceneReading,
-  departure: sceneDeparture,
-  long_dark: sceneLongDark,
-  relic: sceneRelic,
-  ghost_touch: sceneGhostTouch,
-  vigil_era: sceneVigilEra,
-  passing: scenePassing,
+  l1_build: sceneL1, l2_keystone: sceneL2, l3_chain: sceneL3,
+  l4_sector: sceneL4, l5_foundation: sceneL5,
+  f1_clear: sceneF1, f2_collapse: sceneF2, f3_burn: sceneF3,
+  f4_contested: sceneF4, f5_aftermath: sceneF5, f6_shockwave: sceneF6,
+  c1_watch: sceneC1, c2_return: sceneC2, c3_night: sceneC3,
+  c4_panorama: sceneC4, c5_ledger: sceneC5,
+  ci1_tend: sceneCi1, ci2_repair: sceneCi2, ci3_quiet: sceneCi3,
+  ci4_keeper: sceneCi4, ci5_edge: sceneCi5,
+  e1_arrive: sceneE1, e2_discover: sceneE2, e3_scan: sceneE3,
+  e4_outer: sceneE4, e5_surface: sceneE5,
+  s1_convergence: sceneS1, s2_era_shift: sceneS2, s3_long_dark: sceneS3,
+  s4_departure: sceneS4, s5_relic: sceneS5, s6_dual_zones: sceneS6,
+  s7_vigil: sceneS7, s8_quiet: sceneS8, s9_dawn: sceneS9,
+  s10_reading: sceneS10, s11_ghost: sceneS11, s12_passing: sceneS12,
+  s13_pulse: sceneS13,
 }
 
 const SCENE_LABELS: Record<string, string> = {
-  construction: 'building', lyra_keystone: 'keystone placed',
-  destruction: 'breaking', finn_large: 'total reshaping', finn_burn: 'giving to Normia',
-  sacrifice: 'dissolution', vigil: 'watching', cast_return: 'cast returns',
-  tending: 'tending', cielo_quiet: 'keeping still',
-  arrival: 'arrival', echo_discovery: 'discovery',
-  convergence: 'convergence', reckoning: 'era shift',
-  quiet: 'stillness', dawn: 'first light',
-  reading: 'the reading', departure: 'departure',
-  long_dark: 'long dark', relic: 'relic found',
-  ghost_touch: 'ghost touch', vigil_era: 'vigil before the turn',
-  passing: 'passing',
+  l1_build: 'Lyra builds', l2_keystone: 'keystone placed',
+  l3_chain: 'build network', l4_sector: 'sector claimed', l5_foundation: 'foundation laid',
+  f1_clear: 'Finn clears', f2_collapse: 'full collapse', f3_burn: 'Finn dissolves',
+  f4_contested: 'contested zone', f5_aftermath: 'aftermath', f6_shockwave: 'shockwave',
+  c1_watch: 'the Cast watches', c2_return: 'Cast returns', c3_night: 'night watch',
+  c4_panorama: 'full panorama', c5_ledger: 'the record',
+  ci1_tend: 'Cielo tends', ci2_repair: 'wall repaired', ci3_quiet: 'keeping still',
+  ci4_keeper: 'surveying held zones', ci5_edge: 'edge maintenance',
+  e1_arrive: 'Echo arrives', e2_discover: 'discovery', e3_scan: 'edge scan',
+  e4_outer: 'outer zones', e5_surface: 'relic surfaces',
+  s1_convergence: 'convergence', s2_era_shift: 'era shift', s3_long_dark: 'long dark',
+  s4_departure: 'departure', s5_relic: 'relic found', s6_dual_zones: 'dual zone event',
+  s7_vigil: 'vigil before the turn', s8_quiet: 'stillness', s9_dawn: 'first light',
+  s10_reading: 'the reading', s11_ghost: 'ghost touch', s12_passing: 'passing',
+  s13_pulse: 'system pulse',
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -465,39 +801,65 @@ const SCENE_LABELS: Record<string, string> = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function beatToScene(entry: StoryEntry): string {
-  const beat = entry.sourceEvent.ruleApplied ?? ''
+  const beat = (entry.sourceEvent?.ruleApplied ?? '').toLowerCase()
   const charKey = entry.activeCharacter
+  const idH = entry.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+  const v2 = idH % 2, v3 = idH % 3, v4 = idH % 4
 
-  if (beat.includes('lyra large') || beat.includes('lyra_large')) return 'lyra_keystone'
-  if (beat.includes('lyra')) return 'construction'
-  if (beat.includes('voss burn') || beat.includes('finn burn') || beat.includes('voss_burn')) return 'finn_burn'
-  if (beat.includes('voss large') || beat.includes('finn large') || beat.includes('voss_large')) return 'finn_large'
-  if (beat.includes('voss') || beat.includes('finn')) return 'destruction'
-  if (beat.includes('cast return') || beat.includes('cast_return')) return 'cast_return'
-  if (beat.includes('cast')) return 'vigil'
-  if (beat.includes('sable quiet') || beat.includes('cielo_quiet') || beat.includes('sable_quiet')) return 'cielo_quiet'
-  if (beat.includes('sable') || beat.includes('cielo')) return 'tending'
-  if (beat.includes('echo discovery') || beat.includes('echo_discovery')) return 'echo_discovery'
-  if (beat.includes('echo')) return 'arrival'
-  if (beat.includes('convergence')) return 'convergence'
-  if (beat.includes('era shift') || beat.includes('era_shift')) return 'reckoning'
-  if (beat.includes('long dark') || beat.includes('long_dark')) return 'long_dark'
-  if (beat.includes('quiet')) return 'quiet'
-  if (beat.includes('first light') || beat.includes('first_light')) return 'dawn'
-  if (beat.includes('departure')) return 'departure'
-  if (beat.includes('relic')) return 'relic'
-  if (beat.includes('ghost')) return 'ghost_touch'
-  if (beat.includes('reading') || beat.includes('pulse')) return 'reading'
-  if (beat.includes('vigil')) return 'vigil_era'
-  if (beat.includes('passing')) return 'passing'
+  if (beat.includes('lyra large') || beat.includes('lyra_large'))
+    return v2 === 0 ? 'l2_keystone' : 'l3_chain'
+  if (beat.includes('lyra small') || beat.includes('lyra_small'))
+    return ['l1_build', 'l3_chain', 'l5_foundation'][v3]
+  if (beat.includes('lyra'))
+    return ['l1_build', 'l4_sector', 'l5_foundation'][v3]
 
-  // Fallback to charKey default scene
-  if (charKey === 'LYRA') return 'construction'
-  if (charKey === 'VOSS') return 'destruction'
-  if (charKey === 'CAST') return 'vigil'
-  if (charKey === 'SABLE') return 'tending'
-  if (charKey === 'ECHO') return 'arrival'
-  return 'quiet'
+  if (beat.includes('voss burn') || beat.includes('finn burn') || beat.includes('voss_burn') || beat.includes('finn_burn'))
+    return v2 === 0 ? 'f3_burn' : 'f6_shockwave'
+  if (beat.includes('voss large') || beat.includes('voss_large') || beat.includes('finn large'))
+    return v2 === 0 ? 'f2_collapse' : 'f6_shockwave'
+  if (beat.includes('voss small') || beat.includes('voss_small') || beat.includes('finn small') || beat.includes('finn_small'))
+    return ['f1_clear', 'f4_contested', 'f5_aftermath'][v3]
+  if (beat.includes('voss') || beat.includes('finn'))
+    return ['f1_clear', 'f2_collapse', 'f5_aftermath'][v3]
+
+  if (beat.includes('cast return') || beat.includes('cast_return'))
+    return v2 === 0 ? 'c2_return' : 'c4_panorama'
+  if (beat.includes('cast'))
+    return ['c1_watch', 'c3_night', 'c5_ledger', 'c4_panorama'][v4]
+
+  if (beat.includes('sable quiet') || beat.includes('sable_quiet') || beat.includes('cielo_quiet'))
+    return v2 === 0 ? 'ci3_quiet' : 'ci4_keeper'
+  if (beat.includes('sable small') || beat.includes('sable_small') || beat.includes('cielo small'))
+    return ['ci1_tend', 'ci2_repair', 'ci5_edge'][v3]
+  if (beat.includes('sable') || beat.includes('cielo'))
+    return ['ci1_tend', 'ci3_quiet', 'ci4_keeper'][v3]
+
+  if (beat.includes('echo discovery') || beat.includes('echo_discovery'))
+    return v2 === 0 ? 'e2_discover' : 'e5_surface'
+  if (beat.includes('echo arrival') || beat.includes('echo_arrival'))
+    return ['e1_arrive', 'e3_scan', 'e4_outer'][v3]
+  if (beat.includes('echo'))
+    return ['e1_arrive', 'e3_scan', 'e4_outer', 'e5_surface'][v4]
+
+  if (beat.includes('convergence')) return v2 === 0 ? 's1_convergence' : 's6_dual_zones'
+  if (beat.includes('era shift') || beat.includes('era_shift')) return 's2_era_shift'
+  if (beat.includes('long dark') || beat.includes('long_dark')) return 's3_long_dark'
+  if (beat.includes('departure')) return v2 === 0 ? 's4_departure' : 'f3_burn'
+  if (beat.includes('relic')) return v2 === 0 ? 's5_relic' : 'e2_discover'
+  if (beat.includes('ghost')) return 's11_ghost'
+  if (beat.includes('deep reading') || beat.includes('deep_reading')) return 's10_reading'
+  if (beat.includes('reading') || beat.includes('pulse')) return v2 === 0 ? 's10_reading' : 's13_pulse'
+  if (beat.includes('vigil')) return 's7_vigil'
+  if (beat.includes('passing')) return 's12_passing'
+  if (beat.includes('quiet')) return v2 === 0 ? 's8_quiet' : 'ci3_quiet'
+  if (beat.includes('first light') || beat.includes('first_light')) return 's9_dawn'
+
+  if (charKey === 'LYRA') return ['l1_build', 'l3_chain', 'l5_foundation'][v3]
+  if (charKey === 'VOSS') return ['f1_clear', 'f4_contested', 'f6_shockwave'][v3]
+  if (charKey === 'CAST') return ['c1_watch', 'c3_night', 'c4_panorama'][v3]
+  if (charKey === 'SABLE') return ['ci1_tend', 'ci2_repair', 'ci5_edge'][v3]
+  if (charKey === 'ECHO') return ['e1_arrive', 'e3_scan', 'e4_outer'][v3]
+  return v2 === 0 ? 's8_quiet' : 's11_ghost'
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -515,18 +877,18 @@ function renderFrame(
   isDark: boolean,
 ) {
   const t = tick * 0.016
-  const fn = SCENES[scene] ?? SCENES.quiet
+  const fn = SCENES[scene] ?? SCENES.s8_quiet
   const buf = img.data
-  const bgR = isDark ? 10 : 240, bgG = isDark ? 10 : 238, bgB = isDark ? 9 : 230
-  const fgR = isDark ? 218 : 18, fgG = isDark ? 218 : 18, fgB = isDark ? 208 : 16
+  const bgR = isDark ? 9  : 238, bgG = isDark ? 9  : 236, bgB = isDark ? 8  : 228
+  const fgR = isDark ? 220: 16,  fgG = isDark ? 218: 16,  fgB = isDark ? 210: 14
 
   for (let y = 0; y < GH; y++) {
     for (let x = 0; x < GW; x++) {
       const i4 = (y * GW + x) * 4
       let v = fn(x, y, t, intensity)
-      if (y % 4 === 0) v *= 0.88
-      v = Math.max(0, Math.min(1, v))
-      buf[i4] = Math.round(bgR + (fgR - bgR) * v)
+      if (y % 4 === 0) v *= 0.90
+      v = clamp01(v)
+      buf[i4]     = Math.round(bgR + (fgR - bgR) * v)
       buf[i4 + 1] = Math.round(bgG + (fgG - bgG) * v)
       buf[i4 + 2] = Math.round(bgB + (fgB - bgB) * v)
       buf[i4 + 3] = 255
@@ -566,7 +928,7 @@ export function WarGrid({
     if (!entry && focusChar)
       entry = [...dynamic].reverse().find(e => e.activeCharacter === focusChar) ?? null
     if (!entry) entry = dynamic[dynamic.length - 1] ?? null
-    if (!entry) return { scene: 'dawn', intensity: 30, charKey: null as CharacterKey | null, charName: '' }
+    if (!entry) return { scene: 's9_dawn', intensity: 30, charKey: null as CharacterKey | null, charName: '' }
     const sc = beatToScene(entry)
     const ck = (entry.activeCharacter ?? null) as CharacterKey | null
     const char = ck ? CHARACTERS[ck] : null
@@ -593,7 +955,7 @@ export function WarGrid({
 
   return (
     <div>
-      <div className="relative overflow-hidden" style={{ background: dark ? '#0a0a09' : '#f0ede4', lineHeight: 0 }}>
+      <div className="relative overflow-hidden" style={{ background: dark ? '#090908' : '#eeecd4', lineHeight: 0 }}>
         <canvas
           ref={screenRef}
           width={W}

@@ -150,26 +150,41 @@ export default function AboutPage() {
           {/* built by */}
           <section className="mb-10">
             <p className="font-mono text-2xs uppercase tracking-widest mb-3" style={{ color: 'var(--muted)' }}>built by</p>
-            <p className="font-mono text-xs leading-relaxed mb-4" style={{ color: 'var(--text)' }}>
+            <p className="font-mono text-xs leading-relaxed mb-5" style={{ color: 'var(--text)' }}>
               <a href="https://x.com/aster0x" target="_blank" rel="noopener noreferrer"
                 className="underline underline-offset-4 transition-opacity hover:opacity-60">
                 @aster0x
               </a>
-              {' '}is an independent developer and Normies holder who builds tools for the collection.
-              Normies Chronicles is one of them.
+              {' '}— independent developer and Normies holder. Both tools below are open and free.
             </p>
-            <p className="font-mono text-xs leading-relaxed mb-4" style={{ color: 'var(--text)' }}>
-              @aster0x also built the{' '}
-              <a href="https://normiesarchive.vercel.app" target="_blank" rel="noopener noreferrer"
-                className="underline underline-offset-4 transition-opacity hover:opacity-60">
-                Normies Pixel Archive
-              </a>
-              {' '}— the complete on-chain pixel history of all 10,000 Normies. Leaderboards for
-              most pixels transformed, spotlight on the most dramatic upgrades, the full record of
-              every transformation ever made, and the Latest Works feed showing the newest edits
-              in real time. Both tools are open, free, and built because the collection makes
-              building worthwhile.
-            </p>
+            <div style={{ borderLeft: '2px solid var(--border)', paddingLeft: '1rem', marginBottom: '1.2rem' }}>
+              <p className="font-mono text-xs font-bold mb-1" style={{ color: 'var(--text)' }}>
+                <a href="https://normiesarchive.vercel.app" target="_blank" rel="noopener noreferrer"
+                  className="underline underline-offset-4 transition-opacity hover:opacity-60">
+                  Normies Pixel Archive
+                </a>
+              </p>
+              <p className="font-mono text-xs leading-relaxed mb-2" style={{ color: 'var(--muted)' }}>
+                The complete on-chain pixel history of all 10,000 Normies.
+              </p>
+              <div className="flex flex-col gap-1">
+                {[
+                  'Leaderboard — most pixels transformed',
+                  'Latest Works — newest edits in real time',
+                  'Full transformation history per token',
+                  'Spotlight on the most dramatic upgrades',
+                  'THE100 — the top 100 most transformed Normies',
+                ].map(f => (
+                  <p key={f} className="font-mono text-2xs" style={{ color: 'var(--muted)' }}>· {f}</p>
+                ))}
+              </div>
+            </div>
+            <div style={{ borderLeft: '2px solid var(--border)', paddingLeft: '1rem' }}>
+              <p className="font-mono text-xs font-bold mb-1" style={{ color: 'var(--text)' }}>Normies Chronicles</p>
+              <p className="font-mono text-xs leading-relaxed" style={{ color: 'var(--muted)' }}>
+                This site. On-chain events → living narrative.
+              </p>
+            </div>
           </section>
 
         </div>

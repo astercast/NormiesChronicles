@@ -99,30 +99,25 @@ function buildAIPrompt(entries: StoryEntry[]): string {
 
   return `You are the Grand Chronicler of Normia — a living world of ten thousand faces. Five presences shape this world: Lyra (the Architect, she builds), Finn (the Breaker, he unmakes and remakes), The Cast (the Witness, it records everything — use it/its pronouns), Cielo (the Keeper, she tends what others abandon), Echo (the Wanderer, he arrives from the margins).
 
-Write a story summary — 3 short paragraphs — in an atmospheric, slightly mythic voice. Write as if narrating from inside the world. No mention of blockchain, pixels, tokens, wallets, NFTs, or anything technical. This is a living world with real history.
+Write a single paragraph — 4 to 6 sentences — as a tight narrative summary of this chronicle. Write as if narrating from inside the world. No mention of blockchain, pixels, tokens, wallets, NFTs, or anything technical. Name specific characters, zones, and eras. Cover who has shaped the world most, what the key turning points were, and what the current state feels like. Specific, grounded, present tense.
 
 THE FULL CHRONICLE (${total} acts across ${eras.length} era${eras.length > 1 ? 's' : ''}):
 
 CURRENT ERA: ${currentEra}
 ERAS LIVED: ${eras.join(' → ')}
 
-CHARACTER STANDING (full chronicle):
+CHARACTER STANDING:
 ${charLines}
 
 RECENT MOMENTUM (last ${recentDyn.length} acts): ${recentLines}
 
-KEY MOMENTS ACROSS THE FULL CHRONICLE:
+KEY MOMENTS:
 ${keyEvents || 'None major yet.'}
 
-WORLD EVENTS:
-- Major reshapings: ${surges}
-- Dissolutions into the Grid: ${departures}
-- Simultaneous convergences: ${convergences}
-
-FULL SEQUENCE OF ALL ${total} ACTS:
+FULL SEQUENCE:
 ${allHeadlines}
 
-Write 3 paragraphs. Paragraph 1: who has shaped this world and how, drawing on the full arc. Paragraph 2: what the key turning points were (the surges, departures, convergences). Paragraph 3: what's happening right now and what the current state of the Grid feels like. Make it read like myth — specific names, specific places, earned weight.`
+One paragraph only. No headers. No line breaks within the paragraph.`
 }
 
 function useAISummary(entries: StoryEntry[]) {
@@ -177,24 +172,24 @@ function EntryModal({ entry, onClose }: { entry: StoryEntry; onClose: () => void
 
         <div style={{ borderBottom: '1px solid var(--border)', padding: '0.9rem 1.2rem', display: 'flex', alignItems: 'start', justifyContent: 'space-between' }}>
           <div>
-            <div className="text-2xs uppercase" style={{ color: 'var(--muted)', letterSpacing: '0.2em', marginBottom: '0.2rem' }}>{entry.era}</div>
+            <div style={{ fontSize: '0.52rem', textTransform: 'uppercase', letterSpacing: '0.2em', color: 'var(--muted)', marginBottom: '0.25rem' }}>{entry.era}</div>
             {char && (
-              <div className="text-2xs" style={{ color: 'var(--muted)', letterSpacing: '0.1em' }}>
+              <div style={{ fontSize: '0.65rem', color: 'var(--muted)', letterSpacing: '0.06em' }}>
                 <span style={{ fontWeight: 700, color: 'var(--text)' }}>{char.name}</span>
                 <span style={{ opacity: 0.55 }}> · {char.title}</span>
               </div>
             )}
           </div>
-          <button onClick={onClose} style={{ color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.7rem', marginLeft: '1rem' }}>× close</button>
+          <button onClick={onClose} style={{ color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.72rem', marginLeft: '1rem' }}>× close</button>
         </div>
 
         <div style={{ padding: '1.5rem 1.2rem' }}>
           <div style={{ fontSize: '1.4rem', lineHeight: 1, marginBottom: '0.9rem' }}>{entry.icon}</div>
-          <h2 className="font-bold" style={{ color: 'var(--text)', fontSize: '1rem', lineHeight: 1.5, marginBottom: '1.25rem' }}>{entry.headline}</h2>
-          <p style={{ color: 'var(--text)', fontSize: '0.78rem', lineHeight: '2.1', whiteSpace: 'pre-line' }}>{entry.body}</p>
+          <h2 className="font-bold" style={{ color: 'var(--text)', fontSize: '1.05rem', lineHeight: 1.48, marginBottom: '1.3rem' }}>{entry.headline}</h2>
+          <p style={{ color: 'var(--text)', fontSize: '0.8rem', lineHeight: '2.1', whiteSpace: 'pre-line' }}>{entry.body}</p>
           {char && (
             <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-              <p className="text-2xs" style={{ color: 'var(--muted)', fontStyle: 'italic', opacity: 0.6, lineHeight: 1.8 }}>
+              <p style={{ fontSize: '0.65rem', color: 'var(--muted)', fontStyle: 'italic', opacity: 0.6, lineHeight: 1.85 }}>
                 {char.goal}
               </p>
             </div>
@@ -203,25 +198,25 @@ function EntryModal({ entry, onClose }: { entry: StoryEntry; onClose: () => void
 
         {entry.eventType !== 'genesis' && (
           <div style={{ borderTop: '1px solid var(--border)', padding: '1rem 1.2rem' }}>
-            <div className="text-2xs uppercase" style={{ color: 'var(--muted)', letterSpacing: '0.2em', marginBottom: '0.75rem', opacity: 0.55 }}>on-chain source</div>
+            <div style={{ fontSize: '0.52rem', textTransform: 'uppercase', letterSpacing: '0.2em', color: 'var(--muted)', marginBottom: '0.75rem', opacity: 0.55 }}>on-chain source</div>
             {([
               ['token', entry.sourceEvent.tokenId],
               ['block', entry.sourceEvent.blockNumber],
               ['count', entry.sourceEvent.count],
             ] as [string, string][]).map(([k, v]) => (
               <div key={k} className="flex gap-4 mb-1.5">
-                <span className="text-2xs" style={{ color: 'var(--muted)', opacity: 0.45, width: '2.5rem', flexShrink: 0 }}>{k}</span>
-                <span className="text-2xs" style={{ color: 'var(--text)' }}>{v}</span>
+                <span style={{ fontSize: '0.6rem', color: 'var(--muted)', opacity: 0.45, width: '2.5rem', flexShrink: 0 }}>{k}</span>
+                <span style={{ fontSize: '0.6rem', color: 'var(--text)' }}>{v}</span>
               </div>
             ))}
             <div className="flex gap-4 mb-3">
-              <span className="text-2xs" style={{ color: 'var(--muted)', opacity: 0.45, width: '2.5rem', flexShrink: 0 }}>tx</span>
+              <span style={{ fontSize: '0.6rem', color: 'var(--muted)', opacity: 0.45, width: '2.5rem', flexShrink: 0 }}>tx</span>
               <a href={`https://etherscan.io/tx/${entry.sourceEvent.txHash}`} target="_blank" rel="noopener noreferrer"
-                className="text-2xs hover:opacity-50 underline underline-offset-2" style={{ color: 'var(--muted)' }}>
+                className="hover:opacity-50 underline underline-offset-2" style={{ fontSize: '0.6rem', color: 'var(--muted)' }}>
                 {entry.sourceEvent.txHash.slice(0, 10)}…{entry.sourceEvent.txHash.slice(-6)}
               </a>
             </div>
-            <p className="text-2xs" style={{ color: 'var(--muted)', opacity: 0.4, lineHeight: '1.8', fontStyle: 'italic' }}>{entry.sourceEvent.ruleExplanation}</p>
+            <p style={{ fontSize: '0.6rem', color: 'var(--muted)', opacity: 0.4, lineHeight: '1.8', fontStyle: 'italic' }}>{entry.sourceEvent.ruleExplanation}</p>
           </div>
         )}
       </div>
@@ -249,19 +244,19 @@ function CharacterRoster({
 
   return (
     <div style={{ marginBottom: '2.5rem' }}>
-      {/* Header with rivalry framing */}
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.9rem', paddingBottom: '0.6rem', borderBottom: '1px solid var(--border)' }}>
-        <div className="text-2xs uppercase" style={{ color: 'var(--muted)', letterSpacing: '0.22em' }}>
+        <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--muted)' }}>
           the five — who shapes normia most?
         </div>
         {leader && (
-          <div className="text-2xs" style={{ color: 'var(--muted)', opacity: 0.6 }}>
+          <div style={{ fontSize: '0.6rem', color: 'var(--muted)', opacity: 0.65 }}>
             leading: <strong style={{ color: 'var(--text)' }}>{leader.name}</strong>
           </div>
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem', marginBottom: '0.6rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem', marginBottom: '0.65rem' }}>
         {ORDER.map(key => {
           const char = CHARACTERS[key]
           const summary = summaries.find(s => s.key === key)
@@ -275,7 +270,7 @@ function CharacterRoster({
               key={key}
               onClick={() => onFocusChar(isFocused ? null : key)}
               style={{
-                padding: '0.65rem 0.5rem',
+                padding: '0.7rem 0.55rem',
                 border: `1px solid ${isFocused ? 'var(--text)' : isActive ? 'var(--text)' : 'var(--border)'}`,
                 opacity: summary ? 1 : 0.35,
                 background: isFocused ? 'var(--text)' : 'transparent',
@@ -285,25 +280,25 @@ function CharacterRoster({
               }}
             >
               {rank && (
-                <div style={{ fontSize: '0.32rem', letterSpacing: '0.12em', color: isFocused ? 'var(--bg)' : (isLeading ? 'var(--text)' : 'var(--muted)'), opacity: isFocused ? 0.7 : (isLeading ? 1 : 0.45), marginBottom: '0.15rem', fontWeight: isLeading ? 700 : 400 }}>
+                <div style={{ fontSize: '0.45rem', letterSpacing: '0.1em', color: isFocused ? 'var(--bg)' : (isLeading ? 'var(--text)' : 'var(--muted)'), opacity: isFocused ? 0.7 : (isLeading ? 1 : 0.45), marginBottom: '0.2rem', fontWeight: isLeading ? 700 : 400 }}>
                   #{rank}
                 </div>
               )}
-              <div className="text-2xs font-bold" style={{ color: isFocused ? 'var(--bg)' : 'var(--text)', marginBottom: '0.2rem', letterSpacing: '0.05em' }}>{char.name}</div>
-              <div style={{ fontSize: '0.36rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: isFocused ? 'var(--bg)' : 'var(--muted)', marginBottom: '0.4rem', opacity: isFocused ? 0.7 : 1 }}>{char.title}</div>
+              <div style={{ fontSize: '0.6rem', fontWeight: 700, color: isFocused ? 'var(--bg)' : 'var(--text)', marginBottom: '0.25rem', letterSpacing: '0.02em' }}>{char.name}</div>
+              <div style={{ fontSize: '0.44rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: isFocused ? 'var(--bg)' : 'var(--muted)', marginBottom: '0.4rem', opacity: isFocused ? 0.7 : 1 }}>{char.title}</div>
               {summary ? (
-                <div style={{ fontSize: '0.36rem', color: isFocused ? 'var(--bg)' : 'var(--muted)', opacity: isFocused ? 0.65 : 0.6 }}>{summary.acts} acts</div>
+                <div style={{ fontSize: '0.5rem', color: isFocused ? 'var(--bg)' : 'var(--muted)', opacity: isFocused ? 0.65 : 0.6 }}>{summary.acts} acts</div>
               ) : (
-                <div style={{ fontSize: '0.34rem', color: isFocused ? 'var(--bg)' : 'var(--muted)', opacity: 0.4, fontStyle: 'italic' }}>not yet</div>
+                <div style={{ fontSize: '0.46rem', color: isFocused ? 'var(--bg)' : 'var(--muted)', opacity: 0.4, fontStyle: 'italic' }}>not yet</div>
               )}
               {isActive && !isFocused && (
-                <div style={{ marginTop: '0.35rem', width: 4, height: 4, background: 'var(--text)' }} />
+                <div style={{ marginTop: '0.4rem', width: 4, height: 4, background: 'var(--text)' }} />
               )}
             </button>
           )
         })}
       </div>
-      <p className="text-2xs" style={{ color: 'var(--muted)', opacity: 0.4, fontStyle: 'italic' }}>
+      <p style={{ fontSize: '0.58rem', color: 'var(--muted)', opacity: 0.4, fontStyle: 'italic' }}>
         click a name to see their latest scene · filled square = active recently
       </p>
     </div>
@@ -330,10 +325,10 @@ function NowView({ entries, meta, onSelect, onReadAll, selected, isDark }: {
     <div style={{ paddingBottom: '5rem' }}>
 
       {/* ── PIXEL ART GRID ──────────────────────────────────────────────── */}
-      <div style={{ border: '1px solid var(--border)', marginBottom: '2.5rem' }}>
+      <div style={{ border: '1px solid var(--border)', marginBottom: '2rem' }}>
         <div style={{ padding: '0.55rem 1rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span className="text-2xs uppercase" style={{ color: 'var(--muted)', letterSpacing: '0.22em' }}>the grid</span>
-          <span className="text-2xs" style={{ color: 'var(--muted)', opacity: 0.45 }}>
+          <span style={{ fontSize: '0.5rem', letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--muted)' }}>normia · live scene</span>
+          <span style={{ fontSize: '0.5rem', color: 'var(--muted)', opacity: 0.45 }}>
             {latest ? `${latest.era} · ${dynamic.length} acts` : '—'}
           </span>
         </div>
@@ -343,105 +338,124 @@ function NowView({ entries, meta, onSelect, onReadAll, selected, isDark }: {
       {/* ── CHARACTER ROSTER ────────────────────────────────────────────── */}
       <CharacterRoster entries={entries} isDark={isDark} focusChar={focusChar} onFocusChar={setFocusChar} />
 
-      {/* ── STORY DISPATCH ──────────────────────────────────────────────── */}
-      <div style={{ marginBottom: '3rem', paddingBottom: '3rem', borderBottom: '3px double var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+      {/* ── THE CHRONICLE DISPATCH ──────────────────────────────────────── */}
+      <div style={{ marginBottom: '3.5rem', paddingBottom: '3.5rem', borderBottom: '3px double var(--border)' }}>
+
+        {/* Section label + era */}
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '1.6rem', paddingBottom: '0.8rem', borderBottom: '1px solid var(--border)' }}>
           <div>
-            <div className="text-2xs uppercase" style={{ color: 'var(--muted)', letterSpacing: '0.25em', marginBottom: '0.25rem' }}>the record</div>
-            <div className="text-2xs" style={{ color: 'var(--muted)' }}>era: <strong style={{ color: 'var(--text)' }}>{latest?.era ?? '—'}</strong></div>
+            <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '0.3rem' }}>
+              the chronicler's dispatch
+            </div>
+            {latest && (
+              <div style={{ fontSize: '0.65rem', color: 'var(--muted)' }}>
+                era: <strong style={{ color: 'var(--text)' }}>{latest.era}</strong>
+              </div>
+            )}
           </div>
-          <div className="text-2xs" style={{ color: 'var(--muted)', textAlign: 'right', opacity: 0.6 }}>
+          <div style={{ fontSize: '0.58rem', color: 'var(--muted)', textAlign: 'right', opacity: 0.55 }}>
             {meta?.totalEvents.toLocaleString() ?? '—'} events<br />
-            {dynamic.length} acts
+            {dynamic.length} acts recorded
           </div>
         </div>
 
+        {/* AI summary */}
         {summaryLoading ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0' }}>
-            <div style={{ width: '4rem', height: '1px', background: 'var(--border)', position: 'relative', overflow: 'hidden' }}>
-              <div className="scan-bar" style={{ position: 'absolute', inset: 0, background: 'var(--text)', width: '2rem' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', padding: '0.5rem 0' }}>
+            <div style={{ width: '5rem', height: '1px', background: 'var(--border)', position: 'relative', overflow: 'hidden' }}>
+              <div className="scan-bar" style={{ position: 'absolute', inset: 0, background: 'var(--text)', width: '2.5rem' }} />
             </div>
-            <p className="text-2xs" style={{ color: 'var(--muted)', opacity: 0.6, fontStyle: 'italic' }}>the chronicler is reading the record…</p>
+            <p style={{ color: 'var(--muted)', fontSize: '0.72rem', fontStyle: 'italic', opacity: 0.6 }}>
+              the chronicler is reading the record…
+            </p>
           </div>
         ) : aiText ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-            {aiText.split('\n\n').filter(p => p.trim()).map((para, i) => (
-              <p key={i} style={{ color: 'var(--text)', fontSize: '0.8rem', lineHeight: '2.1' }}>
-                {i === 0 ? (
-                  <><span style={{ float: 'left', fontSize: '3rem', lineHeight: 0.85, fontWeight: 700, marginRight: '0.07em', marginBottom: '-0.04em' }}>{para.trim()[0]}</span>{para.trim().slice(1)}</>
-                ) : para.trim()}
-              </p>
-            ))}
-          </div>
+          <p style={{ color: 'var(--text)', fontSize: '0.82rem', lineHeight: '2.1' }}>
+            <span style={{ float: 'left', fontSize: '3rem', lineHeight: 0.84, fontWeight: 700, marginRight: '0.07em', marginBottom: '-0.04em', color: 'var(--text)' }}>
+              {aiText.trim()[0]}
+            </span>
+            {aiText.trim().slice(1)}
+          </p>
         ) : (
-          <p style={{ color: 'var(--muted)', fontSize: '0.78rem', fontStyle: 'italic' }}>The Grid is young. The story is beginning.</p>
+          <p style={{ color: 'var(--muted)', fontSize: '0.78rem', fontStyle: 'italic', lineHeight: '1.9' }}>
+            Normia is young. The story is beginning.
+          </p>
         )}
       </div>
 
-      {/* ── LATEST ENTRY ────────────────────────────────────────────────── */}
-      {latest && (
-        <div style={{ marginBottom: '3rem', paddingBottom: '3rem', borderBottom: '1px solid var(--border)' }}>
-          <div className="text-2xs uppercase" style={{ color: 'var(--muted)', letterSpacing: '0.22em', marginBottom: '1.25rem', paddingBottom: '0.6rem', borderBottom: '1px solid var(--border)' }}>
-            latest act
-          </div>
-          <div className="flex gap-0">
-            {/* Hero */}
-            <div style={{ flex: 1, paddingRight: '2rem', borderRight: '1px solid var(--border)' }}>
-              <button className="w-full text-left group" onClick={() => onSelect(latest)}>
-                <div className="flex items-center gap-2" style={{ marginBottom: '0.7rem' }}>
-                  <span style={{ fontSize: '1rem', lineHeight: 1 }}>{latest.icon}</span>
-                  {latest.activeCharacter && (
-                    <span className="text-2xs font-bold uppercase" style={{ color: 'var(--text)', letterSpacing: '0.12em' }}>
-                      {CHARACTERS[latest.activeCharacter as keyof typeof CHARACTERS]?.name}
+      {/* ── LATEST ACT ──────────────────────────────────────────────────── */}
+      {latest && (() => {
+        const latestChar = latest.activeCharacter ? CHARACTERS[latest.activeCharacter as keyof typeof CHARACTERS] : null
+        return (
+          <div style={{ marginBottom: '3.5rem', paddingBottom: '3.5rem', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '1.4rem', paddingBottom: '0.6rem', borderBottom: '1px solid var(--border)' }}>
+              latest act
+            </div>
+            <div style={{ display: 'flex', gap: 0 }}>
+              {/* Main entry */}
+              <div style={{ flex: 1, paddingRight: '2rem', borderRight: '1px solid var(--border)' }}>
+                <button className="w-full text-left group" onClick={() => onSelect(latest)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.85rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>{latest.icon}</span>
+                    {latestChar && (
+                      <span style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text)' }}>
+                        {latestChar.name}
+                      </span>
+                    )}
+                    <span style={{ color: 'var(--border)', fontSize: '0.5rem' }}>·</span>
+                    <span style={{ fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)', opacity: 0.7 }}>
+                      {latest.era}
                     </span>
-                  )}
-                  <span style={{ color: 'var(--border)', fontSize: '0.4rem' }}>·</span>
-                  <span className="text-2xs uppercase" style={{ color: 'var(--muted)', letterSpacing: '0.1em', opacity: 0.7 }}>{latest.era}</span>
-                </div>
-                <h2 className="font-bold group-hover:opacity-55 transition-opacity"
-                  style={{ color: 'var(--text)', fontSize: 'clamp(0.9rem,2.5vw,1.05rem)', lineHeight: 1.5, marginBottom: '0.85rem' }}>
-                  {latest.headline}
-                </h2>
-                <p className="group-hover:opacity-55 transition-opacity"
-                  style={{ color: 'var(--text)', fontSize: '0.77rem', lineHeight: '2.05' }}>
-                  {latest.body.slice(0, 320)}{latest.body.length > 320 && <span style={{ color: 'var(--muted)' }}>…</span>}
-                </p>
-                <p className="text-2xs" style={{ color: 'var(--muted)', marginTop: '0.65rem' }}>read full act →</p>
-              </button>
-            </div>
-
-            {/* Recent sidebar */}
-            <div style={{ width: '10rem', flexShrink: 0, paddingLeft: '1.5rem' }}>
-              <div className="text-2xs uppercase" style={{ color: 'var(--muted)', letterSpacing: '0.2em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
-                before this
+                  </div>
+                  <h2 className="group-hover:opacity-55 transition-opacity font-bold"
+                    style={{ color: 'var(--text)', fontSize: 'clamp(1rem,2.8vw,1.15rem)', lineHeight: 1.45, marginBottom: '1rem' }}>
+                    {latest.headline}
+                  </h2>
+                  <p className="group-hover:opacity-55 transition-opacity"
+                    style={{ color: 'var(--text)', fontSize: '0.8rem', lineHeight: '2.05' }}>
+                    {latest.body.slice(0, 360)}{latest.body.length > 360 && (
+                      <span style={{ color: 'var(--muted)' }}>…</span>
+                    )}
+                  </p>
+                  <p style={{ color: 'var(--muted)', fontSize: '0.62rem', marginTop: '0.8rem', letterSpacing: '0.05em' }}>
+                    read full act →
+                  </p>
+                </button>
               </div>
-              {recent.map(e => {
-                const charKey = e.activeCharacter as keyof typeof CHARACTERS | undefined
-                const char = charKey ? CHARACTERS[charKey] : null
-                return (
-                  <button key={e.id} onClick={() => onSelect(e)} className="w-full text-left hover:opacity-55 transition-opacity"
-                    style={{ paddingBottom: '0.75rem', marginBottom: '0.75rem', borderBottom: '1px solid var(--border)' }}>
-                    <div className="flex gap-2 items-start">
-                      <span style={{ fontSize: '0.7rem', lineHeight: 1, marginTop: '0.1rem', flexShrink: 0 }}>{e.icon}</span>
-                      <div>
-                        {char && <p className="text-2xs font-bold" style={{ color: 'var(--muted)', marginBottom: '0.1rem', letterSpacing: '0.05em' }}>{char.name}</p>}
-                        <p className="text-2xs" style={{ color: 'var(--text)', lineHeight: 1.5 }}>
-                          {e.headline.length > 45 ? e.headline.slice(0, 45) + '…' : e.headline}
-                        </p>
+
+              {/* Recent sidebar */}
+              <div style={{ width: '9.5rem', flexShrink: 0, paddingLeft: '1.5rem' }}>
+                <div style={{ fontSize: '0.5rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
+                  before this
+                </div>
+                {recent.map(e => {
+                  const ck = e.activeCharacter as keyof typeof CHARACTERS | undefined
+                  const ch = ck ? CHARACTERS[ck] : null
+                  return (
+                    <button key={e.id} onClick={() => onSelect(e)} className="w-full text-left hover:opacity-55 transition-opacity"
+                      style={{ paddingBottom: '0.85rem', marginBottom: '0.85rem', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: '0.75rem', lineHeight: 1, marginTop: '0.1rem', flexShrink: 0 }}>{e.icon}</span>
+                        <div>
+                          {ch && <p style={{ fontSize: '0.56rem', fontWeight: 700, color: 'var(--muted)', marginBottom: '0.2rem', letterSpacing: '0.05em' }}>{ch.name}</p>}
+                          <p style={{ fontSize: '0.65rem', color: 'var(--text)', lineHeight: 1.55 }}>
+                            {e.headline.length > 42 ? e.headline.slice(0, 42) + '…' : e.headline}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                )
-              })}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* ── ERA TIMELINE ─────────────────────────────────────────────────── */}
       <div style={{ marginBottom: '3rem' }}>
-        <div className="text-2xs uppercase" style={{ color: 'var(--muted)', letterSpacing: '0.22em', marginBottom: '1rem', paddingBottom: '0.6rem', borderBottom: '1px solid var(--border)' }}>
-          eras
+        <div style={{ fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '1rem', paddingBottom: '0.6rem', borderBottom: '1px solid var(--border)' }}>
+          eras of normia
         </div>
         {(() => {
           const byEra = groupByEra(dynamic)
@@ -450,17 +464,17 @@ function NowView({ entries, meta, onSelect, onReadAll, selected, isDark }: {
           return eras.map((era, i) => {
             const isLatest = i === eras.length - 1
             const count = byEra.get(era)!.length
-            const pct = Math.max(6, Math.round((count / maxCount) * 100))
+            const pct = Math.max(5, Math.round((count / maxCount) * 100))
             return (
               <div key={era} style={{ paddingBottom: '0.5rem', marginBottom: '0.5rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                 <div style={{ width: 4, height: 4, flexShrink: 0, background: isLatest ? 'var(--text)' : 'var(--border)' }} />
-                <p className="text-2xs flex-1" style={{ color: isLatest ? 'var(--text)' : 'var(--muted)', fontWeight: isLatest ? 700 : 400 }}>
+                <p style={{ fontSize: '0.66rem', flex: 1, color: isLatest ? 'var(--text)' : 'var(--muted)', fontWeight: isLatest ? 700 : 400 }}>
                   {era}{isLatest && <span style={{ opacity: 0.35, fontWeight: 400 }}> ←</span>}
                 </p>
                 <div style={{ width: '5rem', height: 1, background: 'var(--border)', flexShrink: 0 }}>
                   <div style={{ height: '100%', width: `${pct}%`, background: isLatest ? 'var(--text)' : 'var(--muted)', opacity: isLatest ? 0.6 : 0.3 }} />
                 </div>
-                <p className="text-2xs" style={{ color: 'var(--muted)', opacity: 0.5, width: '2rem', textAlign: 'right', flexShrink: 0 }}>{count}</p>
+                <p style={{ fontSize: '0.58rem', color: 'var(--muted)', opacity: 0.5, width: '2rem', textAlign: 'right', flexShrink: 0 }}>{count}</p>
               </div>
             )
           })
@@ -469,12 +483,16 @@ function NowView({ entries, meta, onSelect, onReadAll, selected, isDark }: {
 
       {/* ── CTA ──────────────────────────────────────────────────────────── */}
       <button onClick={onReadAll} className="w-full flex items-center justify-between hover:opacity-55 transition-opacity"
-        style={{ border: '1px solid var(--border)', padding: '0.9rem 1.1rem' }}>
+        style={{ border: '1px solid var(--border)', padding: '1rem 1.2rem' }}>
         <div>
-          <span className="font-bold" style={{ color: 'var(--text)', fontSize: '0.78rem' }}>read the full chronicle</span>
-          <span className="text-2xs" style={{ color: 'var(--muted)', marginLeft: '0.6rem' }}>— {dynamic.length} acts</span>
+          <span className="font-bold" style={{ color: 'var(--text)', fontSize: '0.82rem' }}>
+            read the full chronicle
+          </span>
+          <span style={{ color: 'var(--muted)', fontSize: '0.65rem', marginLeft: '0.65rem' }}>
+            — {dynamic.length} acts
+          </span>
         </div>
-        <span style={{ color: 'var(--text)' }}>→</span>
+        <span style={{ color: 'var(--text)', fontSize: '0.9rem' }}>→</span>
       </button>
     </div>
   )
@@ -486,9 +504,11 @@ function ChronicleEntry({ entry, onSelect, prev }: { entry: StoryEntry; onSelect
   if (entry.eventType === 'genesis') {
     return (
       <div style={{ marginBottom: '2.5rem', paddingBottom: '2.5rem', borderBottom: '1px solid var(--border)' }}>
-        <div className="text-2xs uppercase" style={{ color: 'var(--muted)', letterSpacing: '0.2em', marginBottom: '0.65rem', opacity: 0.6 }}>world primer · {entry.era}</div>
-        <h2 className="font-bold" style={{ color: 'var(--text)', fontSize: '0.95rem', marginBottom: '0.85rem', lineHeight: 1.45 }}>{entry.headline}</h2>
-        <p style={{ color: 'var(--muted)', fontSize: '0.77rem', lineHeight: '2.0', whiteSpace: 'pre-line' }}>{entry.body}</p>
+        <div style={{ fontSize: '0.52rem', letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: '0.7rem', opacity: 0.6 }}>
+          world primer · {entry.era}
+        </div>
+        <h2 className="font-bold" style={{ color: 'var(--text)', fontSize: '1rem', marginBottom: '0.9rem', lineHeight: 1.45 }}>{entry.headline}</h2>
+        <p style={{ color: 'var(--muted)', fontSize: '0.8rem', lineHeight: '2.05', whiteSpace: 'pre-line' }}>{entry.body}</p>
       </div>
     )
   }
@@ -502,22 +522,22 @@ function ChronicleEntry({ entry, onSelect, prev }: { entry: StoryEntry; onSelect
     <>
       {showBreak && <div style={{ height: '1px', background: 'var(--border)', margin: '0.75rem 0' }} />}
       <div style={{ marginBottom: '2.5rem', paddingBottom: '2.5rem', borderBottom: '1px solid var(--border)' }}>
-        <div className="flex items-center gap-2" style={{ marginBottom: '0.7rem' }}>
-          <span style={{ fontSize: '0.9rem' }}>{entry.icon}</span>
-          {char && <span className="font-bold text-2xs uppercase" style={{ color: 'var(--text)', letterSpacing: '0.12em' }}>{char.name}</span>}
-          <span style={{ color: 'var(--border)', fontSize: '0.4rem' }}>·</span>
-          <span className="text-2xs uppercase" style={{ color: 'var(--muted)', letterSpacing: '0.1em' }}>{entry.era}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.85rem', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.95rem' }}>{entry.icon}</span>
+          {char && <span style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text)' }}>{char.name}</span>}
+          <span style={{ color: 'var(--border)', fontSize: '0.45rem' }}>·</span>
+          <span style={{ fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)' }}>{entry.era}</span>
         </div>
         <button className="w-full text-left" onClick={() => onSelect(entry)}>
           <h2 className="font-bold hover:opacity-55 transition-opacity"
-            style={{ color: 'var(--text)', fontSize: 'clamp(0.88rem,2vw,1.02rem)', lineHeight: 1.5, marginBottom: '0.85rem' }}>
+            style={{ color: 'var(--text)', fontSize: 'clamp(0.92rem,2.2vw,1.06rem)', lineHeight: 1.48, marginBottom: '0.9rem' }}>
             {entry.headline}
           </h2>
         </button>
-        <p style={{ color: 'var(--text)', fontSize: '0.77rem', lineHeight: '2.0' }}>
-          {entry.body.slice(0, 400)}{entry.body.length > 400 && (
+        <p style={{ color: 'var(--text)', fontSize: '0.79rem', lineHeight: '2.05' }}>
+          {entry.body.slice(0, 420)}{entry.body.length > 420 && (
             <button onClick={() => onSelect(entry)} className="underline underline-offset-2 hover:opacity-50 ml-1"
-              style={{ color: 'var(--muted)' }}>more →</button>
+              style={{ color: 'var(--muted)', fontSize: '0.72rem' }}>more →</button>
           )}
         </p>
       </div>
@@ -527,17 +547,17 @@ function ChronicleEntry({ entry, onSelect, prev }: { entry: StoryEntry; onSelect
   return (
     <>
       {showBreak && <div style={{ height: '1px', background: 'var(--border)', margin: '0.75rem 0' }} />}
-      <div style={{ marginBottom: '1.2rem', paddingBottom: '1.2rem', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ marginBottom: '1.3rem', paddingBottom: '1.3rem', borderBottom: '1px solid var(--border)' }}>
         <button className="w-full text-left hover:opacity-55 transition-opacity" onClick={() => onSelect(entry)}>
-          <div className="flex items-baseline gap-2" style={{ marginBottom: '0.25rem' }}>
-            <span style={{ color: 'var(--muted)', fontSize: '0.6rem', flexShrink: 0 }}>{entry.icon}</span>
-            {char && <span className="text-2xs" style={{ color: 'var(--muted)', fontWeight: 700 }}>{char.name}</span>}
-            <span style={{ color: 'var(--border)', fontSize: '0.35rem' }}>·</span>
-            <span className="text-2xs" style={{ color: 'var(--muted)', opacity: 0.6, fontSize: '0.55rem' }}>{entry.era}</span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
+            <span style={{ color: 'var(--muted)', fontSize: '0.65rem', flexShrink: 0 }}>{entry.icon}</span>
+            {char && <span style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--muted)' }}>{char.name}</span>}
+            <span style={{ color: 'var(--border)', fontSize: '0.4rem' }}>·</span>
+            <span style={{ fontSize: '0.56rem', color: 'var(--muted)', opacity: 0.6 }}>{entry.era}</span>
           </div>
-          <p style={{ color: 'var(--text)', fontSize: '0.76rem', lineHeight: '1.9' }}>
+          <p style={{ color: 'var(--text)', fontSize: '0.79rem', lineHeight: '1.95' }}>
             <strong>{entry.headline}.</strong>{' '}
-            <span style={{ color: 'var(--muted)' }}>{entry.body.slice(0, 180)}{entry.body.length > 180 ? '…' : ''}</span>
+            <span style={{ color: 'var(--muted)' }}>{entry.body.slice(0, 200)}{entry.body.length > 200 ? '…' : ''}</span>
           </p>
         </button>
       </div>
@@ -561,15 +581,15 @@ function EraSection({ era, entries, onSelect, defaultOpen }: {
   return (
     <div style={{ marginBottom: '0.2rem' }}>
       <button className="w-full text-left flex items-center gap-3 group"
-        style={{ paddingTop: '0.8rem', paddingBottom: '0.8rem', borderTop: '1px solid var(--border)' }}
+        style={{ paddingTop: '0.85rem', paddingBottom: '0.85rem', borderTop: '1px solid var(--border)' }}
         onClick={() => setOpen(o => !o)}>
-        <span className="text-2xs uppercase" style={{ color: 'var(--muted)', letterSpacing: '0.2em', opacity: 0.6, flexShrink: 0 }}>era</span>
-        <span className="font-bold flex-1 text-left" style={{ color: 'var(--text)', fontSize: '0.78rem' }}>{era}</span>
+        <span style={{ fontSize: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.2em', color: 'var(--muted)', opacity: 0.55, flexShrink: 0 }}>era</span>
+        <span className="font-bold flex-1 text-left" style={{ color: 'var(--text)', fontSize: '0.8rem' }}>{era}</span>
         {charCounts.slice(0, 2).map(c => (
-          <span key={c.key} className="text-2xs hidden sm:inline" style={{ color: 'var(--muted)', opacity: 0.5 }}>{c.name} {c.count}</span>
+          <span key={c.key} style={{ fontSize: '0.58rem', color: 'var(--muted)', opacity: 0.5 }} className="hidden sm:inline">{c.name} {c.count}</span>
         ))}
-        <span className="text-2xs" style={{ color: 'var(--muted)', opacity: 0.45 }}>{entries.length}</span>
-        <span className="text-2xs group-hover:opacity-40 transition-opacity" style={{ color: 'var(--muted)', width: '0.75rem', textAlign: 'right' }}>{open ? '↑' : '↓'}</span>
+        <span style={{ fontSize: '0.6rem', color: 'var(--muted)', opacity: 0.45 }}>{entries.length}</span>
+        <span style={{ fontSize: '0.6rem', color: 'var(--muted)', width: '0.75rem', textAlign: 'right' }} className="group-hover:opacity-40 transition-opacity">{open ? '↑' : '↓'}</span>
       </button>
       {open && (
         <div style={{ paddingTop: '1.5rem', paddingBottom: '0.5rem' }}>
@@ -589,11 +609,11 @@ function LoadingState({ status }: { status: string }) {
         <div className="scan-bar" style={{ position: 'absolute', inset: 0, width: '3rem', background: 'var(--text)' }} />
       </div>
       <div>
-        <p className="font-bold" style={{ color: 'var(--text)', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
-          reading the grid<span className="dot-1 inline-block">.</span><span className="dot-2 inline-block">.</span><span className="dot-3 inline-block">.</span>
+        <p className="font-bold" style={{ color: 'var(--text)', fontSize: '0.88rem', marginBottom: '0.45rem' }}>
+          reading the chronicle<span className="dot-1 inline-block">.</span><span className="dot-2 inline-block">.</span><span className="dot-3 inline-block">.</span>
         </p>
-        <p className="text-2xs" style={{ color: 'var(--muted)', marginBottom: '0.2rem' }}>{status}</p>
-        <p className="text-2xs" style={{ color: 'var(--muted)', opacity: 0.4 }}>first load may take a moment</p>
+        <p style={{ fontSize: '0.65rem', color: 'var(--muted)', marginBottom: '0.2rem' }}>{status}</p>
+        <p style={{ fontSize: '0.6rem', color: 'var(--muted)', opacity: 0.4 }}>first load may take a moment</p>
       </div>
     </div>
   )
@@ -684,27 +704,6 @@ export function ChroniclesClient() {
       {selected && <EntryModal entry={selected} onClose={() => setSelected(null)} />}
       <main style={{ minHeight: '100vh', paddingTop: '2.75rem' }}>
 
-        {/* info strip */}
-        <div style={{ borderBottom: '1px solid var(--border)' }}>
-          <div style={{ maxWidth: '42rem', margin: '0 auto', padding: '0 1.5rem', height: '2.1rem', display: 'flex', alignItems: 'center' }}>
-            <p className="text-2xs" style={{ color: 'var(--muted)', letterSpacing: '0.1em', opacity: 0.7 }}>
-              10,000 normies · ethereum mainnet · cc0
-            </p>
-          </div>
-        </div>
-
-        {/* masthead */}
-        <div style={{ maxWidth: '42rem', margin: '0 auto', padding: '0 1.5rem' }}>
-          <div style={{ paddingTop: '2rem', paddingBottom: '1.5rem' }}>
-            <h1 className="font-bold" style={{ fontSize: 'clamp(2.8rem,8vw,5rem)', color: 'var(--text)', letterSpacing: '-0.025em', lineHeight: 0.9, marginBottom: '0.9rem' }}>
-              normies<br />chronicles
-            </h1>
-            <p className="text-2xs" style={{ color: 'var(--muted)', maxWidth: '28rem', lineHeight: '1.85', letterSpacing: '0.04em' }}>
-              a living record — five presences, ten thousand normies, one Grid. every on-chain act ripples.
-            </p>
-          </div>
-        </div>
-
         {/* sticky nav */}
         <div className="sticky" style={{ top: '2.75rem', zIndex: 40, borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
           <div style={{ maxWidth: '42rem', margin: '0 auto', padding: '0 1.5rem', display: 'flex', alignItems: 'center', height: '2.4rem' }}>
@@ -720,7 +719,7 @@ export function ChroniclesClient() {
                 {search && <button onClick={() => setSearch('')} style={{ fontFamily: 'inherit', fontSize: '0.6rem', color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '0.5rem' }}>×</button>}
               </div>
             ) : (
-              <p className="flex-1 text-right text-2xs" style={{ color: 'var(--muted)', opacity: 0.5 }}>
+              <p className="flex-1 text-right" style={{ fontSize: '0.6rem', color: 'var(--muted)', opacity: 0.5 }}>
                 {!isLoading && dynamic.length > 0 ? `${dynamic.length} acts · five characters` : ''}
               </p>
             )}
@@ -751,8 +750,8 @@ export function ChroniclesClient() {
                 <>
                   <div style={{ border: '1px solid var(--border)', marginBottom: '2.5rem' }}>
                     <div style={{ padding: '0.55rem 1rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span className="text-2xs uppercase" style={{ color: 'var(--muted)', letterSpacing: '0.22em' }}>the grid</span>
-                      <span className="text-2xs" style={{ color: 'var(--muted)', opacity: 0.4 }}>reflecting last act</span>
+                      <span style={{ fontSize: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.22em', color: 'var(--muted)' }}>normia · live scene</span>
+                      <span style={{ fontSize: '0.5rem', color: 'var(--muted)', opacity: 0.4 }}>reflecting last act</span>
                     </div>
                     <WarGrid entries={entries} activeEntry={selected} isDark={isDark} />
                   </div>
@@ -761,14 +760,14 @@ export function ChroniclesClient() {
 
                   {search ? (
                     <div>
-                      <p className="text-2xs" style={{ color: 'var(--muted)', marginBottom: '1.5rem' }}>
+                      <p style={{ fontSize: '0.65rem', color: 'var(--muted)', marginBottom: '1.5rem' }}>
                         {filtered.length} result{filtered.length !== 1 ? 's' : ''} for &quot;{search}&quot;
                       </p>
                       {pageEntries.map((e, i) => <ChronicleEntry key={e.id} entry={e} onSelect={handleSelect} prev={pageEntries[i - 1]} />)}
                       {pageEntries.length === 0 && (
                         <div style={{ padding: '4rem 0', textAlign: 'center' }}>
-                          <p className="font-bold" style={{ color: 'var(--text)', marginBottom: '0.5rem' }}>no records match</p>
-                          <p className="text-2xs" style={{ color: 'var(--muted)' }}>try a character name — Lyra, Finn, The Cast, Cielo, Echo</p>
+                          <p className="font-bold" style={{ color: 'var(--text)', marginBottom: '0.5rem', fontSize: '0.85rem' }}>no records match</p>
+                          <p style={{ fontSize: '0.65rem', color: 'var(--muted)' }}>try a character name — Lyra, Finn, The Cast, Cielo, Echo</p>
                         </div>
                       )}
                       {totalPages > 1 && (
@@ -776,7 +775,7 @@ export function ChroniclesClient() {
                           style={{ paddingTop: '2rem', marginTop: '1rem', borderTop: '1px solid var(--border)' }}>
                           <button disabled={page === 0} onClick={() => { setPage(p => p - 1); window.scrollTo(0, 0) }}
                             style={{ fontFamily: 'inherit', fontSize: '0.73rem', color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer', opacity: page === 0 ? 0.2 : 1 }}>← earlier</button>
-                          <span className="text-2xs" style={{ color: 'var(--muted)' }}>{page + 1} / {totalPages}</span>
+                          <span style={{ fontSize: '0.6rem', color: 'var(--muted)' }}>{page + 1} / {totalPages}</span>
                           <button disabled={page === totalPages - 1} onClick={() => { setPage(p => p + 1); window.scrollTo(0, 0) }}
                             style={{ fontFamily: 'inherit', fontSize: '0.73rem', color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer', opacity: page === totalPages - 1 ? 0.2 : 1 }}>later →</button>
                         </div>
@@ -799,11 +798,11 @@ export function ChroniclesClient() {
         {/* footer */}
         <div style={{ borderTop: '1px solid var(--border)', marginTop: '5rem' }}>
           <div style={{ maxWidth: '42rem', margin: '0 auto', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <p className="text-2xs" style={{ color: 'var(--muted)', opacity: 0.6 }}>normies chronicles · ethereum · cc0</p>
+            <p style={{ fontSize: '0.6rem', color: 'var(--muted)', opacity: 0.6 }}>the chronicles of normia · ethereum · cc0</p>
             <div className="flex items-center gap-4">
-              <a href="/how-it-works" className="text-2xs hover:opacity-50 transition-opacity" style={{ color: 'var(--muted)' }}>how it works</a>
+              <a href="/how-it-works" className="hover:opacity-50 transition-opacity" style={{ fontSize: '0.6rem', color: 'var(--muted)' }}>how it works</a>
               <a href="https://x.com/aster0x" target="_blank" rel="noopener noreferrer"
-                className="text-2xs hover:opacity-50 transition-opacity" style={{ color: 'var(--muted)' }}>@aster0x</a>
+                className="hover:opacity-50 transition-opacity" style={{ fontSize: '0.6rem', color: 'var(--muted)' }}>@aster0x</a>
             </div>
           </div>
         </div>

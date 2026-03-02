@@ -24,7 +24,7 @@ export function NavBar() {
     >
       <div className="max-w-5xl mx-auto px-6 h-11 flex items-center justify-between">
         <Link
-          href="/chronicles"
+          href="/"
           className="font-mono text-sm font-bold tracking-tight"
           style={{ color: 'var(--text)' }}
         >

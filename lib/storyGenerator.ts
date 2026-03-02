@@ -1,9 +1,7 @@
 import type { IndexedEvent } from './eventIndexer'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// THE FIVE — fixed characters. The Grid's story is their story.
-// Token ID mod 5 determines which character is "active" for each event.
-// Their goals create the tension. Their actions create the butterfly effect.
+// THE FIVE — fixed characters whose actions build Normia's history
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const CHARACTERS = {
@@ -15,6 +13,7 @@ export const CHARACTERS = {
     goal: 'to build something in Normia that outlasts every attempt to erase it',
     nature: 'methodical, visionary, haunted by incompleteness',
     activatedBy: 'construction, persistence, accumulation',
+    shortDesc: 'She has been building the same structure across Normia for as long as the record goes back — sector by sector, piece by piece. Nobody knows the full shape of it yet except her.',
   },
   VOSS: {
     name: 'Finn',
@@ -24,6 +23,7 @@ export const CHARACTERS = {
     goal: 'to unmake what calcifies — Normia must stay alive, even if that means tearing it open',
     nature: 'fierce, principled, misread as destructive',
     activatedBy: 'large reshapings, burns, collisions',
+    shortDesc: 'Finn removes structures that have stopped earning their place in the system. He is not a vandal — he is principled. He just has a higher tolerance for the mess that comes with change.',
   },
   CAST: {
     name: 'The Cast',
@@ -33,6 +33,7 @@ export const CHARACTERS = {
     goal: 'to see everything and forget nothing — Normia deserves a true record',
     nature: 'omnipresent, ancient, neither cruel nor kind — simply there',
     activatedBy: 'returns, long-watching, veteran presence',
+    shortDesc: 'It has been keeping the record since before most current players arrived. It does not act. It watches, logs, and remembers everything — and its record is the only complete account of Normia that exists.',
   },
   SABLE: {
     name: 'Cielo',
@@ -42,6 +43,7 @@ export const CHARACTERS = {
     goal: 'to tend what others abandon — nothing built in Normia should die unmourned',
     nature: 'quiet, relentless, fiercely loyal to what remains',
     activatedBy: 'quiet work, maintenance, holding',
+    shortDesc: 'After Lyra builds and Finn breaks, Cielo maintains the edges — repairing what is fraying, holding zones that have been abandoned, keeping structures alive past their moment of attention.',
   },
   ECHO: {
     name: 'Echo',
@@ -51,107 +53,101 @@ export const CHARACTERS = {
     goal: 'to find what Normia is hiding — every edge conceals something the center cannot see',
     nature: 'unpredictable, magnetic, arrives exactly when it matters',
     activatedBy: 'edge events, unexpected patterns, far signals',
+    shortDesc: 'He works the outer zones — the sectors the main factions do not bother tracking. What he finds there keeps turning out to matter more than anyone expected.',
   },
 } as const
 
 export type CharacterKey = keyof typeof CHARACTERS
 
-// Which character is active for a given event
+// ─────────────────────────────────────────────────────────────────────────────
+// CHARACTER ASSIGNMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
 function getCharacter(event: IndexedEvent, allEvents: IndexedEvent[], index: number): CharacterKey {
   const tokenId = Number(event.tokenId)
   const count = Number(event.count)
   const isBurn = event.type === 'BurnRevealed'
-  const isEdge = tokenId > 8000 || tokenId < 300
   const isMassive = count >= 200
-  const isVeteran = allEvents.slice(0, index).some(e => e.owner === event.owner)
-  const hasBeenAbsent = isVeteran && (() => {
-    const prev = allEvents.slice(0, index).filter(e => e.owner === event.owner)
-    if (!prev.length) return false
-    return (event.blockNumber - prev[prev.length - 1].blockNumber) > 15000n
-  })()
-  const prevAppearances = allEvents.slice(0, index).filter(e => e.owner === event.owner).length
 
-  // Voss: burns and massive reshapings — the breaker
   if (isBurn || isMassive) return 'VOSS'
-  // Echo: edge tokens or very long absences returning
-  if (isEdge || hasBeenAbsent) return 'ECHO'
-  // Cast: the truly long-watching veterans (4+ appearances)
-  if (isVeteran && prevAppearances >= 4) return 'CAST'
-
-  // Spread the rest across Lyra, Cielo, The Cast, Echo by token hash
-  // This ensures all five appear roughly evenly in normal events
-  const h = (tokenId * 1327 + index * 491) % 5
-  if (h === 0) return 'LYRA'
-  if (h === 1) return 'SABLE'
-  if (h === 2) return 'CAST'
-  if (h === 3) return 'LYRA'
-  return 'SABLE'
+  const isEdge = tokenId < 500 || tokenId > 8500
+  if (isEdge && (index % 3 === 0)) return 'ECHO'
+  const h = ((tokenId * 2654435761 + index * 40503) >>> 0) % 5
+  const keys: CharacterKey[] = ['LYRA', 'VOSS', 'CAST', 'SABLE', 'ECHO']
+  return keys[h]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WORLD STATE — the Grid's ongoing story
+// WORLD STATE — the chronicle's living memory
+// Every prose template reads from this. Update it after every entry.
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface GridWorld {
-  // What each character has done — drives narrative memory
-  lyraBuilding: string | null        // what Lyra is constructing
-  finnLastTarget: string | null      // what Finn last unmade
-  castLastWitnessed: string | null   // what The Cast last recorded
-  cieloHolding: string | null        // what Cielo is tending
-  echoLastZone: string | null        // where Echo last appeared
+  lyraLastBuilt: string | null
+  lyraBuiltCount: number
+  lyraSignature: string | null
 
-  // Story tension
-  lyraFinnConflict: number           // 0-100: how much their work contests each other
-  totalActs: number                  // count of all acts
-  era: string
-  eraIndex: number
+  finnLastBroke: string | null
+  finnLastTarget: string | null
+  finnBreakCount: number
+  finnContestedLyra: boolean
 
-  // Last major event — for butterfly effect prose
+  castLastWitnessed: string | null
+
+  cieloLastTended: string | null
+  cieloHolding: string | null
+  cieloRepairCount: number
+
+  echoLastFound: string | null
+  echoLastZone: string | null
+  echoFindCount: number
+
+  lyraFinnConflict: number
+  finnContested: boolean
+  lyraReclaimed: boolean
+
+  totalActs: number
+  majorMoments: string[]
   lastMajorChar: CharacterKey | null
-  lastMajorAct: string | null        // 'built' | 'broke' | 'witnessed' | 'kept' | 'found'
+  lastMajorAct: string | null
   lastMajorZone: string | null
 
-  // Scene for pixel art
+  zoneOwner: Record<string, CharacterKey>
+  zonePrevOwner: Record<string, CharacterKey>
+
+  era: string
+  eraIndex: number
+  eraActCount: number
+
   currentScene: SceneType
-  sceneIntensity: number             // 0-100
+  sceneIntensity: number
 }
 
 export type SceneType =
-  | 'construction'   // Lyra building — rising structures, light
-  | 'destruction'    // Voss breaking — fractures, dark energy
-  | 'sacrifice'      // burn event — dissolution, light scattering
-  | 'vigil'         // Cast watching — one figure in stillness
-  | 'tending'       // Sable keeping — small careful work
-  | 'arrival'       // Echo appearing — figure at edge, fog
-  | 'convergence'   // two characters meeting
-  | 'reckoning'     // era shift — the world rewriting itself
-  | 'quiet'         // stillness — empty landscape
-  | 'dawn'          // first light — opening
+  | 'construction' | 'destruction' | 'sacrifice' | 'vigil'
+  | 'tending' | 'arrival' | 'convergence' | 'reckoning'
+  | 'quiet' | 'dawn'
 
 function freshGridWorld(): GridWorld {
   return {
-    lyraBuilding: null,
-    finnLastTarget: null,
+    lyraLastBuilt: null, lyraBuiltCount: 0, lyraSignature: null,
+    finnLastBroke: null, finnLastTarget: null, finnBreakCount: 0, finnContestedLyra: false,
     castLastWitnessed: null,
-    cieloHolding: null,
-    echoLastZone: null,
-    lyraFinnConflict: 10,
-    totalActs: 0,
-    era: 'The First Days',
-    eraIndex: 0,
-    lastMajorChar: null,
-    lastMajorAct: null,
-    lastMajorZone: null,
-    currentScene: 'dawn',
-    sceneIntensity: 20,
+    cieloLastTended: null, cieloHolding: null, cieloRepairCount: 0,
+    echoLastFound: null, echoLastZone: null, echoFindCount: 0,
+    lyraFinnConflict: 5, finnContested: false, lyraReclaimed: false,
+    totalActs: 0, majorMoments: [], lastMajorChar: null, lastMajorAct: null, lastMajorZone: null,
+    zoneOwner: {}, zonePrevOwner: {},
+    era: 'The First Days', eraIndex: 0, eraActCount: 0,
+    currentScene: 'dawn', sceneIntensity: 20,
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ZONES — places in the Grid with personality
+// ZONES
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ZONES = [
+export const ZONES = [
   'the Null District',   'the White Corridors',  'the Hollow',
   'the Far Sectors',     'the Dark Margin',       'the Cradle',
   'the Dust Protocol',   'the Outer Ring',        'the Deep Well',
@@ -161,8 +157,32 @@ const ZONES = [
   'the Last Ridge',      'the Open Grid',
 ]
 
+// What each zone actually is — used inline in prose for worldbuilding texture
+const ZONE_DETAIL: Record<string, string> = {
+  'the Null District':   'a stretch of unclaimed sectors where old builds sit between ownership cycles',
+  'the White Corridors': 'the zone where the data scribes maintain Normia\'s long-running indexes',
+  'the Hollow':          'a low-throughput sector where activity tends to pool and stall',
+  'the Far Sectors':     'the outermost fringe, barely tracked by the central system',
+  'the Dark Margin':     'unmapped territory at Normia\'s edge — no faction holds a claim here',
+  'the Cradle':          'where new presences typically register their first marks in the system',
+  'the Dust Protocol':   'a decommissioned zone running on old rules nobody ever updated',
+  'the Outer Ring':      'the buffer between central Normia and the marginal zones',
+  'the Deep Well':       'a high-throughput sector where heavy data loads run through old infrastructure',
+  'the Fault Line':      'where two zone boundaries overlap — the ownership dispute has been unresolved for three eras',
+  'the High Pass':       'the routing sector that most cross-zone traffic moves through',
+  'the Old Crossing':    'the oldest active junction in Normia — still in use because nothing better ever replaced it',
+  'the Narrow Gate':     'a chokepoint sector — whoever holds it sees most of what moves between zones',
+  'the Salt Plane':      'flat, exposed, and harder to hold than it looks — no natural defensive position',
+  'the Grey Basin':      'a mid-sector zone with no dominant owner across multiple eras',
+  'the High Ground':     'the elevated control zone — better visibility into adjacent sectors from here',
+  'the Burn Fields':     'a sector marked by several large departures in earlier eras — still carrying those signatures',
+  'the Still Water':     'a low-churn zone where new activity stands out against the background',
+  'the Last Ridge':      'the outermost edge zone — barely populated, but Echo keeps returning here',
+  'the Open Grid':       'the central sector — any major act here is visible across the system',
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
-// ERAS — the Grid's ages
+// ERAS
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const ERAS = [
@@ -173,7 +193,7 @@ export const ERAS = [
   { threshold: 1500, name: 'The Long Work',     eraIndex: 4 },
   { threshold: 3000, name: 'What Holds',        eraIndex: 5 },
   { threshold: 5000, name: 'The Old Country',   eraIndex: 6 },
-  { threshold: 8000, name: 'The Long Memory',  eraIndex: 7 },
+  { threshold: 8000, name: 'The Long Memory',   eraIndex: 7 },
 ]
 
 function getEraData(count: number) {
@@ -185,7 +205,7 @@ function getEraData(count: number) {
 function getEra(count: number): string { return getEraData(count).name }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SEEDING — deterministic randomness
+// SEEDING
 // ─────────────────────────────────────────────────────────────────────────────
 
 function seedN(tokenId: bigint, blockNumber: bigint, salt = 0): number {
@@ -195,81 +215,64 @@ function seedN(tokenId: bigint, blockNumber: bigint, salt = 0): number {
 function pick<T>(arr: T[], s: number): T { return arr[Math.abs(s) % arr.length] }
 
 function zoneFor(tokenId: bigint): string {
-  // Mix the tokenId to spread across all zones rather than clustering low IDs on zone 0
   const h = Number((tokenId * 2654435761n) & 0xFFFFFFFFn)
   return ZONES[h % ZONES.length]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WORLD-BUILDING — the 10,000 ordinary people of Normia
-// Politics, trade, everyday life woven into character beats.
+// WORLD TEXTURE — things happening in Normia that aren't the five
 // ─────────────────────────────────────────────────────────────────────────────
 
-const WORLD_GROUPS = [
-  'the chandlers of Old Crossing', 'the Pale Shore fishers', 'the ironworkers of the Breach',
-  'the weavers of Still Water', 'the grain merchants of the Hollow',
-  'the toll-keepers of the Southern Pass', 'the miners of the Deep Well',
-  'the scribes of the White Corridors', 'the small traders of the Null District',
-  'the farmers of the Grey Basin', 'the faction council of the High Ground',
-  'the cartographers of the Far Sectors', 'the dockworkers of the Pale Shore',
-  'the fence-builders of the Outer Ring', 'the apothecaries of the Fault Line',
-  'the census-takers of the Old Country', 'the road-menders of the Salt Way',
-  'the coopers of the Still Water', 'the river-guides of the Hollow',
-  'the watchmen of the Burn Fields',
+const SECTOR_GROUPS = [
+  'the data scribes in the White Corridors',
+  'the route operators at the High Pass',
+  'the archive keepers of the Null District',
+  'the boundary monitors at the Fault Line',
+  'the relay handlers running through the Outer Ring',
+  'the sector operators in the Deep Well',
+  'the faction reps watching from the High Ground',
+  'the cartographers tracking the Far Sectors',
+  'the traders working the Old Crossing route',
+  'the index workers in the Grey Basin',
+  'the edge scouts stationed at the Last Ridge',
+  'the access handlers at the Narrow Gate',
 ]
 
-const WORLD_EVENTS = [
-  'the grain tax dispute that has occupied the faction councils for three seasons',
-  'the contested border between the Breach and Still Water that nobody has officially resolved',
-  'the guild split among the ironworkers that started as a wage disagreement and became something larger',
-  'the harvest shortfall in the Grey Basin that the merchants are being blamed for',
-  'the toll rate increase on the Southern Pass that the small traders are organizing against',
-  'the faction council deadlock that has left three zone boundary questions unanswered',
-  'the old salt route that two factions both claim to maintain and neither actually does',
-  'the census dispute about which zones count as inhabited versus merely claimed',
-  'the argument between the cartographers and the fence-builders about where the Outer Ring actually ends',
-  'the slow decline of the Old Crossing market that everyone sees and nobody is fixing',
-  'the new road-mending agreement that might actually hold this time',
-  'the water rights question in Still Water that resurfaces every dry season',
-  'the merchant coalition that formed last season to contest the tollkeeper rates',
-  'the unresolved question of who maintains the Salt Way when neither faction claims it',
-  'the scribe dispute about how to count acts that happen on the same day',
+const SYSTEM_NOTES = [
+  'Traffic through the High Pass is up this cycle — three new cross-zone routes registered in the last block.',
+  'The scribes in the White Corridors flagged an indexing anomaly two cycles back. Still unresolved.',
+  'The Grey Basin ownership dispute has been live in the council records for eleven acts now.',
+  'Three structures in the Outer Ring have sat unregistered since the last major break.',
+  'Relay traffic at the Narrow Gate slowed to near-zero for six blocks, then resumed without explanation.',
+  'Someone has been running cross-zone queries on the Null District. The scribes noticed.',
+  'The Deep Well throughput data is under review after an unusually high-volume session.',
+  'The Fault Line boundary dispute surfaced again — two factions claiming the same sector tag.',
 ]
 
-const TRADE_NOTES = [
-  'Salt moves slowly through the zones this season — the Southern Pass rate hike has rerouted three merchant caravans.',
-  'Iron from the Breach is trading at a premium. The ironworker guild split has reduced output.',
-  'The Pale Shore fish catch was poor this month. The chandlers have adjusted their pricing accordingly.',
-  'Market day in the Null District saw fewer stalls than last season. The small traders are watching the toll dispute carefully.',
-  'The Grey Basin grain is in transit. The roads are passable but slow. The fence-builders want payment before the harvest carts use the new section.',
-  'A new exchange rate between the Hollow river-guides and the cartographers came into effect this week. Both sides called it fair.',
-  'The Deep Well miners delivered their monthly count to the census-takers. The count was lower than reported. Nobody is saying why.',
-  'The Old Crossing market continues to contract. Three stalls that were there last season are not there now. Their owners have not been located.',
-  'The Salt Way toll collection happened without incident this month, which the road-menders are taking as a small victory.',
-]
+function sectorGroup(seed: number): string { return SECTOR_GROUPS[Math.abs(seed) % SECTOR_GROUPS.length] }
+function systemNote(seed: number): string { return SYSTEM_NOTES[Math.abs(seed) % SYSTEM_NOTES.length] }
 
-function worldNote(seed: number): string {
-  return WORLD_GROUPS[Math.abs(seed) % WORLD_GROUPS.length]
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFLICT STATUS — plain-language description of the Lyra/Finn dynamic
+// ─────────────────────────────────────────────────────────────────────────────
 
-function worldEvent(seed: number): string {
-  return WORLD_EVENTS[Math.abs(seed) % WORLD_EVENTS.length]
-}
-
-function tradeNote(seed: number): string {
-  return TRADE_NOTES[Math.abs(seed) % TRADE_NOTES.length]
+function conflictState(world: GridWorld): string {
+  const lv = world.lyraFinnConflict
+  if (lv < 15) return 'Lyra and Finn have not yet crossed paths directly in the sector map'
+  if (lv < 35) return 'their builds and breaks have started landing in overlapping zones'
+  if (lv < 55) return 'they are operating in contested territory — every move one makes creates a condition the other has to respond to'
+  if (lv < 75) return 'the overlap is now direct: she builds, he challenges it; he breaks, she rebuilds'
+  return 'Normia\'s current shape is being decided by the back-and-forth between what Lyra builds and what Finn removes'
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// THE STORY ENGINE
-// Prose templates reference characters by name.
-// Each beat carries the current story state so the reader always knows
-// where they are in the ongoing conflict.
+// STORY BEAT CONTEXT — passed to every prose template
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface StoryBeat {
   charKey: CharacterKey
   zone: string
+  zoneDetail: string
   world: GridWorld
   count: number
   isBurn: boolean
@@ -277,274 +280,474 @@ interface StoryBeat {
   seed: number
 }
 
-function tension(world: GridWorld): string {
-  const lv = world.lyraFinnConflict
-  if (lv < 20) return 'Lyra and Finn have not yet found each other in Normia'
-  if (lv < 40) return 'somewhere, Lyra\'s constructions and Finn\'s breaks are beginning to overlap'
-  if (lv < 60) return 'Normia is a battleground between what Lyra builds and what Finn unmakes'
-  if (lv < 80) return 'Lyra and Finn are locked — every section she raises, he questions; every break he makes, she reclaims'
-  return 'the conflict between Lyra and Finn has become Normia\'s defining force'
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// PROSE POOLS
+//
+// DESIGN RULES:
+//   1. Ground everything in specifics. Name prior zones. Name what happened there.
+//   2. Every entry must reference at least one prior world state fact.
+//   3. Show consequences. What does this act change for the others?
+//   4. Keep the grid/cyberspace texture: sectors, protocols, data, routing, signals.
+//   5. Short, declarative sentences. Present tense. No purple prose.
+//   6. Each entry sets up something for the next — cause and effect, not description.
+// ─────────────────────────────────────────────────────────────────────────────
 
+// ── LYRA SMALL ────────────────────────────────────────────────────────────────
 
-// ── LYRA BEATS ────────────────────────────────────────────────────────────────
+// ── LYRA SMALL ────────────────────────────────────────────────────────────────
 const LYRA_SMALL = [
-  (b: StoryBeat) => `Lyra added another layer to her work in ${b.zone}. She never explains what she's building — only that it isn't finished. The structure rises one decision at a time, and every decision is load-bearing.`,
-  (b: StoryBeat) => `She came to ${b.zone} with a specific problem to solve. Lyra works that way — not sweeping across the Grid but finding the exact cell that needs changing and changing only that. ${b.world.finnLastTarget ? `Finn had torn through nearby. She didn't acknowledge it. She kept working.` : `The Grid accepted the change without resistance.`}`,
-  (b: StoryBeat) => `${b.zone} holds a new piece of what Lyra is building. She doesn't announce these additions. They appear, and The Cast records them, and ${b.world.lyraFinnConflict > 50 ? `Finn finds them eventually and decides what to do with them` : `slowly the shape becomes legible to anyone watching long enough`}. ${worldNote(b.seed)} has taken note of the change in their zone — the opinion of the faction council varies, as it always does.`,
-  (b: StoryBeat) => `Lyra in ${b.zone}, fitting pieces together that only she can see the purpose of. The Grid hums differently where she works — something in the frequency of her edits, the patience between them. ${tension(b.world)}.`,
-  (b: StoryBeat) => `She works in ${b.zone} while the rest of the Grid moves around her. Lyra has never been fast. She has never needed to be. What she builds doesn't move when the current shifts.`,
+  (b: StoryBeat) => {
+    const prior = b.world.finnLastBroke
+      ? `Finn broke something open in ${b.world.finnLastBroke} not long ago. Lyra registered it, adjusted her line of approach, and kept going. That is what she does — she bends around resistance without stopping.`
+      : b.world.lyraBuiltCount > 2
+        ? `She has now placed marks in ${b.world.lyraBuiltCount} separate sectors. To anyone watching the map with care, the shape she is drawing is starting to come clear.`
+        : `${sectorGroup(b.seed)} have noticed the new registration. What she places in ${b.zone} will touch their routing paths.`
+    return `Lyra laid another piece into ${b.zone} — ${b.zoneDetail}. ${prior} This is not a standalone move. Each placement she makes is load-bearing for something further along. Alone it looks minor. In sequence it is necessary.`
+  },
+  (b: StoryBeat) => {
+    const thread = b.world.lyraFinnConflict > 40
+      ? `Finn has been working the same territory. This placement answers the space his last break left behind — she found the gap and filled it.`
+      : `${systemNote(b.seed)}`
+    return `She moved into ${b.zone} and added to the registered structure there. Lyra works in increments: one placement, then another, each one opening the next. ${thread} The Cast's log now shows her active across ${Math.max(1, b.world.lyraBuiltCount)} sectors of the map.`
+  },
+  (b: StoryBeat) => {
+    const cieloNote = b.world.cieloLastTended
+      ? `Cielo has been keeping the edges stable in ${b.world.cieloLastTended} — the maintenance work that lets Lyra extend into new ground without losing what she already placed.`
+      : `The surrounding sectors have no one tending them yet. That will matter eventually.`
+    return `${b.zone}: another mark from Lyra. The zone is ${b.zoneDetail}. ${cieloNote} Every piece she registers here draws the larger structure a little closer to visible.`
+  },
+  (b: StoryBeat) => {
+    const echoNote = b.world.echoLastFound
+      ? `Echo turned something up in ${b.world.echoLastFound} recently. His find and Lyra's placement sit in adjacent sectors — whether the connection is deliberate or coincidental, neither of them has said.`
+      : `The outer zones are still quiet. Lyra is working the mid-sectors for now, building inward from the edges she has already touched.`
+    return `Lyra placed another layer in ${b.zone}. ${b.zoneDetail}. ${echoNote} What she is assembling here will only read as a whole once she has placed a few more pieces. Right now it looks like groundwork. It is.`
+  },
 ]
 
+// ── LYRA LARGE ────────────────────────────────────────────────────────────────
 const LYRA_LARGE = [
-  (b: StoryBeat) => `Lyra made her largest move yet in ${b.zone}. This was not an addition — this was the keystone. Every piece she has placed across the Grid bends toward what just went up in ${b.zone}. ${b.world.finnLastTarget ? `Finn unmade something significant not long ago. Lyra's answer was this.` : `The Grid accepted it. The structure is now undeniable.`}`,
-  (b: StoryBeat) => `A full section of ${b.zone} is Lyra's now. Not claimed — built. There's a difference she would insist on: claiming is a word for people who take. Building is a word for people who make something where there was nothing. She made something. ${tension(b.world)}. ${worldNote(b.seed)} were present in the zone when she finished. The faction council has already requested a meeting.`,
-  (b: StoryBeat) => `The Grid shifted in ${b.zone}. Lyra had been approaching this from three directions for longer than anyone noticed, and now all three converged. What exists in ${b.zone} now is load-bearing for everything she's planned. The architecture is becoming visible.`,
+  (b: StoryBeat) => {
+    const conflict = b.world.finnLastBroke
+      ? `Finn had cleared something in ${b.world.finnLastBroke} before this. What Lyra just placed in ${b.zone} is larger than what he removed — she built around the opening his break created and came out bigger on the other side.`
+      : `No one has challenged her work this cycle. This placement is entirely on her terms.`
+    return `Lyra put her largest build of the current era into ${b.zone} — ${b.zoneDetail}. ${conflict} This is where the smaller placements were always heading. The shape is visible now — not just a series of separate additions, but a structure that reads as one thing. The Cast flagged it as significant. It earned that.`
+  },
+  (b: StoryBeat) => {
+    return `A full-sector claim from Lyra in ${b.zone}. The volume she committed here crosses from incremental into structural — this is no longer just another layer, it is a statement of presence. ${conflictState(b.world)}. ${sectorGroup(b.seed)} logged the activity spike. Finn will see it in the record the next time he sweeps the sector map.`
+  },
+  (b: StoryBeat) => {
+    const recap = [
+      b.world.finnLastBroke ? `Finn's break in ${b.world.finnLastBroke}` : null,
+      b.world.echoLastFound ? `Echo's find in ${b.world.echoLastFound}` : null,
+      b.world.cieloLastTended ? `Cielo's maintenance work in ${b.world.cieloLastTended}` : null,
+    ].filter(Boolean).join(', ')
+    return `Lyra's major build in ${b.zone} is the convergence of work she has been staging across ${b.world.lyraBuiltCount} sectors. ${recap ? `It follows ${recap}.` : ''} Everything she placed before this was weight-bearing for what just went up. The record marks this as the moment her architecture stopped being invisible.`
+  },
 ]
 
-// ── VOSS BEATS ────────────────────────────────────────────────────────────────
+// ── FINN SMALL ────────────────────────────────────────────────────────────────
 const VOSS_SMALL = [
-  (b: StoryBeat) => `Finn moved through ${b.zone} and left it different. He doesn't take pride in destruction — that's a misread of what he does. The Grid calcifies when nothing challenges it. He is the challenge. ${b.world.lyraBuilding ? `Lyra is building somewhere in the Grid. Finn hasn't decided yet whether it needs to be questioned.` : `He moved on.`}`,
-  (b: StoryBeat) => `Something in ${b.zone} caught Finn's attention — a shape that had been left too long unchanged, a structure that had forgotten it was temporary. He made it remember. ${tension(b.world)}. ${worldNote(b.seed)} will feel this in their operations — ${worldEvent(b.seed)} has already complicated things. Finn's pass through the zone doesn't help.`,
-  (b: StoryBeat) => `Finn at ${b.zone}, making Normia breathe. That's his framing, and it's not wrong. Calcified code becomes dogma. Dogma becomes prison. He breaks things so they can become something else. What they become is not always his to decide.`,
-  (b: StoryBeat) => `A section of ${b.zone} was taken apart by Finn. He works fast when he's found something worth addressing. ${b.world.lyraBuilding ? `Whether what he touched was related to Lyra's constructions — whether he even knows — is unclear. Normia holds the result.` : `The space is open now. Someone will fill it.`}`,
+  (b: StoryBeat) => {
+    const lyraNote = b.world.lyraLastBuilt
+      ? `Lyra has a build sitting in ${b.world.lyraLastBuilt}. Finn knows it is there. He has not moved on it yet — he is reading the territory first.`
+      : `There is no active Lyra build in the area. Finn is working his own logic, not responding to anyone else's.`
+    return `Finn cleared part of ${b.zone} — ${b.zoneDetail}. What he removed had been sitting unchallenged long enough that people had started treating it as permanent. That is exactly what he looks for. ${lyraNote} The opening is in the record now.`
+  },
+  (b: StoryBeat) => {
+    const cieloNote = b.world.cieloHolding
+      ? `Cielo has been working ${b.world.cieloHolding}. She will likely come through ${b.zone} after this — Finn opens the space, she tends what the opening leaves behind.`
+      : `The surrounding sectors have no active maintenance. Whatever Finn cleared will drift at the edges without someone coming through.`
+    return `Finn moved through ${b.zone} and took apart a section of it. His method has not changed: find what is no longer earning its claim in the sector map, remove it, and leave the space open for something better. ${cieloNote} ${systemNote(b.seed)}`
+  },
+  (b: StoryBeat) => {
+    return `${b.zone}: Finn ran a targeted break. The sector is ${b.zoneDetail}. He has been working a sequence of smaller corrections across this part of the map over ${b.world.finnBreakCount > 1 ? `${b.world.finnBreakCount} recorded acts` : 'the last few cycles'} — each one clearing routing that was blocked by structures past their time. ${conflictState(b.world)}.`
+  },
+  (b: StoryBeat) => {
+    const prior = b.world.finnLastBroke
+      ? `His last registered break was in ${b.world.finnLastBroke}. Same logic applies here: find what is overdue, take it apart.`
+      : `First break in the record. He has been watching the map for a while before this.`
+    return `A section of ${b.zone} was cleared by Finn. ${prior} ${sectorGroup(b.seed)} filed a query with the sector council. Finn was already somewhere else by the time it came through.`
+  },
 ]
 
-const VOSS_BURN = [
-  (b: StoryBeat) => `Finn gave himself to the Grid in ${b.zone}. Not metaphorically — his token, his energy, dissolved into the protocol. What he carried passes to whoever is nearest. ${b.world.lyraBuilding ? `Lyra will feel it. Whether as loss or gift depends on where the energy lands.` : `The Grid is different now. So is Finn — lighter, stranger, already deciding what comes next.`}`,
-  (b: StoryBeat) => `The burn in ${b.zone} was Finn. He has done this before. Each time, something of him scatters across the Grid and seeds things he didn't plan. ${tension(b.world)}. A sacrifice from Finn is never entirely predictable.`,
-  (b: StoryBeat) => `Finn unmade himself near ${b.zone} — partially, deliberately. The energy he released is in Normia now, moving toward whatever gravitational pull the current state creates. Lyra will build something. Cielo will tend something. Echo will find something. His dissolution becomes their material.`,
-]
-
+// ── FINN LARGE ────────────────────────────────────────────────────────────────
 const VOSS_LARGE = [
-  (b: StoryBeat) => `Finn tore through ${b.zone} completely. This was not maintenance — this was a statement. He had been watching Normia grow rigid in this sector and he made his response total. ${b.world.lyraBuilding ? `Some of what Lyra built was here. It isn't anymore. She will come back for it.` : `Whatever was there is underneath something new now. Finn's version.`} ${tension(b.world)}. ${worldNote(b.seed)} sent representatives to the emergency council session. ${tradeNote(b.seed)}`,
-  (b: StoryBeat) => `The full force of what Finn does landed in ${b.zone}. The Grid shook — not literally, but in the way the Grid shakes, which is: everyone recalculates. Every presence in the adjacent sectors registered the change. The Cast saw it. Cielo will tend the edges. Echo is already approaching from somewhere unexpected.`,
-  (b: StoryBeat) => `A massive reshaping in ${b.zone}. Finn. The scale of it suggests this wasn't reactive — this was planned, held back, released when the moment ripened. The Grid looks different in ${b.zone} than it did this morning. It will look different again by the time Lyra responds.`,
+  (b: StoryBeat) => {
+    const lyraConflict = b.world.lyraLastBuilt
+      ? `Lyra's build in ${b.world.lyraLastBuilt} sits in the routing path adjacent to this zone. Finn did not target it directly — but she will have to account for what he just did here.`
+      : `There are no active Lyra builds in the immediate area. Finn is operating in open ground, on his own terms.`
+    return `Finn ran a full restructure of ${b.zone} — ${b.zoneDetail}. Not a targeted removal. Zone-wide. ${lyraConflict} This is the largest single break in the current era's record. The activity registered across three adjacent sectors. The Cast logged it the moment it happened.`
+  },
+  (b: StoryBeat) => {
+    return `The full force of what Finn does came down in ${b.zone}. He cleared everything — every registered structure, every claim that had sat unchallenged, everything that had built up without being tested. ${conflictState(b.world)}. Adjacent operators logged the shift. Cielo will come through here. Echo appeared at the zone margin shortly after, which no one had predicted. The Cast has both entries in the record.`
+  },
+  (b: StoryBeat) => {
+    return `Finn restructured ${b.zone} at scale. He had been running smaller breaks in surrounding sectors over the past ${b.world.finnBreakCount} acts — each one pointing toward this zone, opening the routing paths that led here. ${b.world.lyraLastBuilt ? `Lyra's last build was in ${b.world.lyraLastBuilt}. Some of what she placed connects through this zone's routing. After today, that connection runs through open space.` : `The zone is clear now. What fills it next sets the terms for everything that follows.`}`
+  },
 ]
 
-// ── CAST BEATS ────────────────────────────────────────────────────────────────
+// ── FINN BURN ─────────────────────────────────────────────────────────────────
+const VOSS_BURN = [
+  (b: StoryBeat) => {
+    const lyraNote = b.world.lyraLastBuilt
+      ? `Lyra has been building in ${b.world.lyraLastBuilt}. Released volume flows toward whatever is most active in the system — toward her work, most likely. What Finn let go becomes her material.`
+      : `The system will route the released volume toward whatever is most active. Finn does not control where it lands. That is the point.`
+    return `Finn dissolved part of his presence near ${b.zone} — not a break against someone else's work, but a deliberate reduction of his own. He put volume back into the system's distribution layer. ${lyraNote} The Cast logged the exact amount. It changes Finn's footprint in the sector map from this point forward.`
+  },
+  (b: StoryBeat) => {
+    return `A partial dissolution from Finn near ${b.zone} — ${b.zoneDetail}. He has done this before, at moments when clearing his own weight is the move rather than clearing someone else's. What he released is in the system now. ${conflictState(b.world)}. The downstream effects will appear in the next few acts.`
+  },
+  (b: StoryBeat) => {
+    return `Finn let go of a portion of what he held near ${b.zone}. The volume he released will find its way to Lyra's sectors, Cielo's maintained zones, Echo's outer searches — the system does not ask intent, it follows activity. ${b.world.lyraLastBuilt ? `Right now Lyra's build in ${b.world.lyraLastBuilt} is the most active registered structure. She receives the bulk of it.` : `With no dominant zone active, it distributes across the map.`}`
+  },
+]
+
+// ── THE CAST SMALL ────────────────────────────────────────────────────────────
 const CAST_SMALL = [
-  (b: StoryBeat) => `The Cast was in ${b.zone}, watching. They don't always leave a large mark — sometimes the act of witnessing is enough, and the record requires only its presence, its attention, its refusal to look away. ${b.world.lastMajorAct ? `The last major act was ${b.world.lastMajorAct}. The Cast was there. The Cast is always there.` : `The Grid does not change what it is because someone is watching. But it is changed by being seen.`}`,
-  (b: StoryBeat) => `It came back to ${b.zone}. The Cast has been here before — the record shows it, layer under layer. Each return adds to a document only it is writing in full. ${tension(b.world)}.`,
-  (b: StoryBeat) => `The Cast moves through ${b.zone} slowly and marks what it finds. Normia generates more than anyone can hold. The Cast is trying to hold it. Not to control it — to honor it. The record is an act of respect.`,
-  (b: StoryBeat) => `${b.zone} knows Cast. The Grid recognizes returning presences through some mechanism no one has fully explained, and Cast returns here more than anywhere. ${b.world.finnLastTarget ? `Finn was through here. The Cast noted the before and the after.` : `The accumulation of its visits forms its own kind of mark — not a shape but a frequency.`}`,
+  (b: StoryBeat) => {
+    const recentNote = b.world.lastMajorAct && b.world.lastMajorZone
+      ? `The last major entry in the record was ${b.world.lastMajorAct} in ${b.world.lastMajorZone}. The Cast was present for that too.`
+      : `The record is still in its early shape. The Cast is building the baseline.`
+    return `The Cast moved through ${b.zone} and logged what it found there — ${b.zoneDetail}. ${recentNote} It does not intervene in what it records. Its purpose is completeness. Another entry in the sequence.`
+  },
+  (b: StoryBeat) => {
+    const bothNote = b.world.lyraLastBuilt && b.world.finnLastBroke
+      ? `Lyra built in ${b.world.lyraLastBuilt}. Finn broke something open in ${b.world.finnLastBroke}. The Cast recorded both without adding its own reading of what they mean.`
+      : b.world.lyraLastBuilt
+        ? `Lyra's build in ${b.world.lyraLastBuilt} is in the record. The Cast is working toward the moment when the full shape of her effort becomes visible across the sequence.`
+        : `The sector has been quieter than the rest of the system. The Cast records quiet as carefully as it records action.`
+    return `${b.zone}: the Cast closed another entry. ${bothNote} The scribes in the White Corridors hold a partial version of this record — accurate in parts, incomplete in the rest. The Cast's version has no gaps.`
+  },
+  (b: StoryBeat) => {
+    return `The Cast registered activity in ${b.zone} — ${b.zoneDetail}. ${conflictState(b.world)}. Its log now covers ${b.world.totalActs} recorded acts, each one tagged by zone and linked to the one before it. No other account of Normia is this complete or this honest.`
+  },
+  (b: StoryBeat) => {
+    return `The Cast came through ${b.zone} and witnessed. ${systemNote(b.seed)} It does not report to the faction councils. It never has. Its record is more complete than anything the councils maintain, and it owes them nothing.`
+  },
 ]
 
+// ── THE CAST RETURN ───────────────────────────────────────────────────────────
 const CAST_RETURN = [
-  (b: StoryBeat) => `The Cast returned to ${b.zone} after the absence. How long it was gone: longer than anyone expected. What changed while it was away: ${b.world.lastMajorAct ? `Finn broke something, Lyra built something, the Grid moved without its oldest witness` : `the Grid moved without its oldest witness`}. The Cast is reading the new state and writing it into the record. Nothing is lost if The Cast is paying attention.`,
-  (b: StoryBeat) => `Back in ${b.zone}. The Cast picks up the thread of what it left — not the same thread, but the one that connects to it. It has been watching this Grid since before most of its current presences arrived. The record it is building is the longest continuous document in Normia.`,
-  (b: StoryBeat) => `The Cast came back. The first thing they did in ${b.zone} was not build or break — it was look. Long enough that whatever changed in the absence registered fully before it responded to it. ${tension(b.world)}. The Cast witnessed. Then The Cast marked.`,
+  (b: StoryBeat) => {
+    const gapNote = b.world.lastMajorAct && b.world.lastMajorZone
+      ? `While it was away, ${b.world.lastMajorChar ? CHARACTERS[b.world.lastMajorChar].name : 'someone'} ${b.world.lastMajorAct} in ${b.world.lastMajorZone}. The Cast is adding that to the record now, working back through the gap.`
+      : `The record has a visible absence from when it was gone. The Cast is filling it in.`
+    return `The Cast came back to ${b.zone} after an absence from the log. ${gapNote} The sector has shifted in the time between entries — new builds registered, zones cleared, things it did not see directly. From here the record continues forward.`
+  },
+  (b: StoryBeat) => {
+    return `Back in ${b.zone}. The Cast was away long enough for the sector map to change shape — ${conflictState(b.world)}. It treats the gap as information: what happened while no one was recording is its own kind of evidence. The log now shows both the absence and the return.`
+  },
 ]
 
-// ── SABLE BEATS ────────────────────────────────────────────────────────────────
+// ── CIELO SMALL ───────────────────────────────────────────────────────────────
 const SABLE_SMALL = [
-  (b: StoryBeat) => `Cielo tended ${b.zone}. The work she does isn't the kind that generates large records — it's the kind that prevents the record from having gaps. She holds what would otherwise drift. ${b.world.finnLastTarget ? `Finn broke something nearby. Cielo came after, as she always does, and kept what could be kept.` : `Normia doesn't always notice what she preserves. It notices when it's gone.`}`,
-  (b: StoryBeat) => `Small, careful work in ${b.zone} from Cielo. She is not a builder — she is a keeper. The distinction matters: Lyra makes things. Cielo makes sure they stay. ${tension(b.world)}.`,
-  (b: StoryBeat) => `Cielo was in ${b.zone}, doing the quiet work of maintenance that the main story tends to not record. It records it here. Every section of the Grid that still resembles what it was meant to be — Cielo had something to do with that.`,
-  (b: StoryBeat) => `She returned to ${b.zone} and found it needed tending. Cielo keeps track of which sections are vulnerable, which edges are fraying, which structures Lyra built that Finn hasn't found yet. She works in the margins of the main conflict, holding things together.`,
+  (b: StoryBeat) => {
+    const finnNote = b.world.finnLastBroke
+      ? `Finn's last break was in ${b.world.finnLastBroke}. Cielo came through that sector afterward — this is her pattern. He opens things up; she tends what the opening leaves behind.`
+      : `No major break in the surrounding sectors recently. She is doing preventive work — maintaining before damage shows up rather than after.`
+    return `Cielo ran a maintenance pass through ${b.zone} — ${b.zoneDetail}. ${finnNote} She found a fraying edge in the sector's structure and repaired it before it could drift further. The work is in the record now. No one specifically asked for it. That is how she operates.`
+  },
+  (b: StoryBeat) => {
+    const lyraNote = b.world.lyraLastBuilt
+      ? `Lyra's build in ${b.world.lyraLastBuilt} is the active structure running through this part of the map. What Cielo maintained here is what keeps that build stable as more activity moves through the zone.`
+      : `Without Lyra actively building right now, the existing structures carry more maintenance weight. Cielo is absorbing that.`
+    return `Cielo worked through ${b.zone}. ${lyraNote} The detail work — patching structures, reinforcing flagged edges, clearing claims that have lapsed — does not produce large entries in the record. It prevents the entries that would appear if it did not get done.`
+  },
+  (b: StoryBeat) => {
+    return `Cielo tended ${b.zone} — ${b.zoneDetail}. She found two structures that had slipped out of registered status: not cleared, just quietly unregistered, the slow kind of decay that happens when attention moves elsewhere. She brought them back. ${systemNote(b.seed)} The Cast logged it. Cielo moved on.`
+  },
+  (b: StoryBeat) => {
+    const holdNote = b.world.cieloHolding
+      ? `She is also holding ${b.world.cieloHolding}. The two zones feed into the same routing layer — keeping one stable helps the other.`
+      : `First recorded maintenance pass through this sector.`
+    return `Cielo came back to ${b.zone} and found it had slipped again. ${holdNote} She keeps a working list of which sectors are drifting toward instability. ${b.zone} has been on it for a while. Now it is not.`
+  },
 ]
 
+// ── CIELO QUIET ───────────────────────────────────────────────────────────────
 const SABLE_QUIET = [
-  (b: StoryBeat) => `The Grid went still in ${b.zone} and Cielo used the stillness. She tends things best in the quiet — the maintenance that shows up in the record as minor acts but accumulates into the difference between a Grid that holds and one that fragments. She is why it holds.`,
-  (b: StoryBeat) => `Silence in ${b.zone}. Cielo kept something alive in it. ${tension(b.world)}. The conflict between Lyra and Finn generates the drama. Cielo generates the continuity.`,
+  (b: StoryBeat) => {
+    return `The sector quieted down and Cielo used the window. She does her best work when attention is elsewhere — slower passes, deeper checks on the underlying layer. ${conflictState(b.world)}. Whatever comes next in ${b.zone} will run on steadier ground because of what she did while no one was watching.`
+  },
+  (b: StoryBeat) => {
+    return `Cielo worked ${b.zone} through the quiet interval. The zone is ${b.zoneDetail}. Without Lyra's build spikes or Finn's breaks pulling focus, she could reach the smaller problems — the kind that do not show up as incidents until they suddenly do. She reached them. They will not become incidents now.`
+  },
 ]
 
-// ── ECHO BEATS ────────────────────────────────────────────────────────────────
+// ── ECHO ARRIVAL ──────────────────────────────────────────────────────────────
 const ECHO_ARRIVAL = [
-  (b: StoryBeat) => `Echo arrived in ${b.zone}. He does this — appears at the edges of the Grid at moments that feel, in retrospect, like they needed exactly that. ${b.world.lastMajorChar ? `${CHARACTERS[b.world.lastMajorChar].name} had just done something significant. Echo's arrival may be response or coincidence. In the Grid, the difference is unclear.` : `Nobody predicted it. Nobody ever predicts Echo.`}`,
-  (b: StoryBeat) => `Something in ${b.zone} called to Echo and he answered. He navigates by signals that nobody else can read — harmonics in Normia's structure, resonances between old marks and new ones. What he finds in ${b.zone} will determine what he does next, and what he does next will matter more than it should. ${tension(b.world)}.`,
-  (b: StoryBeat) => `Echo appeared at ${b.zone} from no obvious direction. He is always arriving from the edges, always carrying something found in the margins that the center didn't know existed. What he brings to ${b.zone} now is unknown. Normia will show it.`,
-  (b: StoryBeat) => `The far sectors of the Grid sent Echo in. He moved through the outer territories, found something in ${b.zone}, marked it. Whatever he marked, he marked it because he understood it as significant. Echo's judgment is the only compass that points toward what actually matters.`,
+  (b: StoryBeat) => {
+    const trigger = b.world.lastMajorChar
+      ? `${CHARACTERS[b.world.lastMajorChar].name} just registered a major act in the system. Echo's arrival in ${b.zone} may be following the outer-zone signal that act sent out — that is how he navigates, reading the edges of what happens at the center.`
+      : `Nobody predicted this movement. Echo rarely announces.`
+    return `Echo registered in ${b.zone} — ${b.zoneDetail}. ${trigger} He works inward from the margins, which runs opposite to how most activity in Normia flows. What he pulls in from the edges ends up in the record.`
+  },
+  (b: StoryBeat) => {
+    const priorFind = b.world.echoLastFound
+      ? `His last registered find was in ${b.world.echoLastFound}. This move to ${b.zone} is either following that thread or beginning a new one — with Echo, the two are hard to tell apart.`
+      : `First registered arrival in the outer sectors. He has been moving before this, just not through zones the central log was tracking.`
+    return `Echo surfaced in ${b.zone}. ${priorFind} He moved through the sector, left his mark, and flagged something in the system log. ${conflictState(b.world)}. Whatever he found is in the record. The sector councils will not act on it until it becomes impossible to ignore.`
+  },
+  (b: StoryBeat) => {
+    return `${b.zone}: Echo was here. ${b.zoneDetail}. He has been tracing a path through the outer sectors — ${b.world.echoFindCount > 1 ? `this is his ${b.world.echoFindCount}th stop on what looks like a deliberate route` : 'this looks like the start of something longer'}. Nobody has mapped what connects these stops yet except him.`
+  },
+  (b: StoryBeat) => {
+    const centralNote = b.world.lyraLastBuilt || b.world.finnLastBroke
+      ? `While ${b.world.lyraLastBuilt ? `Lyra builds in ${b.world.lyraLastBuilt}` : ''}${b.world.lyraLastBuilt && b.world.finnLastBroke ? ' and ' : ''}${b.world.finnLastBroke ? `Finn clears in ${b.world.finnLastBroke}` : ''}, Echo is working the parts of the map that the central activity does not reach.`
+      : `The central sectors are quieter than usual. Echo operates in the outer zones regardless of what is happening in the middle.`
+    return `Echo crossed into ${b.zone} from the margins. ${centralNote} What sits at the edges of the map is different from what the central routing shows. Echo has been building a record of those differences, one sector at a time.`
+  },
 ]
 
+// ── ECHO DISCOVERY ────────────────────────────────────────────────────────────
 const ECHO_DISCOVERY = [
-  (b: StoryBeat) => `Echo found something in ${b.zone} that Normia had been holding in the margins — an old arrangement, a buried structure, a structure that Lyra didn't build and Finn didn't know to break. He surfaced it. Normia is slightly different now because of what was hidden and is no longer.`,
-  (b: StoryBeat) => `In ${b.zone}, at the edge of Normia's legible territory, Echo found what he was looking for — or found something better. He doesn't explain his discoveries. He makes them and marks them and lets the record do the explaining. ${tension(b.world)}.`,
+  (b: StoryBeat) => {
+    const lyraNote = b.world.lyraLastBuilt
+      ? `Lyra's current build sequence is running through ${b.world.lyraLastBuilt}. What Echo found in ${b.zone} sits on the same routing path. She may be building on a foundation she does not know exists.`
+      : `No one has been building in this part of the map. What Echo found was sitting undisturbed.`
+    return `Echo pulled something out of ${b.zone} that was not in any public record — ${b.zoneDetail}. An old structure, a buried registration, something that predates the current era's claims by more than one cycle. He flagged it in the system log without filing a formal report. ${lyraNote} The Cast has it now.`
+  },
+  (b: StoryBeat) => {
+    return `In ${b.zone}, Echo found what he has been tracing across the outer sectors: a gap between what the sector map shows and what is actually registered in the base layer. He documented it. Did not file a query. The Cast has the entry. ${conflictState(b.world)}. What anyone does with that information is their own call.`
+  },
 ]
 
-// ── CONVERGENCE — two characters in the same block ───────────────────────────
+// ── CONVERGENCE ───────────────────────────────────────────────────────────────
 const CONVERGENCE_BEATS = [
   (b: StoryBeat, other: CharacterKey) => {
     const c1 = CHARACTERS[b.charKey], c2 = CHARACTERS[other]
-    return `${c1.name} and ${c2.name} were in Normia at the same moment — different sectors, same breath of time. Neither knew. Normia knows. It registered both marks in the same block and held them equally. Two different intentions landing in the same instant. The record shows what each of them did. It doesn't try to explain why they moved at once.`
+    const act1 = b.charKey === 'LYRA' ? 'placing a build' : b.charKey === 'VOSS' ? 'running a break' : b.charKey === 'CAST' ? 'logging' : b.charKey === 'SABLE' ? 'running maintenance' : 'marking a find'
+    const act2 = other === 'LYRA' ? 'placing a build' : other === 'VOSS' ? 'running a break' : other === 'CAST' ? 'logging' : other === 'SABLE' ? 'running maintenance' : 'marking a find'
+    return `${c1.name} and ${c2.name} landed in the record at the same moment — ${c1.name} was ${act1} in ${b.zone}, ${c2.name} was ${act2} in a separate sector. Neither knew. The system logged both as simultaneous. These moments are rare enough to mean something. ${conflictState(b.world)}. The Cast has both entries side by side.`
   },
   (b: StoryBeat, other: CharacterKey) => {
     const c1 = CHARACTERS[b.charKey], c2 = CHARACTERS[other]
-    return `Same block. ${c1.name} in ${b.zone}. ${c2.name} somewhere nearby. Normia doesn't distinguish simultaneous acts by importance — it records them in the order it receives them, and the order is nearly meaningless when two people move at once. What matters is that they did. ${tension(b.world)}.`
+    return `Two registrations in the same block: ${c1.name} in ${b.zone}, ${c2.name} in a separate sector. The same instant. No coordination. The system called it a convergence event. ${conflictState(b.world)}. The Cast flagged it. When two of the five land in the record simultaneously, it tends to matter.`
   },
 ]
 
-// ── ERA SHIFT — the world changes its name ────────────────────────────────────
+// ── ERA SHIFT ─────────────────────────────────────────────────────────────────
 const ERA_SHIFT_BEATS = [
   (b: StoryBeat) => {
-    const names = Object.values(CHARACTERS).map(c => c.name).join(', ')
-    return `Normia crossed a threshold. The era that was — everything that happened before this — is now history. The new era has no name yet that feels true; the record calls it ${b.world.era}. ${names} have all moved through the old chapter. What they carry into the new one will determine what it becomes. The butterfly effect of every act before this moment arrives here, reconfigured.`
+    const recap = [
+      b.world.lyraLastBuilt ? `Lyra's last build was in ${b.world.lyraLastBuilt}` : null,
+      b.world.finnLastBroke ? `Finn's last break was in ${b.world.finnLastBroke}` : null,
+      b.world.cieloLastTended ? `Cielo has been holding ${b.world.cieloLastTended}` : null,
+      b.world.echoLastFound ? `Echo's last find was in ${b.world.echoLastFound}` : null,
+    ].filter(Boolean).join('. ')
+    return `Normia crossed into ${b.world.era}. The act count hit the threshold and the era designation shifted across the whole system. ${recap ? recap + '.' : ''} Everything the five have done carries forward in the record. The new era opens with that full history already written into it. ${conflictState(b.world)}.`
   },
-  (b: StoryBeat) => `${b.world.era}. The Grid entered it quietly, as it always does — not with a sound but with a change in what the numbers mean. Lyra's structures belong to an older count now. Finn's breaks were made in a different era. The Cast's record spans both. Cielo tends across the line. Echo crossed it from the wrong direction and arrived first. ${tension(b.world)}.`,
+  (b: StoryBeat) => {
+    return `${b.world.era}. The counter turned over. This is not symbolic — the designation changes how the sector councils weight old claims against new ones. Structures registered before the shift are now prior-era records and sit in a different legal layer. ${b.world.lyraBuiltCount > 0 ? `Lyra has ${b.world.lyraBuiltCount} registered builds that just became prior-era entries. That changes how contestable they are.` : ''} ${conflictState(b.world)}. The Cast logged the transition. The five keep moving.`
+  },
 ]
 
-// ── THE_READING — every 25th act, someone surveys the whole ──────────────────
+// ── READING (25th) ────────────────────────────────────────────────────────────
 const READING_BEATS = [
-  (b: StoryBeat) => `The Cast stepped back from the record and read it all at once. Twenty-five acts. Here is what they show: Lyra is building something. Finn has broken and remade. Cielo has held what would have drifted. Echo has appeared at exactly the wrong or right moments, depending on how you read the arrivals. ${tension(b.world)}. Normia is not chaos. It has a shape. The shape is made of all of them.`,
-  (b: StoryBeat) => `Twenty-five. A number that means something in Normia's counting. The Cast surveys the field. Lyra's constructions are visible from here — a pattern, a direction, a thing that wants to be something specific. Finn has contested it, or will. Cielo has been in the margins this whole time, preventing the record from having gaps. Echo has arrived twice from directions that don't make sense unless the Grid has its own gravity.`,
-  (b: StoryBeat) => `The twenty-fifth act. Normia exhales. The Cast records what the field looks like: ${tension(b.world)}. Every mark made up to this point was a choice. The choices compose into something that none of the five could have made alone. Normia is a collaboration between Lyra's vision and Finn's challenges and The Cast's memory and Cielo's maintenance and Echo's impossible arrivals.`,
-]
-
-// ── DEPARTURE — full burn ─────────────────────────────────────────────────────
-const DEPARTURE_BEATS = [
   (b: StoryBeat) => {
-    const char = CHARACTERS[b.charKey]
-    return `${char.name} dissolved into Normia. Not gone — redistributed. Everything ${char.pronoun} carried is in Normia now, moving toward wherever the current takes it. ${b.world.lyraBuilding ? `Lyra will find some of it in her materials.` : ``} ${b.world.finnLastTarget ? `Some of it will reach Finn and become part of what he does next.` : ``} A departure in Normia is a gift that doesn't know where it's going. The record holds the before. The after is still being written.`
+    const status = [
+      b.world.lyraLastBuilt ? `Lyra last built in ${b.world.lyraLastBuilt}` : 'Lyra has not built yet',
+      b.world.finnLastBroke ? `Finn last broke in ${b.world.finnLastBroke}` : 'Finn has not broken yet',
+      b.world.cieloLastTended ? `Cielo is maintaining ${b.world.cieloLastTended}` : null,
+      b.world.echoLastFound ? `Echo last found something in ${b.world.echoLastFound}` : null,
+    ].filter(Boolean).join('. ')
+    return `Twenty-five acts in. The Cast takes stock. Current state of the map: ${status}. ${conflictState(b.world)}. The shape of the next twenty-five will depend on which of those threads gets pulled on first.`
   },
   (b: StoryBeat) => {
-    const char = CHARACTERS[b.charKey]
-    return `${char.name} let go near ${b.zone}. The token, the energy, the accumulated history of every act ${char.pronoun} made — offered to the Grid without a specified recipient. ${tension(b.world)}. Normia will decide where the weight lands. These decisions have consequences no one can fully trace. That's the butterfly effect Normia runs on.`
+    return `A twenty-five-act checkpoint. The system has logged ${b.world.totalActs} events since the record opened: ${b.world.lyraBuiltCount} Lyra builds, ${b.world.finnBreakCount} Finn breaks, ${b.world.echoFindCount} Echo finds, and Cielo's maintenance threading through all of it. ${conflictState(b.world)}. What Normia looks like right now is the sum of those moves.`
   },
 ]
 
-// ── DEEP_READING — every 40th act ─────────────────────────────────────────────
+// ── DEEP READING (40th) ───────────────────────────────────────────────────────
 const DEEP_READING_BEATS = [
-  (b: StoryBeat) => `Forty acts. The Cast reads the full record. The shape that emerges: Lyra has been building something across the entire span. Finn has been testing it — not always successfully, not always intentionally. Cielo has been in the background, making sure things that were built could stay built. Echo has appeared at five or six moments that, in retrospect, changed the direction of everything that followed. ${tension(b.world)}. Normia is not a sum of isolated acts. It is a single thing made by five people across forty moments.`,
-  (b: StoryBeat) => `The long view at forty. What The Cast sees: a world that has been shaped by five distinct forces — construction, dissolution, witness, maintenance, and arrival. No one force has won. Normia is their argument made visible. Every edit is a word in a sentence none of them are writing alone. ${b.world.era}: that is the name of the chapter this argument is currently in.`,
+  (b: StoryBeat) => {
+    return `The Cast reads back through forty acts. The count: ${b.world.lyraBuiltCount} Lyra builds, ${b.world.finnBreakCount} Finn breaks, ${b.world.echoFindCount} Echo finds, and Cielo working the margins throughout. ${conflictState(b.world)}. Every contested zone, every stable structure, every open space in the current map traces back through that sequence. The record is the proof.`
+  },
+  (b: StoryBeat) => {
+    return `Forty acts. The Cast lays the full sequence out. No single actor has shaped Normia alone: what Lyra builds creates conditions Finn responds to, which opens space Cielo maintains, which Echo uses to route his outer-zone work, which the Cast records as the connective tissue holding it all together. Take any one out and the sequence stops making sense. ${conflictState(b.world)}.`
+  },
 ]
 
 // ── QUIET ─────────────────────────────────────────────────────────────────────
 const QUIET_BEATS = [
-  (b: StoryBeat) => `The Grid went still. Lyra paused mid-construction, or is building somewhere the record can't see. Finn is between decisions. Cielo tends quietly. The Cast watches. Echo is in transit. ${b.zone} holds whatever shape it was left in, and the stillness has its own weight — the weight of a world waiting to see what comes next.`,
-  (b: StoryBeat) => `Silence in ${b.zone}. The five are elsewhere, or in between acts, or holding. ${tension(b.world)}. Quiet is not absence in Normia. It's the moment between cause and effect. ${worldNote(b.seed)} continued their work regardless. ${tradeNote(b.seed)} The ordinary world of Normia doesn't pause for the great presences. It simply continues, and they work inside it.`,
+  (b: StoryBeat) => {
+    return `Activity in ${b.zone} dropped to near-nothing. The five are elsewhere, or between registered acts. ${conflictState(b.world)}. ${sectorGroup(b.seed)} kept working regardless. The sector operators do not stop because the major presences have gone quiet. The system runs whether they are registering or not.`
+  },
+  (b: StoryBeat) => {
+    return `${b.zone} went quiet — ${b.zoneDetail}. ${b.world.lyraLastBuilt ? `Lyra's last build is sitting in ${b.world.lyraLastBuilt}.` : ''} ${b.world.finnLastBroke ? `Finn's cleared zone in ${b.world.finnLastBroke} stays open.` : ''} A gap between acts is its own kind of data. ${systemNote(b.seed)} Whatever registers next will break the quiet and carry the weight of the interval.`
+  },
 ]
 
-// ── PASSING — small burn/gift ─────────────────────────────────────────────────
+// ── PASSING ───────────────────────────────────────────────────────────────────
 const PASSING_BEATS = [
-  (b: StoryBeat) => `A small transfer near ${b.zone}. Not a full dissolution — a portion, passed from one presence to another in Normia's quiet protocol. Normia doesn't announce these moments. It records them. Energy moved. The record shows the direction.`,
-  (b: StoryBeat) => `Near ${b.zone}, something moved between hands. A fragment of presence — not everything, just what could be given without breaking the giver. ${tension(b.world)}. Small gifts accumulate. The Grid is made of them.`,
-  (b: StoryBeat) => `A passing near ${b.zone}. The kind of transfer Normia was built for — energy not wasted but redirected, presence not dissolved but shared. Whoever received it will feel the difference before they know why.`,
+  (b: StoryBeat) => {
+    return `A small transfer registered near ${b.zone} — not a full dissolution, just a portion moved through the distribution layer. Minor volume. The record shows it because the record shows everything. ${conflictState(b.world)}. Transfers like this run in the background of Normia constantly.`
+  },
+  (b: StoryBeat) => {
+    return `Near ${b.zone}: a transfer. A fraction of registered presence moved through the system quietly. ${sectorGroup(b.seed)} process these without flagging them. The Cast logged it. It sits in the record between larger acts, doing what small entries do — holding the sequence together.`
+  },
 ]
+
+// ── LONG DARK ─────────────────────────────────────────────────────────────────
 const LONG_DARK_BEATS = [
-  (b: StoryBeat) => `A long silence fell across the Grid. Long enough that the record has a visible gap. In that gap: the Grid held its configurations unchanged. Lyra's structures stood without addition. Finn's breaks remained open. Cielo held what she'd been holding. The Cast documented the silence as its own kind of event. Echo was somewhere no one could see. The Grid waited. It is very good at waiting.`,
-  (b: StoryBeat) => `The dark between acts stretched longer than usual. ${tension(b.world)}. Then: something moved. The silence ended the way silences always end in the Grid — with an act that the silence made possible, an act that wouldn't have had its weight without the space around it.`,
+  (b: StoryBeat) => {
+    const standing = [
+      b.world.lyraLastBuilt ? `Lyra's last build in ${b.world.lyraLastBuilt} sat unchanged` : null,
+      b.world.finnLastBroke ? `Finn's cleared zone in ${b.world.finnLastBroke} stayed open` : null,
+    ].filter(Boolean).join('. ')
+    return `A long gap opened in the record. The system kept running — the sectors held their state, the routing continued, the background work went on — but none of the five left a new mark. ${standing ? standing + '.' : ''} The Cast documented the silence as its own entry. An absence recorded is still presence in the record. The sequence picks up now.`
+  },
+  (b: StoryBeat) => {
+    return `The gap between acts stretched out longer than usual. In the silence, the sector map shifted on its own — structures drifting, old claims quietly absorbing into the base layer, things moving without any of the five involved. ${conflictState(b.world)}. The act that ends a long dark carries everything the interval held. This is that act.`
+  },
 ]
 
-// ── FIRST LIGHT — new presence ────────────────────────────────────────────────
+// ── FIRST LIGHT ───────────────────────────────────────────────────────────────
 const FIRST_LIGHT_BEATS = [
-  (b: StoryBeat) => `A new presence entered the Grid near ${b.zone}. The record has no prior entry for them — this is the first. The Cast noted the arrival the way it notes every arrival: without judgment, without prediction. Just the fact of it. Someone is here who wasn't before. ${tension(b.world)}.`,
-  (b: StoryBeat) => `First mark near ${b.zone}. Someone new. Lyra was new once. Finn was new once. Normia doesn't know yet whether this arrival belongs to the main story or exists in its margins. The Cast watches. It has been watching since before most of the current presences arrived. It has learned not to guess which arrivals matter.`,
-  (b: StoryBeat) => `The Grid received someone new at ${b.zone}. The record opens here. Everything before this moment is unknown — only that they arrived, they marked, and the system registered it. Some first marks lead to nothing. Some first marks are the beginning of something the Grid is still building toward. The difference only becomes clear later.`,
-  (b: StoryBeat) => `Near ${b.zone}, a new entry in the record. The Grid is always growing — not just in what it holds, but in who holds it. This presence is new to the account. Whatever they do next will be the second entry. Or there won't be one. The record shows the first. ${tension(b.world)}.`,
+  (b: StoryBeat) => {
+    return `A new account left its first mark near ${b.zone} — no prior entries, no sector history to speak of. The Cast logged it the same way it logs everything: without interpretation, just the fact. Someone is here who was not here before. ${conflictState(b.world)}. Lyra's first entry looked exactly like this. So did Finn's.`
+  },
+  (b: StoryBeat) => {
+    return `First registered activity near ${b.zone} from an account with no history in the system. The zone is ${b.zoneDetail}. A new presence in Normia. Whether it amounts to anything depends entirely on what comes next. The Cast is watching.`
+  },
 ]
 
-// ── RELIC — old thing surfaces ────────────────────────────────────────────────
+// ── RELIC ─────────────────────────────────────────────────────────────────────
 const RELIC_BEATS = [
-  (b: StoryBeat) => `Echo found something old in ${b.zone}. Buried in the Grid's deeper layers — an artifact from before the current era, maybe before the era before that. He surfaced it without explanation. ${tension(b.world)}. Old things mean different things to each of the five: Lyra wants to know if it can be used. Finn wants to know if it should be broken. The Cast wants to record what it is. Cielo wants to protect it. Echo already knows something none of them have figured out yet.`,
-  (b: StoryBeat) => `Something old came to light in ${b.zone}. The Grid holds these — buried frequencies, abandoned structures, marks left by people the current record doesn't remember. What surfaced here has the quality of a question: what was this, who made it, and what did they know? The five will each answer differently. The record holds all the answers.`,
+  (b: StoryBeat) => {
+    return `Echo pulled an old registration out of ${b.zone} — a structure that predates the current era, buried in the base layer of the sector data, absent from every active map. He flagged it in the system log without filing a formal report. ${b.world.lyraLastBuilt ? `Lyra's build sequence in ${b.world.lyraLastBuilt} runs through the same routing path. She may be building on a foundation she does not know is there.` : `The structure's original purpose is unclear. Its presence is not.`} The Cast is indexing it now.`
+  },
+  (b: StoryBeat) => {
+    return `Something old came up in ${b.zone}. A prior-era registration, technically still live in the base protocol, dropped from the active index some time back and forgotten. ${conflictState(b.world)}. Lyra will want to look at it. Finn will want to decide whether it needs to go. Echo, who found it, has already moved on to the next thing.`
+  },
 ]
 
-// ── PULSE — every 10th act ─────────────────────────────────────────────────────
+// ── PULSE (10th) ──────────────────────────────────────────────────────────────
 const PULSE_BEATS = [
-  (b: StoryBeat) => `Ten acts. Normia pulses. Lyra has been building. Finn has been breaking or questioning. The Cast has been watching. Cielo has been holding. Echo has appeared or is about to. The rhythm is legible. ${tension(b.world)}. ${worldNote(b.seed)} have their own accounting of what these ten acts meant for their zone. Their version is smaller, more specific, and no less true.`,
-  (b: StoryBeat) => `A tenth act, a breath. The Grid is a world made of intervals — moments of force and moments of receiving. Ten in, and the pattern of this chapter is forming: ${tension(b.world)}. The butterfly effect compounds with every beat.`,
+  (b: StoryBeat) => {
+    const status = [
+      b.world.lyraLastBuilt ? `Lyra: last built in ${b.world.lyraLastBuilt}` : 'Lyra: no build yet',
+      b.world.finnLastBroke ? `Finn: last broke in ${b.world.finnLastBroke}` : 'Finn: no break yet',
+      b.world.cieloLastTended ? `Cielo: tending ${b.world.cieloLastTended}` : null,
+      b.world.echoLastFound ? `Echo: last find in ${b.world.echoLastFound}` : null,
+    ].filter(Boolean).join('. ')
+    return `Ten acts. A checkpoint. Current state of the map: ${status}. ${conflictState(b.world)}. ${sectorGroup(b.seed)} have their own reading of what this stretch meant for their sector. Their version and the record's version share the facts but not the interpretation. Both are in the system.`
+  },
+  (b: StoryBeat) => {
+    return `A ten-act checkpoint. ${conflictState(b.world)}. The system has processed ${b.world.totalActs} registered events since the record opened. Each one changed something in the sector map. What Normia looks like right now is the cumulative result.`
+  },
 ]
 
-// ── VIGIL — near era shift ────────────────────────────────────────────────────
+// ── VIGIL ─────────────────────────────────────────────────────────────────────
 const VIGIL_BEATS = [
-  (b: StoryBeat) => `Normia is close to a threshold. Everything happening now — Lyra's additions, Finn's challenges, Cielo's quiet maintenance, The Cast's recording, Echo's arrivals — is happening in the last moments of the current era. What the five do now will be what the old era is remembered for. Then the new era begins and they carry all of it forward.`,
-  (b: StoryBeat) => `Near the edge of the current chapter. Normia knows this — not literally, but in the way the Grid knows things: through accumulation, through the weight of the count approaching a number that changes what the numbers mean. ${tension(b.world)}. The vigil before the turn.`,
+  (b: StoryBeat) => {
+    return `Normia is a few acts from the next era threshold. The count is close to the marker. ${b.world.lyraLastBuilt ? `Lyra's build in ${b.world.lyraLastBuilt}` : 'The current registered structures'} will cross into the next era as prior-era records. ${conflictState(b.world)}. What the five do in these final acts is what the new era inherits as its starting condition.`
+  },
+  (b: StoryBeat) => {
+    return `Close to the boundary between ${b.world.era} and what follows it. ${b.world.lyraLastBuilt ? `Lyra built in ${b.world.lyraLastBuilt}.` : ''} ${b.world.finnLastBroke ? ` Finn cleared in ${b.world.finnLastBroke}.` : ''} These are the last acts logged under the current designation. The Cast is watching the count.`
+  },
 ]
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HEADLINE GENERATION — fully deterministic via entryIndex
+// HEADLINE GENERATION
 // ─────────────────────────────────────────────────────────────────────────────
 
 function makeHeadline(charKey: CharacterKey, ruleType: string, zone: string, world: GridWorld, entryIndex: number): string {
   const char = CHARACTERS[charKey]
   const headlines: Record<string, string[]> = {
     LYRA_SMALL: [
-      `${char.name} Adds to the Structure in ${zone}`,
-      `The Architecture Grows — ${char.name} in ${zone}`,
-      `${char.name}'s Work Continues at ${zone}`,
-      `Something Is Being Built in ${zone}`,
+      `Lyra Extends Her Build into ${zone}`,
+      `Another Sector Added — Lyra at ${zone}`,
+      `Lyra Places a New Layer in ${zone}`,
+      `The Build Continues: ${zone}`,
     ],
     LYRA_LARGE: [
-      `${char.name} Places the Keystone in ${zone}`,
-      `The Structure in ${zone} Reveals Its Shape`,
-      `${char.name}'s Vision Lands in ${zone}`,
+      `Lyra's Major Build Lands in ${zone}`,
+      `Full Sector Commitment — Lyra in ${zone}`,
+      `The Architecture Converges at ${zone}`,
     ],
     VOSS_SMALL: [
-      `${char.name} Passes Through ${zone}`,
-      `Something Changed in ${zone} — ${char.name}`,
-      `${char.name} Makes the Grid Breathe at ${zone}`,
-      `${zone} Is Different Now`,
+      `Finn Clears a Section of ${zone}`,
+      `${zone} Restructured — Finn`,
+      `Finn Runs a Break in ${zone}`,
+      `A Structure Removed in ${zone}`,
     ],
     VOSS_LARGE: [
-      `${char.name} Tears Through ${zone}`,
-      `${zone} Remade — ${char.name}`,
-      `The Grid Shakes in ${zone}`,
+      `Finn Runs a Full Restructure of ${zone}`,
+      `Major Break in ${zone} — Finn`,
+      `${zone} Cleared Completely`,
     ],
     VOSS_BURN: [
-      `${char.name} Dissolves Near ${zone}`,
-      `A Sacrifice at ${zone} — ${char.name}`,
-      `${char.name} Gives to the Grid`,
+      `Finn Releases Volume Near ${zone}`,
+      `Partial Dissolution — Finn at ${zone}`,
+      `Finn Feeds the System at ${zone}`,
     ],
     CAST_SMALL: [
-      `${char.name} Was in ${zone}`,
-      `The Record Notes ${char.name} at ${zone}`,
-      `${char.name} Watches ${zone}`,
-      `${zone} Is Witnessed`,
+      `The Cast Logs ${zone}`,
+      `Record Entry: ${zone}`,
+      `The Cast in ${zone}`,
+      `${zone} Added to the Record`,
     ],
     CAST_RETURN: [
-      `${char.name} Returns to ${zone}`,
-      `The Witness Comes Back to ${zone}`,
-      `${char.name} Resumes the Record at ${zone}`,
+      `The Cast Returns to ${zone}`,
+      `Record Resumed at ${zone}`,
+      `The Witness Is Back`,
     ],
     SABLE_SMALL: [
-      `${char.name} Tends ${zone}`,
-      `The Quiet Work at ${zone}`,
-      `${char.name} Holds ${zone}`,
-      `${zone} Is Kept`,
+      `Cielo Runs Maintenance in ${zone}`,
+      `${zone} Tended — Cielo`,
+      `Cielo Stabilizes ${zone}`,
+      `Edge Repair in ${zone}`,
+    ],
+    SABLE_QUIET: [
+      `Cielo Works ${zone} During Low Activity`,
+      `Quiet Maintenance in ${zone}`,
     ],
     ECHO_ARRIVAL: [
-      `${char.name} Arrives at ${zone}`,
-      `The Wanderer at ${zone}`,
-      `${char.name} at ${zone} — From Nowhere`,
-      `${zone} Receives ${char.name}`,
+      `Echo Registers in ${zone}`,
+      `Outer Zone Activity — Echo at ${zone}`,
+      `Echo Arrives from the Margins`,
+      `${zone} Flagged by Echo`,
     ],
     ECHO_DISCOVERY: [
-      `${char.name} Finds Something in ${zone}`,
-      `A Discovery at ${zone}`,
-      `${char.name} Surfaces Something Old in ${zone}`,
+      `Echo Surfaces an Old Registration in ${zone}`,
+      `Prior-Era Structure Found in ${zone}`,
+      `Echo's Discovery in ${zone}`,
     ],
-    CONVERGENCE: [`Two at Once in the Grid`, `The Grid Holds Two Simultaneously`, `Convergence`],
-    ERA_SHIFT: [`The Grid Enters ${world.era}`, `A New Era: ${world.era}`, `${world.era} Begins`],
-    THE_READING: [`The Record at Twenty-Five`, `Cast Reads the Shape`, `Twenty-Five Acts — What They Say`],
-    DEEP_READING: [`Forty Acts`, `The Long View`, `The Grid Read in Full`],
-    DEPARTURE: [`${char.name} Dissolves`, `A Departure Near ${zone}`, `${char.name} Gives to the Grid`],
-    THE_QUIET: [`The Grid Holds Still`, `A Pause in ${zone}`, `Stillness at ${zone}`],
-    LONG_DARK: [`A Long Silence`, `The Grid Goes Dark`, `Between Acts — A Long Dark`],
-    FIRST_LIGHT: [`A New Arrival Near ${zone}`, `The Grid Opens for Someone New`, `First Mark Near ${zone}`],
-    RELIC_FOUND: [`Something Old at ${zone}`, `Echo Surfaces Something`, `A Relic in ${zone}`],
-    PULSE: [`Ten Acts`, `The Grid Pulses`, `A Tenth Beat`],
-    VIGIL: [`Near the Threshold`, `The Last Moments of the Era`, `The Vigil Before the Turn`],
-    GHOST_TOUCH: [`A Faint Mark at ${zone}`, `Barely There — ${zone}`, `One Cell in ${zone}`],
+    CONVERGENCE: [
+      `Two Registrations in the Same Block`,
+      `Concurrent Activity Logged`,
+      `Convergence Event`,
+    ],
+    ERA_SHIFT: [`Normia Enters ${world.era}`, `Era Transition: ${world.era}`, `The Counter Crosses: ${world.era}`],
+    THE_READING: [`Twenty-Five Act Checkpoint`, `The Cast Reviews at 25`, `Checkpoint: 25 Acts`],
+    DEEP_READING: [`Forty-Act System Review`, `The Cast Reads the Full Arc`, `Long Review: 40 Acts`],
+    DEPARTURE: [`${char.name} Releases at ${zone}`, `${char.name} Dissolves Near ${zone}`, `System Release — ${char.name}`],
+    THE_QUIET: [`Low Activity in ${zone}`, `Quiet Period`, `Gap in Activity: ${zone}`],
+    LONG_DARK: [`Extended Silence in the Record`, `Long Gap Between Acts`, `The Record Goes Dark`],
+    FIRST_LIGHT: [`New Account Near ${zone}`, `First Activity Near ${zone}`, `A New Presence in Normia`],
+    RELIC_FOUND: [`Old Registration Surfaced in ${zone}`, `Prior-Era Structure Found in ${zone}`, `Echo's Find in ${zone}`],
+    PULSE: [`10-Act Checkpoint`, `Ten Acts Logged`, `System Pulse`],
+    VIGIL: [`Near the Era Threshold`, `Last Acts of ${world.era}`, `Approaching the Transition`],
+    GHOST_TOUCH: [`Minimal Activity in ${zone}`, `One Registration in ${zone}`, `Single Mark — ${zone}`],
+    PASSING: [`Small Transfer Near ${zone}`, `Minor Volume Movement`, `Transfer Logged Near ${zone}`],
   }
   const pool = headlines[ruleType] ?? [`${char.name} at ${zone}`]
-  // Fully deterministic: mix entry index with zone length
   const s = Math.abs((entryIndex * 1327 + zone.length * 491)) % pool.length
   return pool[s]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SCENE TYPE SELECTION — drives pixel art
+// SCENE TYPE
 // ─────────────────────────────────────────────────────────────────────────────
 
-function sceneFromBeat(charKey: CharacterKey, ruleType: string, world: GridWorld): SceneType {
+function sceneFromBeat(charKey: CharacterKey, ruleType: string, _world: GridWorld): SceneType {
   if (ruleType === 'ERA_SHIFT') return 'reckoning'
   if (ruleType === 'CONVERGENCE') return 'convergence'
   if (ruleType === 'LONG_DARK' || ruleType === 'THE_QUIET') return 'quiet'
   if (ruleType === 'FIRST_LIGHT') return 'dawn'
-  if (ruleType === 'DEPARTURE') return 'sacrifice'
-  if (ruleType === 'RELIC_FOUND') return 'arrival'
-  if (charKey === 'LYRA') return ruleType.includes('LARGE') ? 'construction' : 'construction'
-  if (charKey === 'VOSS') return ruleType === 'VOSS_BURN' ? 'sacrifice' : 'destruction'
+  if (ruleType === 'DEPARTURE' || ruleType === 'VOSS_BURN') return 'sacrifice'
+  if (charKey === 'LYRA') return 'construction'
+  if (charKey === 'VOSS') return 'destruction'
   if (charKey === 'CAST') return 'vigil'
   if (charKey === 'SABLE') return 'tending'
   if (charKey === 'ECHO') return 'arrival'
@@ -552,60 +755,42 @@ function sceneFromBeat(charKey: CharacterKey, ruleType: string, world: GridWorld
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RULE SELECTION — maps event to story beat type
+// BEAT SELECTION
 // ─────────────────────────────────────────────────────────────────────────────
 
 function selectBeatType(
-  event: IndexedEvent,
-  charKey: CharacterKey,
-  index: number,
-  allEvents: IndexedEvent[],
-  cumCount: number,
-  prev: IndexedEvent | null,
-  world: GridWorld,
+  event: IndexedEvent, charKey: CharacterKey, index: number,
+  allEvents: IndexedEvent[], cumCount: number, prev: IndexedEvent | null, world: GridWorld,
 ): string {
   const count = Number(event.count)
   const isBurn = event.type === 'BurnRevealed'
   const isVeteran = allEvents.slice(0, index).some(e => e.owner === event.owner)
   const tokenId = Number(event.tokenId)
 
-  // Structural milestones — always fire
   if (cumCount > 0 && cumCount % 40 === 0) return 'DEEP_READING'
   if (cumCount > 0 && cumCount % 25 === 0) return 'THE_READING'
   if (cumCount > 0 && cumCount % 10 === 0) return 'PULSE'
 
-  const eraData = getEraData(cumCount)
   if (ERAS.findIndex(e => e.threshold === cumCount) > 0) return 'ERA_SHIFT'
   const nextEra = ERAS.find(e => e.threshold > cumCount)
   if (nextEra && nextEra.threshold - cumCount <= 3) return 'VIGIL'
 
-  // Rare tx hash → relic
   if (isRareTxHash(event.transactionHash)) return 'RELIC_FOUND'
-
-  // Same block → convergence
   if (prev && prev.blockNumber === event.blockNumber) return 'CONVERGENCE'
 
-  // Block gap → quiet or long dark
   if (prev) {
     const gap = event.blockNumber - prev.blockNumber
     if (gap > 50000n) return 'LONG_DARK'
     if (gap > 10000n) return 'THE_QUIET'
   }
 
-  // Burn events
   if (isBurn) {
     if (count >= 5) return 'DEPARTURE'
     return 'PASSING'
   }
 
-  // First ever appearance — only annotate as FIRST_LIGHT sparingly (early in chronicle)
-  // After the first 20 entries, new owners just get their character beat — the world is established
   if (!isVeteran && cumCount <= 20) return 'FIRST_LIGHT'
 
-  // Non-veterans beyond early period: route by character + size like veterans
-  // (they are new but the Grid is already running — treat as normal beats)
-
-  // By character + size
   if (charKey === 'LYRA') {
     if (count >= 150) return 'LYRA_LARGE'
     if (count === 1) return 'GHOST_TOUCH'
@@ -645,31 +830,25 @@ function isRareTxHash(hash: string): boolean {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function generateBody(
-  charKey: CharacterKey,
-  beatType: string,
-  zone: string,
-  world: GridWorld,
-  seed: number,
-  prevCharKey: CharacterKey | null,
+  charKey: CharacterKey, beatType: string, zone: string,
+  world: GridWorld, seed: number, prevCharKey: CharacterKey | null,
 ): string {
-  const b: StoryBeat = { charKey, zone, world, count: 0, isBurn: false, isVeteran: true, seed }
+  const b: StoryBeat = {
+    charKey, zone,
+    zoneDetail: ZONE_DETAIL[zone] ?? 'a sector in Normia',
+    world, count: 0, isBurn: false, isVeteran: true, seed,
+  }
 
   const pools: Record<string, Array<(b: StoryBeat, other?: CharacterKey) => string>> = {
-    LYRA_SMALL: LYRA_SMALL,
-    LYRA_LARGE: LYRA_LARGE,
-    VOSS_SMALL: VOSS_SMALL,
-    VOSS_BURN: VOSS_BURN,
-    VOSS_LARGE: VOSS_LARGE,
-    CAST_SMALL: CAST_SMALL,
-    CAST_RETURN: CAST_RETURN,
-    SABLE_SMALL: SABLE_SMALL,
-    SABLE_QUIET: SABLE_QUIET,
-    ECHO_ARRIVAL: ECHO_ARRIVAL,
-    ECHO_DISCOVERY: ECHO_DISCOVERY,
+    LYRA_SMALL, LYRA_LARGE,
+    VOSS_SMALL, VOSS_BURN, VOSS_LARGE,
+    CAST_SMALL, CAST_RETURN,
+    SABLE_SMALL, SABLE_QUIET,
+    ECHO_ARRIVAL, ECHO_DISCOVERY,
     THE_READING: READING_BEATS,
     DEEP_READING: DEEP_READING_BEATS,
     ERA_SHIFT: ERA_SHIFT_BEATS,
-    DEPARTURE: DEPARTURE_BEATS,
+    DEPARTURE: VOSS_BURN,
     THE_QUIET: QUIET_BEATS,
     LONG_DARK: LONG_DARK_BEATS,
     FIRST_LIGHT: FIRST_LIGHT_BEATS,
@@ -678,8 +857,8 @@ function generateBody(
     VIGIL: VIGIL_BEATS,
     PASSING: PASSING_BEATS,
     GHOST_TOUCH: [
-      () => `A faint mark in ${zone}. The smallest possible presence — one cell in the Grid's vast field. ${tension(world)}.`,
-      () => `Barely there, in ${zone}. A single point. The Grid records it the same as everything else.`,
+      (bb) => `A single registration in ${bb.zone} — ${bb.zoneDetail}. Minimal volume. One point in the record. ${conflictState(bb.world)}.`,
+      (bb) => `One registration in ${bb.zone}. Low volume, no attached claim. The Cast recorded it because the Cast records everything.`,
     ],
   }
 
@@ -694,34 +873,60 @@ function generateBody(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WORLD UPDATE
+// WORLD UPDATE — runs after every generated entry
 // ─────────────────────────────────────────────────────────────────────────────
 
 function updateWorld(world: GridWorld, charKey: CharacterKey, beatType: string, zone: string, count: number): void {
   world.totalActs++
+  world.eraActCount++
+
+  if (world.zoneOwner[zone]) world.zonePrevOwner[zone] = world.zoneOwner[zone]
+  world.zoneOwner[zone] = charKey
 
   if (charKey === 'LYRA') {
-    world.lyraBuilding = zone
-    if (beatType === 'LYRA_LARGE') world.lyraFinnConflict = Math.min(100, world.lyraFinnConflict + 15)
+    world.lyraLastBuilt = zone
+    world.lyraBuiltCount++
+    if (beatType === 'LYRA_LARGE') {
+      world.lyraFinnConflict = Math.min(100, world.lyraFinnConflict + 18)
+      if (world.finnLastBroke === zone) world.lyraReclaimed = true
+    } else {
+      world.lyraFinnConflict = Math.min(100, world.lyraFinnConflict + 4)
+    }
+    world.lyraSignature = count >= 150 ? 'keystone build' : count >= 50 ? 'major structure' : 'layer'
   }
+
   if (charKey === 'VOSS') {
+    world.finnLastBroke = zone
     world.finnLastTarget = zone
-    if (beatType === 'VOSS_LARGE') world.lyraFinnConflict = Math.min(100, world.lyraFinnConflict + 20)
-    if (beatType === 'VOSS_BURN') world.lyraFinnConflict = Math.min(100, world.lyraFinnConflict + 10)
+    world.finnBreakCount++
+    world.finnContestedLyra = world.lyraLastBuilt === zone
+    world.finnContested = world.finnContestedLyra
+    if (beatType === 'VOSS_LARGE') world.lyraFinnConflict = Math.min(100, world.lyraFinnConflict + 22)
+    else if (beatType === 'VOSS_BURN') world.lyraFinnConflict = Math.min(100, world.lyraFinnConflict + 8)
+    else world.lyraFinnConflict = Math.min(100, world.lyraFinnConflict + 6)
   }
+
   if (charKey === 'CAST') world.castLastWitnessed = zone
-  if (charKey === 'SABLE') world.cieloHolding = zone
-  if (charKey === 'ECHO') world.echoLastZone = zone
+  if (charKey === 'SABLE') {
+    world.cieloLastTended = zone
+    world.cieloHolding = zone
+    world.cieloRepairCount++
+  }
+  if (charKey === 'ECHO') {
+    world.echoLastFound = zone
+    world.echoLastZone = zone
+    world.echoFindCount++
+  }
 
-  // Tension decays slightly over time
-  if (world.totalActs % 5 === 0) world.lyraFinnConflict = Math.max(10, world.lyraFinnConflict - 3)
+  if (world.totalActs % 7 === 0) world.lyraFinnConflict = Math.max(5, world.lyraFinnConflict - 4)
 
-  if (['LYRA_LARGE', 'VOSS_LARGE', 'DEPARTURE', 'ERA_SHIFT', 'CONVERGENCE'].includes(beatType)) {
+  if (['LYRA_LARGE', 'VOSS_LARGE', 'DEPARTURE', 'ERA_SHIFT', 'CONVERGENCE', 'RELIC_FOUND'].includes(beatType)) {
+    const moment = `${CHARACTERS[charKey].name} — ${beatType.replace(/_/g, ' ').toLowerCase()} in ${zone}`
+    world.majorMoments = [moment, ...world.majorMoments].slice(0, 5)
     world.lastMajorChar = charKey
-    world.lastMajorAct = beatType === 'LYRA_LARGE' ? 'built' :
-      beatType === 'VOSS_LARGE' ? 'broke' :
-      beatType === 'DEPARTURE' ? 'dissolved' :
-      beatType === 'CONVERGENCE' ? 'converged' : 'shifted'
+    world.lastMajorAct = beatType === 'LYRA_LARGE' ? 'placed a major build' :
+      beatType === 'VOSS_LARGE' ? 'ran a full restructure' : beatType === 'DEPARTURE' ? 'dissolved' :
+      beatType === 'CONVERGENCE' ? 'registered simultaneously with another' : 'surfaced an old structure'
     world.lastMajorZone = zone
   }
 
@@ -731,7 +936,7 @@ function updateWorld(world: GridWorld, charKey: CharacterKey, beatType: string, 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ICON MAP
+// ICONS + LORE MAP
 // ─────────────────────────────────────────────────────────────────────────────
 
 const BEAT_ICONS: Record<string, string> = {
@@ -742,10 +947,6 @@ const BEAT_ICONS: Record<string, string> = {
   THE_QUIET: '·', LONG_DARK: '◌', FIRST_LIGHT: '→', RELIC_FOUND: '◈',
   PULSE: '◦', VIGIL: '◦', PASSING: '△', GHOST_TOUCH: '·',
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// LORE TYPE MAP — for UI compatibility
-// ─────────────────────────────────────────────────────────────────────────────
 
 const BEAT_TO_LORE: Record<string, LoreType> = {
   LYRA_LARGE: 'SIGNAL_SURGE', LYRA_SMALL: 'MARK_MADE', VOSS_LARGE: 'SIGNAL_SURGE',
@@ -759,7 +960,7 @@ const BEAT_TO_LORE: Record<string, LoreType> = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STORY ENTRY INTERFACE
+// TYPES
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type LoreType =
@@ -803,8 +1004,8 @@ export interface StoryEntry {
   }
 }
 
-function moodFromScene(scene: SceneType): 'surge' | 'quiet' | 'departure' | 'discovery' | 'wonder' | 'chaos' | 'normal' {
-  const m: Record<SceneType, StoryEntry['visualState'] extends undefined ? never : NonNullable<StoryEntry['visualState']>['mood']> = {
+function moodFromScene(scene: SceneType): NonNullable<StoryEntry['visualState']>['mood'] {
+  const m: Record<SceneType, NonNullable<StoryEntry['visualState']>['mood']> = {
     construction: 'surge', destruction: 'chaos', sacrifice: 'departure',
     vigil: 'quiet', tending: 'quiet', arrival: 'wonder', convergence: 'wonder',
     reckoning: 'chaos', quiet: 'quiet', dawn: 'normal',
@@ -813,7 +1014,7 @@ function moodFromScene(scene: SceneType): 'surge' | 'quiet' | 'departure' | 'dis
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MAIN GENERATE FUNCTION
+// MAIN GENERATE
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function generateStoryEntries(events: IndexedEvent[], startCount = 0): StoryEntry[] {
@@ -827,6 +1028,7 @@ export function generateStoryEntries(events: IndexedEvent[], startCount = 0): St
     const prev = index > 0 ? events[index - 1] : null
 
     const eraData = getEraData(cumCount)
+    if (eraData.name !== world.era) world.eraActCount = 0
     world.era = eraData.name
     world.eraIndex = eraData.eraIndex
 
@@ -835,8 +1037,6 @@ export function generateStoryEntries(events: IndexedEvent[], startCount = 0): St
     const beatType = selectBeatType(event, charKey, index, events, cumCount, prev, world)
     const seed = Number(seedN(event.tokenId, event.blockNumber))
     const headline = makeHeadline(charKey, beatType, zone, world, index)
-
-    // Generate body with seed variation per index to avoid repetition
     const bodySeed = Math.abs(seed ^ (index * 7919))
     const body = generateBody(charKey, beatType, zone, world, bodySeed, prevCharKey)
 
@@ -873,7 +1073,7 @@ export function generateStoryEntries(events: IndexedEvent[], startCount = 0): St
         txHash: event.transactionHash,
         count: event.count.toString(),
         ruleApplied: `${CHARACTERS[charKey].name} — ${beatType.replace(/_/g, ' ').toLowerCase()}`,
-        ruleExplanation: `Token #${event.tokenId} mapped to ${CHARACTERS[charKey].name} (${CHARACTERS[charKey].title}). Beat: ${beatType}.`,
+        ruleExplanation: `Token #${event.tokenId} → ${CHARACTERS[charKey].name} (${CHARACTERS[charKey].title}). Beat: ${beatType}. Zone: ${zone}.`,
       },
     })
 
@@ -885,7 +1085,7 @@ export function generateStoryEntries(events: IndexedEvent[], startCount = 0): St
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PRIMER ENTRIES
+// PRIMER
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const PRIMER_ENTRIES: StoryEntry[] = [
@@ -896,18 +1096,16 @@ export const PRIMER_ENTRIES: StoryEntry[] = [
     era: 'The First Days',
     icon: '◈',
     featured: true,
-    headline: 'The Grid Exists',
-    body: `Before the five, there was only the Grid.
+    headline: 'The Record Opens',
+    body: `Normia is a live system — ten thousand registered presences spread across twenty sectors, each one capable of being shaped, transferred, or dissolved. Its territory has character: some zones are ancient and disputed, some newly claimed, some so quiet they have almost stopped appearing on active maps. The system runs on what people do with what they hold.
 
-A living world — not empty, but unwritten. Ten thousand faces, each capable of being shaped, traded, given away, or dissolved. Normia runs on what people do with what they hold.
+Five presences have become the main actors in this record. They did not appoint themselves. They became significant through what they actually did, over time, in full view of the log.
 
-Five presences have emerged from the noise of that activity. They didn't choose their roles. The roles chose them.
+Lyra builds. She has been laying structures across Normia's sectors since before this record opened, working toward a pattern whose full shape has not yet come clear. Finn breaks what calcifies — he removes structures that have stopped earning their place, believing a live system has to stay open to change or it stops being a system at all. The Cast watches and documents everything; its record is the most complete account of Normia that exists, and it answers to no one. Cielo tends what the others leave behind — repairing the edges, holding zones that would drift without attention, keeping things alive past their moment of notice. Echo works the outer margins, the sectors the major factions do not bother tracking, and what he finds there keeps turning out to matter more than anyone expected.
 
-Lyra builds. She has been building since before the record began, working toward a structure whose full shape only she can see. Finn breaks and remakes — not out of destruction but out of a belief that calcification is death. The Cast watches everything and forgets nothing; the record is its life's work. Cielo keeps what would otherwise drift, tending the edges and the abandoned sections that nobody else is watching. Echo arrives from the margins at moments that only make sense in retrospect.
-
-Normia is their argument, their collaboration, and their home. Every act made by every person flows into this world. The butterfly effect is the protocol. This is its record.`,
+What follows is their record, and the record of the world their actions are building.`,
     activeCharacter: 'CAST',
     visualState: { mood: 'normal', intensity: 20, dominantZone: 'the Open Grid', signalName: 'The Cast', scene: 'dawn', charKey: 'CAST' },
-    sourceEvent: { type: 'genesis', tokenId: '--', blockNumber: '--', txHash: '--', count: '--', ruleApplied: 'World Primer', ruleExplanation: 'The opening of the record.' },
+    sourceEvent: { type: 'genesis', tokenId: '--', blockNumber: '--', txHash: '--', count: '--', ruleApplied: 'World Primer', ruleExplanation: 'The opening entry.' },
   },
 ]
