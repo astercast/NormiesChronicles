@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { runFullIndex } from '@/lib/getStory'
 
-export const maxDuration = 300 // Pro plan: up to 300s (was 60s on Hobby)
+export const maxDuration = 60
 export const dynamic = 'force-dynamic'
 
 export async function POST() {
@@ -9,7 +9,7 @@ export async function POST() {
     const result = await Promise.race([
       runFullIndex(),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('index timeout after 280s')), 280_000)
+        setTimeout(() => reject(new Error('index timeout after 55s')), 55_000)
       ),
     ])
     return NextResponse.json(result)

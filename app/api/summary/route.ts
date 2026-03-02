@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-export const maxDuration = 60 // Pro plan allows up to 300s
+export const maxDuration = 30
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: Request) {
