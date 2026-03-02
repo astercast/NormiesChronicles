@@ -195,7 +195,7 @@ function EntryModal({ entry, onClose }: { entry: StoryEntry; onClose: () => void
           {char && (
             <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
               <p style={{ fontSize: '0.65rem', color: 'var(--muted)', fontStyle: 'italic', opacity: 0.6, lineHeight: 1.85 }}>
-                {char.goal}
+                {char.shortDesc}
               </p>
             </div>
           )}

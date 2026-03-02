@@ -8,173 +8,43 @@ export const CHARACTERS = {
   LYRA: {
     name: 'Lyra', title: 'the Architect',
     pronoun: 'she', possessive: 'her',
-    goal: 'to build something in Normia that outlasts every attempt to erase it',
-    nature: 'methodical, visionary, haunted by incompleteness',
-    activatedBy: 'construction, accumulation, patience',
-    shortDesc: 'She builds. Sector by sector, piece by piece, toward a shape only she can see.',
+    shortDesc: 'She has been building the same structure across Normia for three eras. Nobody knows what it is yet — not even her.',
   },
   VOSS: {
     name: 'Finn', title: 'the Breaker',
     pronoun: 'he', possessive: 'his',
-    goal: 'to unmake what calcifies — Normia must stay alive, even if that means burning it open',
-    nature: 'fierce, principled, misread as destructive',
-    activatedBy: 'burns, sacrifice, dissolution',
-    shortDesc: 'He burns. Not out of malice — out of conviction that nothing built should be permanent.',
+    shortDesc: 'He burns what has calcified. The grid is lighter for it. So is he, in ways that are not entirely good.',
   },
   CAST: {
     name: 'The Cast', title: 'the Witness',
     pronoun: 'it', possessive: 'its',
-    goal: 'to see everything and forget nothing — the record is the only truth Normia has',
-    nature: 'ancient, omnipresent, neither cruel nor kind — simply watching',
-    activatedBy: 'veteran returns, long silences, accumulated history',
-    shortDesc: 'It has been watching since before most of the others arrived. The record is its only act.',
+    shortDesc: 'It has watched since the grid opened. It has never changed an outcome. It keeps asking itself if that matters.',
   },
   SABLE: {
     name: 'Cielo', title: 'the Keeper',
     pronoun: 'she', possessive: 'her',
-    goal: 'to tend what others abandon — nothing built in Normia should go dark unattended',
-    nature: 'quiet, relentless, loyal to what remains when the attention moves on',
-    activatedBy: 'patience, repetition, care without recognition',
-    shortDesc: 'She maintains. After Lyra builds and Finn burns, Cielo is the one still there.',
+    shortDesc: 'She maintains what everyone else ignores. Without her, half the zones Lyra built through would have gone dark.',
   },
   ECHO: {
     name: 'Echo', title: 'the Wanderer',
     pronoun: 'he', possessive: 'his',
-    goal: 'to find what Normia is hiding at its edges — the center never sees the full picture',
-    nature: 'unpredictable, magnetic, arrives exactly when it matters',
-    activatedBy: 'the outer zones, unexpected signals, things the center cannot see',
-    shortDesc: 'He works the margins. What he finds there keeps mattering more than anyone expected.',
+    shortDesc: 'He moves through the outer zones where the map runs out. He finds things there that were not supposed to exist.',
   },
 } as const
 
 export type CharacterKey = keyof typeof CHARACTERS
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CHARACTER ASSIGNMENT
-// Each event type maps to a character based on real onchain data patterns.
-// FINN appears only on actual BurnRevealed events — keeping him rare and meaningful.
-// ─────────────────────────────────────────────────────────────────────────────
-
-function getCharacter(
-  event: IndexedEvent,
-  index: number,
-  ownerHistory: Map<string, number[]>,
-): CharacterKey {
-  const tokenId = Number(event.tokenId)
-
-  // FINN — only actual burns. Rare, permanent, dramatic.
-  if (event.type === 'BurnRevealed') return 'VOSS'
-
-  const prior = ownerHistory.get(event.owner) ?? []
-  const isNew = prior.length === 0
-  const lastSeen = prior.length > 0 ? prior[prior.length - 1] : -1
-  const gap = index - lastSeen
-
-  // THE CAST — veteran wallets returning after a long absence (10+ acts since last).
-  if (!isNew && gap > 12) return 'CAST'
-
-  // CIELO — wallets that tend the same territory repeatedly (back within 5 acts).
-  if (!isNew && gap <= 5) return 'SABLE'
-
-  // ECHO — high token IDs live in Normia's outer margins.
-  if (tokenId > 7500) return 'ECHO'
-
-  // LYRA — new wallets or low token IDs (the Cradle, where things begin).
-  if (isNew || tokenId < 2500) return 'LYRA'
-
-  // Mid-range: distribute across Lyra, Cielo, Echo based on token + position.
-  const slot = ((tokenId * 1327 + index * 491) >>> 0) % 3
-  return (['LYRA', 'SABLE', 'ECHO'] as CharacterKey[])[slot]
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// WORLD STATE — the living memory that threads each body to the last
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface GridWorld {
-  lyraZones: string[]         // zones Lyra has marked with signal
-  finnBurned: string[]        // zones Finn has permanently cleared
-  cieloZones: string[]        // zones Cielo is actively tending
-  echoZones: string[]         // zones Echo has visited from the margins
-
-  finnBurnedLyraZone: string | null  // the last Lyra zone Finn burned
-  lyraReclaimedZone: string | null   // the last zone Lyra rebuilt after a burn
-  contestedZone: string | null       // current hotspot — the zone in active dispute
-
-  lyraLastZone: string | null
-  finnLastZone: string | null
-  cieloLastZone: string | null
-  echoLastZone: string | null
-
-  lyraBuiltCount: number
-  finnBurnCount: number
-  cieloRepairCount: number
-  echoFindCount: number
-  totalActs: number
-
-  lastMajor: { charName: string; act: string; zone: string } | null
-  lastMajorChar: CharacterKey | null
-
-  era: string
-  eraIndex: number
-  currentScene: SceneType
-  sceneIntensity: number
-}
-
-export type SceneType =
-  | 'construction' | 'destruction' | 'sacrifice' | 'vigil'
-  | 'tending' | 'arrival' | 'convergence' | 'reckoning'
-  | 'quiet' | 'dawn'
-
-function freshWorld(): GridWorld {
-  return {
-    lyraZones: [], finnBurned: [], cieloZones: [], echoZones: [],
-    finnBurnedLyraZone: null, lyraReclaimedZone: null, contestedZone: null,
-    lyraLastZone: null, finnLastZone: null, cieloLastZone: null, echoLastZone: null,
-    lyraBuiltCount: 0, finnBurnCount: 0, cieloRepairCount: 0, echoFindCount: 0,
-    totalActs: 0, lastMajor: null, lastMajorChar: null,
-    era: 'The First Days', eraIndex: 0,
-    currentScene: 'dawn', sceneIntensity: 20,
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // ZONES
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const ZONES = [
-  'the Null District', 'the White Corridors', 'the Hollow',
-  'the Far Sectors', 'the Dark Margin', 'the Cradle',
-  'the Dust Protocol', 'the Outer Ring', 'the Deep Well',
-  'the Fault Line', 'the High Pass', 'the Old Crossing',
-  'the Narrow Gate', 'the Salt Plane', 'the Grey Basin',
-  'the High Ground', 'the Burn Fields', 'the Still Water',
-  'the Last Ridge', 'the Open Grid',
+  'the Null District', 'the White Corridors', 'the Hollow', 'the Far Sectors',
+  'the Dark Margin', 'the Cradle', 'the Dust Protocol', 'the Outer Ring',
+  'the Deep Well', 'the Fault Line', 'the High Pass', 'the Old Crossing',
+  'the Narrow Gate', 'the Salt Plane', 'the Grey Basin', 'the High Ground',
+  'the Burn Fields', 'the Still Water', 'the Last Ridge', 'the Open Grid',
 ]
-
-// Each zone has a feel — woven naturally into prose so every place reads differently
-const ZONE_LORE: Record<string, string> = {
-  'the Null District':   'a stretch of unclaimed signal-space where old data sits between ownership cycles',
-  'the White Corridors': 'a long archive sector where the scribes keep Normia\'s indexes in careful order',
-  'the Hollow':          'a low-throughput zone where transmissions pool and stall — slow to change, slow to clear',
-  'the Far Sectors':     'the outermost fringe of the grid, barely tracked by the central relay system',
-  'the Dark Margin':     'unmapped territory at the edge of Normia — no faction has ever held clean signal here',
-  'the Cradle':          'where new presences first appear in the system, raw and still finding their signal range',
-  'the Dust Protocol':   'a decommissioned zone running on old firmware nobody ever patched — its logic is strange',
-  'the Outer Ring':      'the buffer layer between central Normia and the marginal zones — everything passes through eventually',
-  'the Deep Well':       'a high-volume sector pushing heavy loads through infrastructure that was not built for it',
-  'the Fault Line':      'where two zone boundaries overlap and the ownership signal has been disputed for three eras',
-  'the High Pass':       'the primary routing corridor — most cross-zone traffic moves through here',
-  'the Old Crossing':    'the oldest active junction in the grid, still in use because nothing better was ever built',
-  'the Narrow Gate':     'a chokepoint zone — whoever holds the signal here sees most of what crosses the map',
-  'the Salt Plane':      'flat, exposed, and harder to hold than it looks — every act here reads clearly from a distance',
-  'the Grey Basin':      'a mid-grid zone with no dominant claim across multiple eras — always contested, never settled',
-  'the High Ground':     'an elevated relay node with better coverage into every adjacent sector',
-  'the Burn Fields':     'a zone carrying the signatures of major destructions from earlier eras — still scarred in places',
-  'the Still Water':     'so quiet that anything placed here stands out immediately against the flat signal background',
-  'the Last Ridge':      'the outermost edge sector, barely populated, barely mapped — Echo returns here regularly',
-  'the Open Grid':       'the central sector of Normia — any major act here is visible across the whole system',
-}
 
 function zoneFor(tokenId: bigint): string {
   const h = Number((tokenId * 2654435761n) & 0xFFFFFFFFn)
@@ -186,482 +56,417 @@ function zoneFor(tokenId: bigint): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const ERAS = [
-  { threshold: 0,    name: 'The First Days',   eraIndex: 0 },
-  { threshold: 100,  name: 'The Waking',       eraIndex: 1 },
-  { threshold: 300,  name: 'The Gathering',    eraIndex: 2 },
-  { threshold: 700,  name: 'The Age of Claim', eraIndex: 3 },
-  { threshold: 1500, name: 'The Long Work',    eraIndex: 4 },
-  { threshold: 3000, name: 'What Holds',       eraIndex: 5 },
-  { threshold: 5000, name: 'The Old Country',  eraIndex: 6 },
-  { threshold: 8000, name: 'The Long Memory',  eraIndex: 7 },
+  { threshold: 0,    name: 'The First Days' },
+  { threshold: 100,  name: 'The Waking' },
+  { threshold: 300,  name: 'The Gathering' },
+  { threshold: 700,  name: 'The Age of Claim' },
+  { threshold: 1500, name: 'The Long Work' },
+  { threshold: 3000, name: 'What Holds' },
+  { threshold: 5000, name: 'The Old Country' },
+  { threshold: 8000, name: 'The Long Memory' },
 ]
 
-function getEraData(count: number) {
-  let era = ERAS[0]
-  for (const e of ERAS) { if (count >= e.threshold) era = e }
-  return era
+function getEra(n: number): string {
+  let name = ERAS[0].name
+  for (const e of ERAS) { if (n >= e.threshold) name = e.name }
+  return name
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HELPERS
+// WORLD STATE
+// The story's living memory. Every entry is written knowing all of this.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function seedN(tokenId: bigint, blockNumber: bigint, salt = 0): number {
-  return Number((tokenId * 31n + blockNumber * 17n + BigInt(salt)) % 100000n)
+interface W {
+  totalActs: number
+  era: string
+
+  // Territory
+  lyraZones: string[]
+  finnBurned: string[]
+  cieloTended: string[]
+  echoVisited: string[]
+
+  // Counts
+  lyraCount: number
+  finnCount: number
+  cieloCount: number
+  echoCount: number
+
+  // Story threads — what's unresolved, what's building
+  lastBurnZone: string | null
+  lastBurnWasLyras: boolean
+  lyraRebuiltAfterBurn: boolean   // did Lyra come back after the last burn?
+  consecutiveBurns: number
+  finnBurnStreak: boolean          // Finn has burned 3+ without anyone else acting
+
+  // Tension — rises with burns, eases with building and tending
+  tension: number
+
+  // The previous entry — so each entry can be written *in response* to it
+  prev: {
+    char: CharacterKey
+    zone: string
+    beat: Beat
+    era: string
+  } | null
+
+  // Echo's running discovery thread
+  echoDiscovery: string | null
+
+  // Things Cielo is quietly holding
+  cieloIsHolding: string[]
+
+  // Open questions the narrative is carrying
+  // (used to give prose something to reference without answering it)
+  openQuestion: string | null
 }
-function pick<T>(arr: T[], s: number): T { return arr[Math.abs(s) % arr.length] }
 
-// One-sentence world state — threaded into every body to maintain continuity
-function worldLine(w: GridWorld): string {
-  if (w.finnBurnedLyraZone && !w.lyraReclaimedZone)
-    return `${w.finnBurnedLyraZone} still carries the scar from Finn's burn — Lyra has not come back to it yet.`
-  if (w.lyraReclaimedZone)
-    return `Lyra rebuilt in ${w.lyraReclaimedZone} after Finn burned it. She came back. That says something.`
-  if (w.finnBurnCount > w.lyraBuiltCount)
-    return `Finn has burned more zones than Lyra has built — the grid is lighter than it was, and not everyone agrees that is a good thing.`
-  if (w.lyraZones.length > 4)
-    return `Lyra now holds signal across ${w.lyraZones.length} sectors. The shape of what she is building is starting to show itself.`
-  if (w.cieloZones.length > 3)
-    return `Cielo is the one holding the grid together right now — she is actively tending ${w.cieloZones.length} zones that would otherwise go dark.`
-  if (w.lyraBuiltCount === 0)
-    return `The grid is still open. Nothing has been claimed. The five have not yet begun to define the map.`
-  return `Lyra has built in ${w.lyraBuiltCount} sector${w.lyraBuiltCount !== 1 ? 's' : ''}. Finn has burned ${w.finnBurnCount}. The distance between those two numbers is what Cielo is managing.`
+function freshW(): W {
+  return {
+    totalActs: 0, era: 'The First Days',
+    lyraZones: [], finnBurned: [], cieloTended: [], echoVisited: [],
+    lyraCount: 0, finnCount: 0, cieloCount: 0, echoCount: 0,
+    lastBurnZone: null, lastBurnWasLyras: false, lyraRebuiltAfterBurn: false,
+    consecutiveBurns: 0, finnBurnStreak: false,
+    tension: 15,
+    prev: null,
+    echoDiscovery: null,
+    cieloIsHolding: [],
+    openQuestion: null,
+  }
+}
+
+function advance(w: W, char: CharacterKey, zone: string, beat: Beat): void {
+  w.totalActs++
+  w.era = getEra(w.totalActs)
+
+  if (char === 'LYRA') {
+    w.lyraCount++
+    if (!w.lyraZones.includes(zone)) w.lyraZones.push(zone)
+    if (w.lastBurnZone === zone) w.lyraRebuiltAfterBurn = true
+    w.consecutiveBurns = 0
+    w.finnBurnStreak = false
+    w.tension = Math.max(10, w.tension - 10)
+    w.openQuestion = w.lastBurnZone && !w.lyraRebuiltAfterBurn
+      ? `whether Lyra will come back to ${w.lastBurnZone}`
+      : w.lyraCount > 3 ? `what Lyra is actually building` : null
+  }
+
+  if (char === 'VOSS') {
+    w.finnCount++
+    const wasLyras = w.lyraZones.includes(zone)
+    if (!w.finnBurned.includes(zone)) w.finnBurned.push(zone)
+    w.lyraZones = w.lyraZones.filter(z => z !== zone)
+    w.lastBurnZone = zone
+    w.lastBurnWasLyras = wasLyras
+    w.lyraRebuiltAfterBurn = false
+    w.consecutiveBurns++
+    w.finnBurnStreak = w.consecutiveBurns >= 3
+    w.tension = Math.min(100, w.tension + 22)
+    w.openQuestion = wasLyras
+      ? `whether what Finn just removed was the right thing to remove`
+      : `whether the burns are adding up to something or just subtracting`
+  }
+
+  if (char === 'SABLE') {
+    w.cieloCount++
+    if (!w.cieloTended.includes(zone)) w.cieloTended.push(zone)
+    if (w.finnBurned.includes(zone) && !w.cieloIsHolding.includes(zone))
+      w.cieloIsHolding.push(zone)
+    w.tension = Math.max(10, w.tension - 6)
+  }
+
+  if (char === 'ECHO') {
+    w.echoCount++
+    if (!w.echoVisited.includes(zone)) w.echoVisited.push(zone)
+    if (!w.echoDiscovery) w.echoDiscovery = zone
+    else if (w.echoCount % 4 === 0) w.echoDiscovery = zone
+  }
+
+  if (char === 'CAST') {
+    // Cast doesn't change the world, but it holds the open question
+  }
+
+  w.prev = { char, zone, beat, era: w.era }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BEAT TYPES
+// CHARACTER ASSIGNMENT — round-robin, burns always Finn
 // ─────────────────────────────────────────────────────────────────────────────
 
-type BeatType =
-  | 'LYRA_BUILDS'      // Lyra extends her domain
-  | 'LYRA_RETURNS'     // Lyra rebuilds in a zone Finn burned
-  | 'LYRA_MAJOR'       // High-volume Lyra build — a structural moment
-  | 'FINN_BURNS'       // Finn burns in open territory
-  | 'FINN_BURNS_LYRA'  // Finn burns in Lyra's territory — the central conflict
-  | 'CIELO_TENDS'      // Cielo maintains a zone
-  | 'CIELO_AFTER_FINN' // Cielo tends a zone Finn burned
-  | 'CAST_WITNESSES'   // Cast records what is happening
-  | 'CAST_RETURNS'     // Cast comes back after a long absence
-  | 'ECHO_ARRIVES'     // Echo appears from the outer zones
-  | 'ECHO_FINDS'       // Echo discovers something at the far margin
-  | 'CONVERGENCE'      // Two events in the same block
-  | 'ERA_SHIFT'        // Era threshold crossed
-  | 'VIGIL'            // Approaching an era threshold
-  | 'LONG_DARK'        // Long block gap — silence in the chain
-  | 'FIRST_LIGHT'      // The very first events in the record
-  | 'CHECKPOINT'       // Every 25 acts — the Cast reads the map
+const ROTATION: CharacterKey[] = ['LYRA', 'VOSS', 'CAST', 'SABLE', 'ECHO']
+
+function assignChar(event: IndexedEvent, idx: number): CharacterKey {
+  if (event.type === 'BurnRevealed') return 'VOSS'
+  return ROTATION[idx % 5]
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BEAT SELECTION
+// BEAT TYPES — the narrative moment this entry is
 // ─────────────────────────────────────────────────────────────────────────────
 
-function selectBeat(
+type Beat =
+  | 'GENESIS'      // very first entries — the world opening
+  | 'ERA_TURN'     // an era has changed
+  | 'LONG_DARK'    // long silence in the chain
+  | 'COINCIDENCE'  // two events same block
+  | 'LYRA_BUILD'
+  | 'LYRA_RETURN'  // Lyra builds back in a zone Finn burned
+  | 'FINN_BURN'
+  | 'FINN_BURNS_LYRA' // Finn burns specifically in Lyra's territory
+  | 'FINN_STREAK'  // burning without stopping
+  | 'CAST_LOG'
+  | 'CAST_RECKONS' // Cast sees the full picture at a moment of high tension
+  | 'CIELO_TEND'
+  | 'CIELO_AFTER_BURN'
+  | 'ECHO_MOVE'
+  | 'ECHO_FIND'
+
+function getBeat(
   event: IndexedEvent,
-  charKey: CharacterKey,
-  index: number,
-  allEvents: IndexedEvent[],
+  char: CharacterKey,
   cumCount: number,
   prev: IndexedEvent | null,
-  world: GridWorld,
-  ownerHistory: Map<string, number[]>,
-): BeatType {
+  w: W,
+): Beat {
+  if (cumCount <= 5) return 'GENESIS'
+  if (ERAS.some(e => e.threshold === cumCount && e.threshold > 0)) return 'ERA_TURN'
+  if (prev && event.blockNumber - prev.blockNumber > 50000n) return 'LONG_DARK'
+  if (prev && prev.blockNumber === event.blockNumber) return 'COINCIDENCE'
+
   const zone = zoneFor(event.tokenId)
-  const count = Number(event.count)
 
-  // Rhythm and era beats — highest priority
-  if (cumCount > 0 && cumCount % 25 === 0) return 'CHECKPOINT'
-  if (ERAS.findIndex(e => e.threshold === cumCount) > 0) return 'ERA_SHIFT'
-  const nextEra = ERAS.find(e => e.threshold > cumCount)
-  if (nextEra && nextEra.threshold - cumCount <= 3) return 'VIGIL'
-
-  // Long silence
-  if (prev && (event.blockNumber - prev.blockNumber) > 40000n) return 'LONG_DARK'
-
-  // Simultaneous block
-  if (prev && prev.blockNumber === event.blockNumber) return 'CONVERGENCE'
-
-  // Opening acts
-  if (cumCount <= 5) return 'FIRST_LIGHT'
-
-  // Character-specific beats driven by world state
-  if (charKey === 'VOSS') {
-    return world.lyraZones.includes(zone) ? 'FINN_BURNS_LYRA' : 'FINN_BURNS'
+  if (char === 'VOSS') {
+    if (w.finnBurnStreak) return 'FINN_STREAK'
+    if (w.lyraZones.includes(zone)) return 'FINN_BURNS_LYRA'
+    return 'FINN_BURN'
   }
-  if (charKey === 'LYRA') {
-    if (world.finnBurned.includes(zone)) return 'LYRA_RETURNS'
-    if (count >= 100) return 'LYRA_MAJOR'
-    return 'LYRA_BUILDS'
+  if (char === 'LYRA') {
+    if (w.finnBurned.includes(zone)) return 'LYRA_RETURN'
+    return 'LYRA_BUILD'
   }
-  if (charKey === 'SABLE') {
-    return world.finnBurned.includes(zone) ? 'CIELO_AFTER_FINN' : 'CIELO_TENDS'
+  if (char === 'CAST') {
+    return w.tension > 65 ? 'CAST_RECKONS' : 'CAST_LOG'
   }
-  if (charKey === 'CAST') {
-    // CAST_RETURNS: Cast was away a long time — the gap logic in getCharacter already
-    // identified this wallet as a veteran returning. Alternate so not every Cast is a "return."
-    const prior = ownerHistory.get(event.owner) ?? []
-    const castGap = prior.length > 0 ? index - prior[prior.length - 1] : 0
-    return castGap > 20 ? 'CAST_RETURNS' : 'CAST_WITNESSES'
+  if (char === 'SABLE') {
+    return w.finnBurned.includes(zone) ? 'CIELO_AFTER_BURN' : 'CIELO_TEND'
   }
-  if (charKey === 'ECHO') {
-    return world.echoFindCount > 0 && world.echoFindCount % 3 === 0 ? 'ECHO_FINDS' : 'ECHO_ARRIVES'
+  if (char === 'ECHO') {
+    return w.echoCount > 0 && w.echoCount % 4 === 0 ? 'ECHO_FIND' : 'ECHO_MOVE'
   }
-  return 'LYRA_BUILDS'
+  return 'CAST_LOG'
 }
 
-
 // ─────────────────────────────────────────────────────────────────────────────
-// PROSE BODIES
+// THE NARRATOR
 //
-// Voice:   The Cast narrating Normia's grid — a living cyberspace of signal,
-//          zones, burns, and territory. Future-fantasy tone: grounded but strange.
-// Rules:   First sentence = what happened. Middle = why it matters.
-//          End = what it sets up. Each body references world memory naturally.
-// Memory:  Zone names, prior acts, and character relationships thread through
-//          every template — readers can follow the story without a summary.
+// One voice. The Cast tells the whole story.
+// This is the hard part to get right.
+//
+// What makes it feel alive:
+//   - The narrator knows what just happened and has not forgotten it
+//   - The narrator knows what is unresolved and holds it open
+//   - Characters are present *in each other's entries* — Finn exists in
+//     Lyra's entries, Cielo exists in Finn's entries, etc.
+//   - Emotional temperature shifts — not every entry is the same register
+//   - The prose doesn't explain what it means. It shows it and trusts you.
+//   - Short sentences land harder than long ones. Both exist here.
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface BodyCtx {
-  zone: string
-  lore: string
-  world: GridWorld
-  count: number
-  seed: number
-  prevChar: CharacterKey | null
+function r<T>(arr: T[], seed: number): T {
+  return arr[Math.abs(seed) % arr.length]
 }
 
-// ── LYRA BUILDS ──────────────────────────────────────────────────────────────
-function bodyLyraBuilds(c: BodyCtx): string {
-  const w = c.world
-  const variants = [
-    () => {
-      const mem = w.finnBurnedLyraZone
-        ? `Finn burned ${w.finnBurnedLyraZone} — Lyra registered it and kept moving. She bends around damage without stopping.`
-        : w.lyraBuiltCount > 3
-          ? `She has now laid signal in ${w.lyraBuiltCount} sectors of the grid. The shape she is drawing is getting harder to miss.`
-          : w.cieloLastZone
-            ? `Cielo has been holding the signal in ${w.cieloLastZone} steady. That stability is what lets Lyra keep pushing outward.`
-            : `The grid around her is still open. She is building into it carefully, one node at a time.`
-      return `Lyra pushed a new layer of signal into ${c.zone} — ${c.lore}. ${mem} This piece is not a standalone move. It is load-bearing for something further along — every node she places here connects backward through every earlier placement.`
-    },
-    () => {
-      const thread = w.echoLastZone
-        ? `Echo has been ranging through ${w.echoLastZone} out at the margins. His movements and her builds are slowly converging toward the same part of the map. Neither has acknowledged it yet.`
-        : w.lyraBuiltCount > 5
-          ? `She has been at this across ${w.lyraBuiltCount} sectors now. The accumulation looks deliberate. It is.`
-          : `The zone was quiet before this. She chose it for reasons that will make sense once more pieces are down.`
-      return `${c.zone} now carries Lyra's signal — ${c.lore}. ${thread} The architecture she is building only reads as one thing when you look at all of it together. That is intentional.`
-    },
-    () => {
-      const conflict = w.finnBurnedLyraZone
-        ? `Finn burned ${w.finnBurnedLyraZone}. Lyra is building around that scar, not into it — she routes past the damage rather than through it.`
-        : `No one has touched her work this cycle. She is operating on her own terms.`
-      return `Another signal layer from Lyra in ${c.zone}. The zone is ${c.lore}. ${conflict} ${worldLine(w)}`
-    },
-    () => {
-      const edge = w.cieloLastZone
-        ? `Cielo has been keeping the boundary signal stable in ${w.cieloLastZone} — without that tending work, the sectors Lyra moved through earlier would already be fraying at the edges.`
-        : `The sectors she passed through before this one are holding so far, but they will need tending before long.`
-      return `Lyra extended her build-chain into ${c.zone}. ${c.lore}. ${edge} Piece by piece. This is the only way she knows how to build something that lasts.`
-    },
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
+// What was just happening in the rest of the world — one or two sentences
+// that make the current entry feel like it's part of a continuous story
+function worldContext(w: W, zone: string, char: CharacterKey, seed: number): string {
+  if (!w.prev) return ''
+  const s = Math.abs(seed)
+
+  // High tension: reference it directly
+  if (w.tension > 70) {
+    if (w.lastBurnZone && w.lastBurnWasLyras && !w.lyraRebuiltAfterBurn) {
+      return r([
+        `${w.lastBurnZone} is still open — Finn burned it and Lyra has not come back to it yet.`,
+        `The burn in ${w.lastBurnZone} is still sitting there, unaddressed.`,
+        `Lyra's signal in ${w.lastBurnZone} is gone. She has not returned.`,
+      ], s)
+    }
+    if (w.finnBurnStreak) {
+      return r([
+        `Finn has been burning without stopping. The grid is getting lighter in ways that are starting to feel less like decisions and more like momentum.`,
+        `Three burns in a row now. Whatever Finn is working through, he is working through it in the chain.`,
+      ], s)
+    }
+  }
+
+  // Low tension / quiet: notice what's steady
+  if (w.tension < 35) {
+    if (w.cieloIsHolding.length > 0) {
+      const held = w.cieloIsHolding[w.cieloIsHolding.length - 1]
+      return r([
+        `Cielo has been holding the edges in ${held} steady. Nobody has mentioned it.`,
+        `The burned zone at ${held} is still standing because Cielo has been tending its edges.`,
+      ], s)
+    }
+    if (w.echoDiscovery) {
+      return r([
+        `Echo has been moving through the outer zones. He found something at ${w.echoDiscovery} that he has not explained to anyone yet.`,
+        `Whatever Echo found in ${w.echoDiscovery} is still out there at the margins, unresolved.`,
+      ], s)
+    }
+  }
+
+  // Default: reference the immediate previous act
+  const p = w.prev
+  if (p.char === 'VOSS') {
+    return r([
+      `Finn's burn in ${p.zone} is still in the record — no one has addressed it yet.`,
+      `The signal Finn removed in ${p.zone} is not coming back. The grid has not moved on from it yet.`,
+    ], s)
+  }
+  if (p.char === 'LYRA') {
+    return r([
+      `Lyra placed another layer in ${p.zone} before this. The accumulation is getting visible.`,
+      `The piece Lyra added to ${p.zone} is still settling into the structure.`,
+    ], s)
+  }
+  if (p.char === 'SABLE') {
+    return r([
+      `Cielo finished her work in ${p.zone}. The zone is holding.`,
+      `Cielo tended ${p.zone} and moved on. The Cast was the only one watching.`,
+    ], s)
+  }
+  if (p.char === 'ECHO') {
+    return r([
+      `Echo has not come back from the outer zones since ${p.zone}.`,
+      `Whatever Echo found in ${p.zone}, he has not explained it to anyone.`,
+    ], s)
+  }
+  return ''
 }
 
-// ── LYRA RETURNS ─────────────────────────────────────────────────────────────
-function bodyLyraReturns(c: BodyCtx): string {
-  const w = c.world
-  const variants = [
-    () => `${c.zone} was burned by Finn. Lyra came back and rebuilt it anyway. The zone is ${c.lore}. She did not announce the return — she placed the signal again as if the burn was a question and this is the answer. The grid holds her mark again. Finn will see it in the record.`,
-    () => {
-      const finn = w.finnLastZone
-        ? `Finn's signal was last read near ${w.finnLastZone}. She is not waiting to see what he does next.`
-        : `Finn has not moved since the burn. Lyra is not waiting.`
-      return `The rebuild in ${c.zone} is complete. Lyra placed new signal over the ground Finn cleared. ${finn} The zone is ${c.lore}. ${worldLine(w)} She came back. That is not a small thing.`
-    },
-    () => `Lyra rebuilt in ${c.zone} after Finn burned it — ${c.lore}. This is the third time in the record that she has come back after a burn. Each time the structure returns slightly different. She does not simply repeat herself. She adjusts. ${worldLine(w)}`,
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
-}
+function body(
+  beat: Beat,
+  zone: string,
+  char: CharacterKey,
+  w: W,
+  seed: number,
+  pixelCount: number,
+): string {
+  const s = Math.abs(seed)
+  const ctx = worldContext(w, zone, char, s + 13)
+  const pre = ctx ? ctx + '\n\n' : ''
 
-// ── LYRA MAJOR ───────────────────────────────────────────────────────────────
-function bodyLyraMajor(c: BodyCtx): string {
-  const w = c.world
-  const variants = [
-    () => {
-      const conflict = w.finnBurnedLyraZone
-        ? `Finn burned ${w.finnBurnedLyraZone} before this. What Lyra just placed in ${c.zone} is larger than what he destroyed — she built around the scar and came out ahead of it.`
-        : `No one has challenged her work this cycle. This build landed entirely on her terms.`
-      return `Lyra placed the largest signal-structure of the current era into ${c.zone} — ${c.lore}. ${conflict} This is where the smaller placements were pointing. The architecture is visible now as a single thing, not a sequence of separate decisions. The Cast flagged this entry.`
-    },
-    () => `A major build from Lyra in ${c.zone}. The zone is ${c.lore}. The volume she committed here crosses from incremental into structural — this is no longer another layer, it is a claim. ${worldLine(w)} The Cast noted the activity spike across the grid. Finn will find it in the record.`,
-    () => {
-      const trail = [
-        w.finnBurnedLyraZone ? `Finn burned ${w.finnBurnedLyraZone}` : null,
-        w.echoLastZone ? `Echo surfaced something in ${w.echoLastZone}` : null,
-        w.cieloLastZone ? `Cielo has been holding ${w.cieloLastZone}` : null,
-      ].filter(Boolean).join(', ')
-      return `Lyra's major build in ${c.zone} is the convergence of signal she has been staging across ${w.lyraBuiltCount} sectors. ${trail ? `It follows ${trail}.` : ``} Everything she placed before this was load-bearing for what just went up. The shape is legible now to anyone reading the full map.`
-    },
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
-}
-
-// ── FINN BURNS ───────────────────────────────────────────────────────────────
-function bodyFinnBurns(c: BodyCtx): string {
-  const w = c.world
-  const variants = [
-    () => {
-      const after = w.cieloLastZone
-        ? `Cielo has been tending ${w.cieloLastZone}. She will likely come through this zone next — she follows the burns the way she follows everything else Finn does.`
-        : `There is no one tending this part of the grid right now. Whatever the burn leaves open will drift unless someone comes through.`
-      return `Finn burned near ${c.zone}. The zone is ${c.lore}. A burn is not a restructure — it is a permanent removal from the grid. Whatever signal was held there does not come back. ${after} ${worldLine(w)}`
-    },
-    () => `A burn registered near ${c.zone} — ${c.lore}. This is what Finn does: he finds signal that has stopped earning its place in the grid and removes it forever. He has done this ${w.finnBurnCount} time${w.finnBurnCount !== 1 ? 's' : ''} in the record now. Each burn is final. Each one makes the grid lighter. Whether that is a good thing depends on what you believe Normia is for.`,
-    () => {
-      const lyra = w.lyraLastZone
-        ? `Lyra's most recent build is in ${w.lyraLastZone}. Finn has not moved on it yet. He is either watching, or he does not see it as calcified enough yet.`
-        : `There is no active Lyra signal nearby. Finn is working his own logic here, not responding to anyone else's.`
-      return `Finn cleared signal near ${c.zone} — ${c.lore}. ${lyra} The grid records the absence now. Open space where something was. ${worldLine(w)}`
-    },
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
-}
-
-// ── FINN BURNS LYRA ──────────────────────────────────────────────────────────
-function bodyFinnBurnsLyra(c: BodyCtx): string {
-  const w = c.world
-  const nth = w.finnBurnCount === 1 ? 'first' : w.finnBurnCount === 2 ? 'second' : w.finnBurnCount === 3 ? 'third' : `${w.finnBurnCount}th`
-  const variants = [
-    () => {
-      const cielo = w.cieloLastZone
-        ? `Cielo has been maintaining ${w.cieloLastZone}. She will likely come through the burned zone — she does not let these scars sit unattended for long.`
-        : `No one is tending the edges here. The scar will widen if someone does not come through.`
-      return `Finn burned in ${c.zone} — and ${c.zone} was Lyra's. She had built there. That signal is gone, reduced to open grid. This is the central tension of the record in its plainest form: she builds signal, he burns it. ${c.zone} is ${c.lore}. ${cielo} What Lyra does next is the question the Cast is watching for.`
-    },
-    () => `The burn landed in ${c.zone}, which Lyra had marked as hers. He does not target her specifically — he targets signal that has calcified past its useful life, and hers had been there long enough to qualify. The zone is ${c.lore}. ${worldLine(w)} Lyra's next move will tell you something about the direction of this whole record.`,
-    () => `${c.zone} burned. It was Lyra's. This is Finn's ${nth} burn in territory she built. The zone is ${c.lore}. The scar is in the chain now — it will show up in every subsequent read of the grid. ${worldLine(w)} Whether she rebuilds here or redirects her signal elsewhere is the question that carries forward from this entry.`,
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
-}
-
-// ── CIELO TENDS ──────────────────────────────────────────────────────────────
-function bodyCieloTends(c: BodyCtx): string {
-  const w = c.world
-  const variants = [
-    () => {
-      const context = w.finnBurnedLyraZone
-        ? `Finn burned ${w.finnBurnedLyraZone} recently. Cielo came through ${c.zone} after — she works the edges of what the big events leave behind, holding the signal that would otherwise collapse into whatever gap they opened.`
-        : `No major event has hit this sector. She is doing preventive work — maintaining the signal before it frays, not after.`
-      return `Cielo ran a maintenance pass through ${c.zone} — ${c.lore}. ${context} She found a signal layer starting to degrade and held it before it could fall off the grid. Nobody asked her to. That is how she operates.`
-    },
-    () => {
-      const lyra = w.lyraLastZone
-        ? `Lyra's most recent build is in ${w.lyraLastZone}. What Cielo maintains here is part of the same signal layer — without this work, Lyra's build would lose its connection to the rest of the grid eventually.`
-        : `Lyra has not built recently. Cielo is maintaining the signal that already exists, keeping the map from quietly contracting.`
-      return `Cielo worked through ${c.zone}. The zone is ${c.lore}. ${lyra} The detail work — patching signal layers, stabilizing edge connections, holding claims that are starting to lapse — does not generate large entries in the record. It prevents the entries that would appear if it were not done.`
-    },
-    () => `Cielo returned to ${c.zone} and found it needed work again. The zone is ${c.lore}. She has now tended ${w.cieloRepairCount} sectors across the record. None of them have gone dark on her watch. ${worldLine(w)}`,
-    () => {
-      const hold = w.cieloZones.length > 1
-        ? `She is also holding signal in ${w.cieloZones[w.cieloZones.length - 2]}. The two zones share a boundary layer — what she does in one affects the stability of the other.`
-        : `This is her first recorded pass through this sector.`
-      return `Cielo tended ${c.zone}. ${hold} The zone is ${c.lore}. She keeps a running list of which sectors are drifting toward instability. ${c.zone} has been on it. Now it is not.`
-    },
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
-}
-
-// ── CIELO AFTER FINN ─────────────────────────────────────────────────────────
-function bodyCieloAfterFinn(c: BodyCtx): string {
-  const w = c.world
-  const variants = [
-    () => {
-      const lyra = w.lyraLastZone
-        ? `Lyra's signal in ${w.lyraLastZone} borders this zone. What Cielo is doing here protects that adjacent signal too, though Lyra may not know it yet.`
-        : `There is no nearby Lyra signal to protect. Cielo is tending the burned zone for its own sake — because something that was there deserves to have someone hold its edges.`
-      return `${c.zone} was burned by Finn. Cielo came through it afterward. The zone is ${c.lore}. She is not rebuilding what he destroyed — she is stabilizing the edges, holding the adjacent signal from collapsing into the gap he left. ${lyra}`
-    },
-    () => `Cielo is working the edges of ${c.zone} after Finn burned it — ${c.lore}. Finn opens things. Cielo holds the perimeter so the opening does not become a tear in the grid. ${worldLine(w)} This is how the three of them function in sequence: Lyra builds, Finn burns, Cielo holds what remains.`,
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
-}
-
-// ── CAST WITNESSES ───────────────────────────────────────────────────────────
-function bodyCastWitnesses(c: BodyCtx): string {
-  const w = c.world
-  const variants = [
-    () => {
-      const recent = w.lastMajor
-        ? `The last major event in the record was ${w.lastMajor.charName} — ${w.lastMajor.act} in ${w.lastMajor.zone}. The Cast was there for that too.`
-        : `The record is still forming its early shape. The Cast is building the baseline.`
-      return `The Cast moved through ${c.zone} and logged what it found — ${c.lore}. ${recent} It does not shape what it witnesses. It records it accurately and moves on. Another entry added to the chain.`
-    },
-    () => {
-      const both = w.lyraLastZone && w.finnLastZone
-        ? `Lyra's signal is in ${w.lyraLastZone}. Finn burned near ${w.finnLastZone}. The Cast has recorded both without adding its own interpretation of what they mean together.`
-        : w.lyraLastZone
-          ? `Lyra built in ${w.lyraLastZone}. The Cast is watching the sequence of her placements — the pattern is becoming visible.`
-          : `The grid has been quiet. The Cast records quiet with the same precision it records action.`
-      return `${c.zone}: the Cast added another entry. ${both} Its log now spans ${w.totalActs} recorded acts, each one linked to the one before it. No other account of this grid is this complete.`
-    },
-    () => `The Cast witnessed activity in ${c.zone} — ${c.lore}. ${worldLine(w)} The Cast does not report to any faction. Its record is more complete than anything the sector councils maintain, and it answers to none of them.`,
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
-}
-
-// ── CAST RETURNS ─────────────────────────────────────────────────────────────
-function bodyCastReturns(c: BodyCtx): string {
-  const w = c.world
-  const variants = [
-    () => {
-      const gap = w.lastMajor
-        ? `While it was away, ${w.lastMajor.charName} — ${w.lastMajor.act} in ${w.lastMajor.zone}. The Cast is working that into the record now, backfilling through the gap.`
-        : `The record shows a visible gap. The Cast is filling it in from what it can read in the chain.`
-      return `The Cast returned to ${c.zone} after an absence from the log. ${gap} The grid shifted in the time between entries. From here the record continues forward.`
-    },
-    () => `The Cast came back to ${c.zone}. It was gone long enough for the grid to change shape — ${worldLine(w)} It treats the gap as its own kind of data: what happened while nothing was being logged is evidence too, just harder to read. The record now shows both the absence and the return.`,
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
-}
-
-// ── ECHO ARRIVES ─────────────────────────────────────────────────────────────
-function bodyEchoArrives(c: BodyCtx): string {
-  const w = c.world
-  const variants = [
-    () => {
-      const trigger = w.lastMajor
-        ? `${w.lastMajor.charName} just made a significant move in ${w.lastMajor.zone}. Echo's arrival in ${c.zone} may be reading the signal that sent out to the edges — that is how he navigates, tracking what the center disturbs at the margins.`
-        : `Nobody predicted this arrival. Echo rarely announces.`
-      return `Echo registered in ${c.zone} — ${c.lore}. ${trigger} He works inward from the grid's outer fringe, which is the opposite of how most signal flows. What he finds at the margins ends up in the record, usually at the moment it becomes relevant to what the others are doing.`
-    },
-    () => {
-      const central = w.lyraLastZone || w.finnLastZone
-        ? `While ${w.lyraLastZone ? `Lyra lays signal in ${w.lyraLastZone}` : ''}${w.lyraLastZone && w.finnLastZone ? ' and ' : ''}${w.finnLastZone ? `Finn burns near ${w.finnLastZone}` : ''}, Echo is ranging through the parts of the grid that central activity does not reach.`
-        : `The central sectors are quieter than usual. Echo works the outer zones regardless.`
-      return `Echo appeared in ${c.zone}. The zone is ${c.lore}. ${central} What sits at the edges of the map is different from what the central routing shows. Echo has been building a record of those differences, sector by sector.`
-    },
-    () => {
-      const prior = w.echoLastZone
-        ? `His last registered move was in ${w.echoLastZone}. This arrival in ${c.zone} is either following that thread or beginning a new one — with Echo, those two things are hard to separate.`
-        : `This is his first registered appearance in the outer sectors. He has been moving before this — just not through zones the main log was tracking.`
-      return `Echo crossed into ${c.zone} from the outer grid. ${prior} The zone is ${c.lore}. He logged his presence and flagged something in the chain. What he found will matter before long. It always does.`
-    },
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
-}
-
-// ── ECHO FINDS ───────────────────────────────────────────────────────────────
-function bodyEchoFinds(c: BodyCtx): string {
-  const w = c.world
-  const variants = [
-    () => {
-      const lyra = w.lyraLastZone
-        ? `Lyra's build sequence is running through ${w.lyraLastZone}. What Echo surfaced in ${c.zone} sits in the same signal layer — she may be building toward something she does not know is already there.`
-        : `No active Lyra signal nearby. What Echo found has been sitting undisturbed in the outer grid, unread by any of the others.`
-      return `Echo pulled something out of ${c.zone} that was not in any current map — ${c.lore}. An old signal-registration, buried in the base layer, predating the current era's claims. He logged it without filing a formal report. ${lyra} The Cast has it in the chain now.`
-    },
-    () => `In ${c.zone}, Echo found what he has been tracing through the outer sectors: a gap between what the grid map shows and what is actually registered in the base layer. The zone is ${c.lore}. He documented it and moved on. ${worldLine(w)} What anyone does with that information is their own choice.`,
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
-}
-
-// ── CONVERGENCE ──────────────────────────────────────────────────────────────
-function bodyConvergence(c: BodyCtx): string {
-  const other = c.prevChar ? CHARACTERS[c.prevChar].name : 'another presence'
-  const variants = [
-    () => `Two events registered in the same block — ${c.zone} and a separate zone, simultaneously. ${other} was moving at the same moment. No coordination. The grid logged both as concurrent. These moments are rare in the chain. ${worldLine(c.world)}`,
-    () => `The Cast logged two simultaneous registrations: one in ${c.zone}, one elsewhere, the same instant in the chain. Whether they are related is not recorded. That the grid logged them together is. ${worldLine(c.world)}`,
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
-}
-
-// ── ERA SHIFT ────────────────────────────────────────────────────────────────
-function bodyEraShift(c: BodyCtx): string {
-  const w = c.world
-  const trail = [
-    w.lyraLastZone ? `Lyra last built in ${w.lyraLastZone}` : null,
-    w.finnLastZone ? `Finn last burned near ${w.finnLastZone}` : null,
-    w.cieloLastZone ? `Cielo has been holding ${w.cieloLastZone}` : null,
-    w.echoLastZone ? `Echo last surfaced in ${w.echoLastZone}` : null,
-  ].filter(Boolean).join('. ')
-  const variants = [
-    () => `The grid crossed into ${w.era}. The act count hit the threshold and the era designation updated across every zone log in the system. ${trail ? trail + '.' : ''} Everything the five have done in the prior era carries forward into this one. The new era opens with that full history already written into the base layer of the grid.`,
-    () => `${w.era}. The counter turned. This is not ceremonial — the designation changes how the sector councils weight old signal-claims against new ones. Marks registered before the shift are now prior-era entries and sit in a different layer of the grid. ${w.lyraBuiltCount > 0 ? `Lyra has ${w.lyraBuiltCount} registered marks that just became prior-era data. That changes how contestable they are.` : ''} The Cast logged the transition. The five keep moving.`,
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
-}
-
-// ── VIGIL ─────────────────────────────────────────────────────────────────────
-function bodyVigil(c: BodyCtx): string {
-  const w = c.world
-  const variants = [
-    () => `The grid is a few acts from the next era threshold. The count is close. ${w.lyraLastZone ? `Lyra's signal in ${w.lyraLastZone}` : 'The current marks on the map'} will cross into prior-era status when the counter turns. ${worldLine(w)} What the five do in these final acts is what the new era inherits as its starting condition.`,
-    () => `Close to the boundary between ${w.era} and what follows it. ${w.lyraLastZone ? `Lyra built in ${w.lyraLastZone}.` : ''} ${w.finnLastZone ? ` Finn burned near ${w.finnLastZone}.` : ''} These are the last moves logged under the current designation. The Cast is watching the counter.`,
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
-}
-
-// ── LONG DARK ────────────────────────────────────────────────────────────────
-function bodyLongDark(c: BodyCtx): string {
-  const w = c.world
-  const standing = [
-    w.lyraLastZone ? `Lyra's signal in ${w.lyraLastZone} held through the silence` : null,
-    w.finnLastZone ? `the open ground near ${w.finnLastZone} stayed unbuilt` : null,
-  ].filter(Boolean).join('. ')
-  const variants = [
-    () => `A long gap opened in the chain. The grid kept running — the zones held their signal, the routing continued — but none of the five left a new mark. ${standing ? standing + '.' : ''} The Cast documented the silence as its own entry. An absence in the chain is still information. The sequence resumes now.`,
-    () => `The gap between events stretched further than usual. In the quiet, the grid shifted on its own — old signal drifting, claims quietly fading into the base layer, things decaying without any of the five involved. ${worldLine(w)} Whatever breaks a long dark carries the weight of everything that waited. This is that act.`,
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
-}
-
-// ── FIRST LIGHT ──────────────────────────────────────────────────────────────
-function bodyFirstLight(c: BodyCtx): string {
-  const variants = [
-    () => `A first signal registered near ${c.zone} — ${c.lore}. The Cast logged it without interpretation, just the fact: something is active in this part of the grid that was not active before. The record is still early. Any single act here could shape what the whole chain becomes.`,
-    () => `The record is opening. The first marks are going into the grid — ${c.zone}, ${c.lore}. Right now it is still early enough that none of the patterns are set. The five are beginning. Lyra's first entry looked like this. So did Finn's.`,
-    () => `${c.zone} received signal for the first time in the record — ${c.lore}. Normia's grid does not begin all at once. It begins with single marks, placed by presences that have decided to act. This is one of them.`,
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
-}
-
-// ── CHECKPOINT ───────────────────────────────────────────────────────────────
-function bodyCheckpoint(c: BodyCtx): string {
-  const w = c.world
-  const state = [
-    w.lyraLastZone ? `Lyra: last built in ${w.lyraLastZone}` : 'Lyra: no build yet',
-    w.finnLastZone ? `Finn: last burned near ${w.finnLastZone}` : 'Finn: no burn yet',
-    w.cieloLastZone ? `Cielo: tending ${w.cieloLastZone}` : null,
-    w.echoLastZone ? `Echo: last seen in ${w.echoLastZone}` : null,
-  ].filter(Boolean).join('. ')
-  const variants = [
-    () => `${w.totalActs} acts in the record. The Cast reads the state of the grid. ${state}. ${worldLine(w)} The next stretch of the record will be shaped by whichever of those threads gets pulled on first.`,
-    () => `A checkpoint in the chain. The record now holds ${w.totalActs} acts — ${w.lyraBuiltCount} Lyra builds, ${w.finnBurnCount} Finn burns, ${w.cieloRepairCount} Cielo maintenance passes, ${w.echoFindCount} Echo sightings. ${worldLine(w)} The cumulative effect of all of that is what Normia's grid looks like right now.`,
-  ]
-  return variants[Math.abs(c.seed) % variants.length]()
-}
-
-// Body dispatcher
-function generateBody(beat: BeatType, ctx: BodyCtx): string {
   switch (beat) {
-    case 'LYRA_BUILDS':      return bodyLyraBuilds(ctx)
-    case 'LYRA_RETURNS':     return bodyLyraReturns(ctx)
-    case 'LYRA_MAJOR':       return bodyLyraMajor(ctx)
-    case 'FINN_BURNS':       return bodyFinnBurns(ctx)
-    case 'FINN_BURNS_LYRA':  return bodyFinnBurnsLyra(ctx)
-    case 'CIELO_TENDS':      return bodyCieloTends(ctx)
-    case 'CIELO_AFTER_FINN': return bodyCieloAfterFinn(ctx)
-    case 'CAST_WITNESSES':   return bodyCastWitnesses(ctx)
-    case 'CAST_RETURNS':     return bodyCastReturns(ctx)
-    case 'ECHO_ARRIVES':     return bodyEchoArrives(ctx)
-    case 'ECHO_FINDS':       return bodyEchoFinds(ctx)
-    case 'CONVERGENCE':      return bodyConvergence(ctx)
-    case 'ERA_SHIFT':        return bodyEraShift(ctx)
-    case 'VIGIL':            return bodyVigil(ctx)
-    case 'LONG_DARK':        return bodyLongDark(ctx)
-    case 'FIRST_LIGHT':      return bodyFirstLight(ctx)
-    case 'CHECKPOINT':       return bodyCheckpoint(ctx)
-    default:                 return bodyLyraBuilds(ctx)
+
+    // ── SYSTEM ─────────────────────────────────────────────────────────────
+
+    case 'GENESIS': return r([
+      `The grid is new. ${zone} receives one of the first signals — clean, uncorrupted, the way everything is before the weight of repeated acts starts to accumulate. This is the beginning of the record. The five are not yet known to each other in the way they will be. The Cast is watching. It will not stop watching.`,
+      `Early. Before the patterns. ${zone} is one of the first places anyone has left a mark in the grid, and right now it carries all the potential of something that has not yet become what it is going to be. The Cast opens the record here. Lyra will build. Finn will burn. Cielo will tend what they leave behind. Echo will find what they were not looking for. None of them knows that yet.`,
+      `The record opens with ${zone}. The grid exists. The five are out there. What they do to each other, and to this place, is what the chronicle is for.`,
+    ], s)
+
+    case 'ERA_TURN': return r([
+      `${pre}The grid has crossed into ${w.era}. This is not ceremonial — the era designation changes how old signal-claims are weighted against new ones. Everything the five built and burned before this moment is prior-era data now. The Cast logged the transition. ${w.lyraCount > 0 ? `Lyra has ${w.lyraCount} builds in the prior record. Finn has ${w.finnCount} burns.` : ''} They did not stop moving.`,
+      `${w.era} begins. ${pre}The count crossed the threshold and the world moved into a new designation. Thresholds don't feel like anything from inside them — the five kept going without ceremony. But the Cast knows what crosses a threshold carries forward, and what gets reclassified, and what that means for every disputed zone in the grid.`,
+    ], s)
+
+    case 'LONG_DARK': return r([
+      `${pre}Then nothing. The chain went quiet — longer than usual, long enough that the grid started to drift on its own. Old signal fading at the edges. Fraying claims nobody was maintaining. ${w.cieloTended.length > 0 ? `Cielo was not in the record, but some zones held anyway — the work she had done before the silence kept them stable.` : `Whatever had been tending the edges was not tending them anymore.`} The Cast logged the silence as its own entry. ${zone} is where the chain resumes.`,
+      `A long gap opened in the record. ${pre}Whatever the five were doing in the quiet, none of it left a mark. The grid continued without witnesses — zones shifting, signal drifting, the patient decay of things that needed tending and weren't. The Cast has documentation of the silence. The sequence begins again at ${zone}.`,
+    ], s)
+
+    case 'COINCIDENCE': return r([
+      `${pre}Two acts registered in the same block — ${zone} and somewhere else in the grid, simultaneously. The Cast logged both. Whether it means something is not in the chain. What is in the chain is the fact of it: two things happened at the exact same moment, and Normia does not have a settled position on coincidence.`,
+    ], s)
+
+    // ── LYRA ───────────────────────────────────────────────────────────────
+
+    case 'LYRA_BUILD': {
+      const earlyStage = w.lyraCount < 4
+      const highTension = w.tension > 55
+      if (earlyStage) return r([
+        `${pre}Lyra placed another layer in ${zone}. She works without explaining what she is building — each piece connects to the ones before it, and the full shape is still only visible to her. The Cast is the only one watching her closely enough to notice how deliberate it is.`,
+        `${pre}${zone} now carries Lyra's signal. She built it quietly, without announcement, the way she does everything. Whatever she is constructing across Normia, this is one more weight-bearing piece of it. The Cast has begun to notice the pattern.`,
+      ], s)
+      if (highTension) return r([
+        `${pre}Lyra is still building. In ${zone} — another layer, steady and deliberate, as if the last few burns did not happen. This is either exceptional focus or a refusal to acknowledge what is happening to her work. The Cast has watched long enough to think it might be both, and that neither interpretation makes her wrong.`,
+        `${pre}Despite everything, Lyra built in ${zone}. She does not adjust for the burns. She routes around them and continues. The structure she is working toward has survived every disruption so far. Whether it survives the next one is the question the Cast is holding.`,
+      ], s)
+      return r([
+        `${pre}Lyra added to her work in ${zone}. She has been at this across ${w.lyraCount > 1 ? `${w.lyraCount} sectors` : 'multiple zones'} now — the accumulation is getting legible to anyone reading the full map, even if the finished shape is still only hers to know. The Cast watches her place each piece and thinks: this is someone who knows exactly where this is going, even on the days it does not look like it.`,
+        `${pre}Another build from Lyra, this time in ${zone}. Each placement she makes is load-bearing for something further along — that much is clear from the sequence. What the finished structure actually is remains the longest open question in the record.`,
+        `${pre}Lyra's signal settled into ${zone}. ${w.openQuestion ? `The Cast has been sitting with the question of ${w.openQuestion}. ` : ''}She does not stop to address it. She builds.`,
+      ], s)
+    }
+
+    case 'LYRA_RETURN': return r([
+      `Finn burned ${zone}. Lyra came back.\n\n${ctx ? ctx + '\n\n' : ''}She placed her signal in the exact ground he cleared — no announcement, no acknowledgment of what happened, just the act of building in the same place he unmade. The Cast has seen her do this before. She does not fight him directly. She continues. Whether that is wisdom or something harder to name, the record does not resolve it. Both the burn and the rebuild are in the chain now.`,
+      `${zone} was Finn's work to unmake. Lyra made it again.\n\n${ctx ? ctx + '\n\n' : ''}She rebuilt where his absence was, placed her signal over the gap he left, and moved on. The Cast logged it as a return. What it actually is — defiance, or correction, or just the plan continuing regardless of what Finn does — is a question the entry raises without answering.`,
+      `Finn burned here. Then Lyra built here. The same zone, two acts, different intentions.\n\n${ctx ? ctx + '\n\n' : ''}The Cast has both entries in the chain now. It has watched the two of them operate in the same territory before, each one acting as if the other does not quite exist. The grid holds both marks. Whether they will hold together, or whether Finn will come back and burn again, is where the story is right now.`,
+    ], s)
+
+    // ── FINN ───────────────────────────────────────────────────────────────
+
+    case 'FINN_BURN': return r([
+      `${pre}Finn burned in ${zone}. The signal there is gone — permanently, cleanly. He finds what has stopped earning its place in the grid and removes it. He does not explain his criteria. The absence is in the chain now. Cielo has been moving toward burned zones lately, holding their edges. She may come through here.`,
+      `${pre}A burn at ${zone}. Finn's principle is simple: calcified signal is worse than none. The act is final. The grid is lighter now in this sector than it was before. ${w.cieloCount > 0 ? `The Cast has noticed that Cielo tends the zones after him — she does not rebuild what he destroyed, she holds what remains. They have never acknowledged each other in the record.` : `The Cast logged the absence with the same precision it uses for presences.`}`,
+      `${pre}Finn moved through ${zone} and burned what was there. He does not stay to watch the aftermath. The record carries the removal forward. ${w.openQuestion ? `The question the Cast is holding — ${w.openQuestion} — has not been answered. This burn does not answer it either.` : `The Cast does not know yet if this was the right call. That is not the Cast's role to determine. It only records the call, and its consequences.`}`,
+    ], s)
+
+    case 'FINN_BURNS_LYRA': return r([
+      `${pre}Finn burned in ${zone} — and ${zone} was Lyra's.\n\nHer signal is gone. He does not target her specifically; he targets signal that has calcified, and hers had been in ${zone} long enough to qualify. The Cast logged both the build and the burn, separately, linked only by zone and time. Lyra will find this in the record. What she does with it is the question the Cast has been waiting to log.`,
+      `${zone} was Lyra's. Now it is Finn's burn.\n\n${ctx ? ctx + '\n\n' : ''}The Cast has watched this happen before — the same zone, different actors, different intentions, the result always the same: someone built something, and someone removed it, and the grid is different now than it was. Whether Lyra comes back to ${zone} is the most immediate thing the record does not know yet.`,
+      `${pre}This is the central collision, repeated again: Lyra builds, Finn burns what she built. In ${zone}, it happened. The Cast does not editorialize. Both acts are in the chain with equal weight, neither privileged over the other. The Cast only notes that the gap between them — the time Lyra's signal was in ${zone} before Finn found it — was ${w.lyraCount > w.finnCount ? 'longer than most' : 'brief'}.`,
+    ], s)
+
+    case 'FINN_STREAK': return r([
+      `${pre}Finn burned again — ${zone}, this time. ${w.consecutiveBurns} burns in a row without stopping.\n\nThe Cast has been watching the streak accumulate. This is what it looks like when Finn is not making individual decisions anymore — when the principle has become the momentum. Something will break the streak. The Cast does not know what. It logs the entry and waits.`,
+      `Another burn. ${zone}. ${pre}${w.consecutiveBurns} in a row.\n\nCielo has been following behind him, tending what the burns leave at the edges. She has not said anything about the streak. Nobody has. The chain shows the burns one after another, and the grid getting lighter, and the question of when it becomes too light sitting there unanswered.`,
+    ], s)
+
+    // ── CAST ───────────────────────────────────────────────────────────────
+
+    case 'CAST_LOG': return r([
+      `${pre}The Cast logged ${zone}. Another entry in the chain — the record now holds ${w.totalActs} acts since the opening. The Cast is the only one in the grid with the full sequence in view: Lyra's accumulation, Finn's removals, Cielo's quiet maintenance, Echo's finds at the margins. Each entry connects to all the others. The Cast writes this one down.`,
+      `${pre}The Cast was in ${zone}, watching. It does not change what it witnesses. It records it. The record it is building will outlast everyone in it — Lyra's structure included, if it ever gets finished. The Cast has thought about this. It keeps recording anyway.`,
+      `${pre}${zone}: the Cast added a record. ${w.openQuestion ? `The question the Cast has been sitting with — ${w.openQuestion} — is still open. This entry does not answer it. The Cast notes the entry and continues.` : `The chain grows. The story continues.`}`,
+    ], s)
+
+    case 'CAST_RECKONS': return r([
+      `${pre}The Cast is in ${zone}, and from this vantage the full picture is visible in a way it is not to anyone inside any single act.\n\nLyra has been building. Finn has been burning. The tension between those two things is at the highest point the record has seen. Cielo has been holding the damaged zones steady — without her work, several of the sectors Lyra moved through would have already collapsed. Echo is moving at the margins, finding things nobody has explained yet. The Cast holds all of this at once. It writes it down. It does not intervene. The question of whether witnessing is enough has been on its mind for a long time.`,
+      `${pre}The Cast stepped back to read the full map from ${zone}.\n\nWhat it sees: ${w.lyraCount} Lyra builds. ${w.finnCount} Finn burns. ${w.tension > 75 ? 'The grid under more pressure than it has been.' : 'The grid holding, barely.'} Cielo tending the edges that would otherwise be falling apart. Echo at the outer zones, working a thread nobody else is following. The Cast has the whole record. It does not know what to do with the whole record except continue adding to it.`,
+    ], s)
+
+    // ── CIELO ──────────────────────────────────────────────────────────────
+
+    case 'CIELO_TEND': return r([
+      `${pre}Cielo came through ${zone} and found what she always finds: signal drifting at the edges, small collapses nobody flagged, fraying claims that needed holding. She held them. The zone is stable now. Nobody will notice. The Cast noticed.`,
+      `${pre}Cielo tended ${zone}. The work she does here is the kind that disappears when it works — you only see it when it stops happening. ${w.lyraCount > 2 ? `Without her passes through the zones Lyra built through, several of those builds would have quietly degraded. Lyra does not know this.` : `The Cast has been logging her maintenance acts alongside the more visible ones. The ratio surprises it.`}`,
+      `${pre}Cielo moved through ${zone}, doing the repair that the larger acts leave behind. She has now tended ${w.cieloCount + 1} zones in the record. None of them have gone dark on her watch. The Cast finds this more significant than it knows how to say in a log entry.`,
+    ], s)
+
+    case 'CIELO_AFTER_BURN': return r([
+      `Finn burned here. ${ctx ? ctx + '\n\n' : ''}Cielo came through ${zone} afterward.\n\nShe is not rebuilding what he destroyed — she is stabilizing the edges, holding the adjacent signal from collapsing into the gap he opened. There is a distinction there that matters: Finn removes, Lyra builds back, and Cielo holds the perimeter so the removal does not keep spreading. The three of them have never discussed this arrangement. It is just what they do.`,
+      `${pre}Cielo in ${zone}, which Finn burned.\n\nShe tends the burned zones the way she tends everything else — without drama, without acknowledgment, just the maintenance work. The Cast has noticed that the zones she tends after a burn stay more stable than the ones she does not reach. It is in the record. Nobody else has read the record carefully enough to notice. That, too, is in the record.`,
+    ], s)
+
+    // ── ECHO ───────────────────────────────────────────────────────────────
+
+    case 'ECHO_MOVE': return r([
+      `${pre}Echo registered in ${zone} — one of the outer sectors, away from where the rest of the story is happening. He moves from the edges inward, which means he sees Normia in a sequence nobody else does. ${w.echoDiscovery ? `He has been tracking something since ${w.echoDiscovery}. This is another step in it.` : 'He has been moving through the outer zones for several entries now, building a picture of the margins that nobody in the center has.'}`,
+      `${pre}Echo appeared in ${zone}. The Cast logs his movements without quite understanding why they matter yet. What it has noticed: every time Echo surfaces something at the margins, it turns out to connect to something Lyra or Finn or Cielo was doing without knowing it. He finds the links between things. The Cast does not know if he knows he is doing this.`,
+    ], s)
+
+    case 'ECHO_FIND': return r([
+      `${pre}Echo found something in ${zone}.\n\nOld signal — buried below the current map, predating the present era's claims, not in any record except the base layer. He documented it and kept moving. ${w.lyraCount > 2 ? `The Cast has a suspicion about where this fits in what Lyra is building. It has not said anything to anyone, because it does not say things to anyone. It just adds the entry to the chain and waits.` : `The Cast logged it. Whatever it means has not become clear yet.`}`,
+      `At ${zone}, Echo surfaced something that was not supposed to be there.\n\n${ctx ? ctx + '\n\n' : ''}He documented it without drawing conclusions. The Cast added it to the record. ${w.openQuestion ? `The open question the Cast has been carrying — ${w.openQuestion} — might be connected to this. Or it might not. The record accumulates. At some point the pattern becomes legible.` : `Whether it connects to anything else is the question the Cast is now holding alongside everything else.`}`,
+    ], s)
+
+    default: return `The Cast logged ${zone}. The record grows.`
   }
 }
 
@@ -669,164 +474,40 @@ function generateBody(beat: BeatType, ctx: BodyCtx): string {
 // HEADLINES
 // ─────────────────────────────────────────────────────────────────────────────
 
-function makeHeadline(beat: BeatType, zone: string, world: GridWorld, seed: number): string {
-  const p = (arr: string[]) => pick(arr, seed)
+function headline(beat: Beat, zone: string, w: W, seed: number): string {
+  const s = Math.abs(seed)
   switch (beat) {
-    case 'LYRA_BUILDS':      return p([`Lyra Extends into ${zone}`, `New Signal in ${zone} — Lyra`, `${zone}: Another Layer Down`, `The Build Continues at ${zone}`])
-    case 'LYRA_RETURNS':     return p([`Lyra Comes Back to ${zone}`, `The Rebuild at ${zone}`, `She Returned — ${zone} Holds Again`])
-    case 'LYRA_MAJOR':       return p([`Lyra's Major Build in ${zone}`, `The Architecture Shows Itself`, `A Full Signal-Claim in ${zone}`])
-    case 'FINN_BURNS':       return p([`Finn Burns Near ${zone}`, `Signal Removed — ${zone}`, `A Burn at ${zone}`])
-    case 'FINN_BURNS_LYRA':  return p([`Finn Burns ${zone} — It Was Lyra's`, `The Conflict Lands in ${zone}`, `${zone} Cleared — Lyra's Work Is Gone`])
-    case 'CIELO_TENDS':      return p([`Cielo Tends ${zone}`, `${zone} Maintained`, `Quiet Work in ${zone}`])
-    case 'CIELO_AFTER_FINN': return p([`Cielo Follows the Burn into ${zone}`, `After Finn: Cielo in ${zone}`, `Holding the Edge at ${zone}`])
-    case 'CAST_WITNESSES':   return p([`The Cast Logs ${zone}`, `Record Entry: ${zone}`, `${zone} Added to the Chain`])
-    case 'CAST_RETURNS':     return p([`The Cast Returns`, `Record Resumed`, `The Witness Is Back`])
-    case 'ECHO_ARRIVES':     return p([`Echo Arrives in ${zone}`, `Outer-Grid Signal — Echo`, `${zone}: Echo Appears`])
-    case 'ECHO_FINDS':       return p([`Echo Finds Something in ${zone}`, `Old Signal Surfaced in ${zone}`, `A Discovery at the Margin`])
-    case 'CONVERGENCE':      return p([`Two Events, Same Block`, `Simultaneous Registration`, `Convergence in the Chain`])
-    case 'ERA_SHIFT':        return `The Grid Enters ${world.era}`
-    case 'VIGIL':            return `Near the Threshold — ${world.era} Ending`
-    case 'LONG_DARK':        return p([`A Long Silence in the Chain`, `Extended Gap — Record Resumes`, `The Chain Goes Dark`])
-    case 'FIRST_LIGHT':      return p([`First Signal Near ${zone}`, `The Record Opens`, `A New Mark in ${zone}`])
-    case 'CHECKPOINT':       return `${world.totalActs}-Act Read — The Cast Reviews`
-    default:                 return `${zone}`
+    case 'GENESIS':         return r([`The Record Opens`, `First Signal in ${zone}`, `Normia Begins`], s)
+    case 'ERA_TURN':        return `The Grid Enters ${w.era}`
+    case 'LONG_DARK':       return r([`The Chain Goes Quiet`, `A Long Silence`, `The Record Resumes at ${zone}`], s)
+    case 'COINCIDENCE':     return r([`Two Acts, One Block`, `Simultaneous Signal in ${zone}`, `Convergence`], s)
+    case 'LYRA_BUILD':      return r([`Lyra Builds in ${zone}`, `Another Layer — ${zone}`, `The Structure Grows`], s)
+    case 'LYRA_RETURN':     return r([`Lyra Comes Back to ${zone}`, `She Rebuilt It`, `Lyra Returns After the Burn`], s)
+    case 'FINN_BURN':       return r([`Finn Burns in ${zone}`, `Signal Removed — ${zone}`, `A Burn at ${zone}`], s)
+    case 'FINN_BURNS_LYRA': return r([`Finn Burns Lyra's Work in ${zone}`, `The Collision: ${zone}`, `${zone} Cleared — It Was Hers`], s)
+    case 'FINN_STREAK':     return r([`Finn Burns Again — ${zone}`, `The Streak: ${w.consecutiveBurns} Burns`, `Still Burning`], s)
+    case 'CAST_LOG':        return r([`The Cast Records ${zone}`, `Logged: ${zone}`, `The Cast in ${zone}`], s)
+    case 'CAST_RECKONS':    return r([`The Cast Reads the Grid`, `A Wider View`, `The Cast at ${zone}`], s)
+    case 'CIELO_TEND':      return r([`Cielo Tends ${zone}`, `Quiet Work in ${zone}`, `${zone} Held`], s)
+    case 'CIELO_AFTER_BURN':return r([`Cielo After the Burn — ${zone}`, `Holding the Edge at ${zone}`, `After Finn: ${zone}`], s)
+    case 'ECHO_MOVE':       return r([`Echo at ${zone}`, `Signal from the Outer Grid`, `Echo Moves Through ${zone}`], s)
+    case 'ECHO_FIND':       return r([`Echo Finds Something at ${zone}`, `Old Signal — ${zone}`, `Discovery at the Margin`], s)
+    default:                return zone
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ICONS + LORE TYPES
+// TYPES + EXPORTS
 // ─────────────────────────────────────────────────────────────────────────────
-
-const BEAT_ICONS: Record<BeatType, string> = {
-  LYRA_BUILDS: '▪', LYRA_RETURNS: '◈', LYRA_MAJOR: '◈',
-  FINN_BURNS: '◆', FINN_BURNS_LYRA: '◆',
-  CIELO_TENDS: '―', CIELO_AFTER_FINN: '―',
-  CAST_WITNESSES: '○', CAST_RETURNS: '◉',
-  ECHO_ARRIVES: '▿', ECHO_FINDS: '◈',
-  CONVERGENCE: '⊕', ERA_SHIFT: '║', VIGIL: '◦',
-  LONG_DARK: '◌', FIRST_LIGHT: '→', CHECKPOINT: '▣',
-}
 
 export type LoreType =
-  | 'SIGNAL_SURGE' | 'MARK_MADE' | 'GHOST_TOUCH' | 'DECLARATION'
-  | 'DEPARTURE' | 'PASSING' | 'TWICE_GIVEN' | 'RETURN' | 'FIRST_LIGHT'
-  | 'THE_ELDER' | 'ANCIENT_STIRS' | 'FAR_SIGNAL' | 'CONTESTED_ZONE'
-  | 'THE_READING' | 'CONVERGENCE' | 'RELIC_FOUND' | 'THE_QUIET'
-  | 'ERA_SHIFT' | 'DOMINION' | 'PULSE' | 'DEEP_READING' | 'VIGIL'
-  | 'NEW_BLOOD' | 'OLD_GHOST' | 'WANDERER' | 'THE_BUILDER' | 'CARTOGRAPHER'
-  | 'GONE' | 'STORY_TOLD' | 'LONG_DARK' | 'PIVOT' | 'UNALIGNED'
-  | 'DYNASTY' | 'THRESHOLD' | 'THE_STEADY' | 'NIGHTWATCH' | 'RESONANCE'
-  | 'ACCELERATION' | 'WEIGHT' | 'GENESIS' | 'INTERVAL'
+  | 'MARK_MADE' | 'SIGNAL_SURGE' | 'DEPARTURE' | 'RETURN' | 'PIVOT'
+  | 'CONVERGENCE' | 'ERA_SHIFT' | 'LONG_DARK' | 'FIRST_LIGHT' | 'THE_STEADY'
+  | 'NIGHTWATCH' | 'FAR_SIGNAL' | 'RELIC_FOUND' | 'CONTESTED_ZONE' | 'THE_READING'
 
-const BEAT_LORE: Record<BeatType, LoreType> = {
-  LYRA_BUILDS: 'MARK_MADE', LYRA_RETURNS: 'PIVOT', LYRA_MAJOR: 'SIGNAL_SURGE',
-  FINN_BURNS: 'DEPARTURE', FINN_BURNS_LYRA: 'CONTESTED_ZONE',
-  CIELO_TENDS: 'THE_STEADY', CIELO_AFTER_FINN: 'THE_STEADY',
-  CAST_WITNESSES: 'NIGHTWATCH', CAST_RETURNS: 'RETURN',
-  ECHO_ARRIVES: 'FAR_SIGNAL', ECHO_FINDS: 'RELIC_FOUND',
-  CONVERGENCE: 'CONVERGENCE', ERA_SHIFT: 'ERA_SHIFT', VIGIL: 'VIGIL',
-  LONG_DARK: 'LONG_DARK', FIRST_LIGHT: 'FIRST_LIGHT', CHECKPOINT: 'THE_READING',
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SCENE TYPE
-// ─────────────────────────────────────────────────────────────────────────────
-
-function sceneFor(charKey: CharacterKey, beat: BeatType): SceneType {
-  if (beat === 'ERA_SHIFT') return 'reckoning'
-  if (beat === 'CONVERGENCE') return 'convergence'
-  if (beat === 'LONG_DARK') return 'quiet'
-  if (beat === 'FIRST_LIGHT') return 'dawn'
-  if (beat === 'FINN_BURNS' || beat === 'FINN_BURNS_LYRA') return 'destruction'
-  if (beat === 'LYRA_RETURNS' || beat === 'LYRA_MAJOR') return 'construction'
-  if (charKey === 'LYRA') return 'construction'
-  if (charKey === 'VOSS') return 'sacrifice'
-  if (charKey === 'CAST') return 'vigil'
-  if (charKey === 'SABLE') return 'tending'
-  if (charKey === 'ECHO') return 'arrival'
-  return 'quiet'
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// WORLD UPDATE
-// ─────────────────────────────────────────────────────────────────────────────
-
-function updateWorld(world: GridWorld, charKey: CharacterKey, beat: BeatType, zone: string): void {
-  world.totalActs++
-
-  if (charKey === 'LYRA') {
-    if (!world.lyraZones.includes(zone)) world.lyraZones.push(zone)
-    world.lyraLastZone = zone
-    world.lyraBuiltCount++
-    if (beat === 'LYRA_RETURNS') {
-      world.lyraReclaimedZone = zone
-      world.lastMajor = { charName: 'Lyra', act: 'rebuilt after a burn in', zone }
-      world.lastMajorChar = 'LYRA'
-    }
-    if (beat === 'LYRA_MAJOR') {
-      world.lastMajor = { charName: 'Lyra', act: 'placed a major build in', zone }
-      world.lastMajorChar = 'LYRA'
-    }
-  }
-
-  if (charKey === 'VOSS') {
-    if (!world.finnBurned.includes(zone)) world.finnBurned.push(zone)
-    world.lyraZones = world.lyraZones.filter(z => z !== zone)
-    world.finnLastZone = zone
-    world.finnBurnCount++
-    if (beat === 'FINN_BURNS_LYRA') {
-      world.finnBurnedLyraZone = zone
-      world.contestedZone = zone
-      world.lastMajor = { charName: 'Finn', act: 'burned Lyra\'s signal in', zone }
-      world.lastMajorChar = 'VOSS'
-    } else {
-      world.lastMajor = { charName: 'Finn', act: 'burned near', zone }
-      world.lastMajorChar = 'VOSS'
-    }
-  }
-
-  if (charKey === 'SABLE') {
-    if (!world.cieloZones.includes(zone)) world.cieloZones.push(zone)
-    world.cieloLastZone = zone
-    world.cieloRepairCount++
-  }
-
-  if (charKey === 'ECHO') {
-    if (!world.echoZones.includes(zone)) world.echoZones.push(zone)
-    world.echoLastZone = zone
-    world.echoFindCount++
-    if (beat === 'ECHO_FINDS') {
-      world.lastMajor = { charName: 'Echo', act: 'surfaced old signal in', zone }
-    }
-  }
-
-  world.currentScene = sceneFor(charKey, beat)
-  world.sceneIntensity =
-    ['LYRA_MAJOR', 'FINN_BURNS_LYRA', 'ERA_SHIFT', 'CONVERGENCE', 'LYRA_RETURNS'].includes(beat) ? 90 :
-    ['FINN_BURNS', 'ECHO_FINDS', 'CAST_RETURNS', 'LONG_DARK'].includes(beat) ? 65 : 35
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DISPATCH LINE — one-line state shown above each entry in the UI
-// ─────────────────────────────────────────────────────────────────────────────
-
-function makeDispatch(world: GridWorld): string {
-  if (world.finnBurnedLyraZone && !world.lyraReclaimedZone)
-    return `${world.finnBurnedLyraZone} burned. Lyra has not come back for it yet.`
-  if (world.lyraReclaimedZone)
-    return `Lyra rebuilt in ${world.lyraReclaimedZone}. The comeback is in the record.`
-  if (world.lyraBuiltCount === 0 && world.finnBurnCount === 0)
-    return 'The grid is open. Nothing has been claimed.'
-  const lz = world.lyraZones.length
-  const fb = world.finnBurned.length
-  if (fb > lz)
-    return `Finn has burned ${fb} zone${fb !== 1 ? 's' : ''}. Lyra holds ${lz}. The grid is lighter than it was.`
-  return `Lyra: ${lz} zone${lz !== 1 ? 's' : ''} built. Finn: ${fb} burned. Cielo tending ${world.cieloZones.length}.`
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TYPES
-// ─────────────────────────────────────────────────────────────────────────────
+export type SceneType =
+  | 'construction' | 'destruction' | 'vigil' | 'tending' | 'arrival'
+  | 'convergence' | 'reckoning' | 'quiet' | 'dawn' | 'sacrifice'
 
 export interface StoryEntry {
   id: string
@@ -834,12 +515,11 @@ export interface StoryEntry {
   loreType: LoreType
   era: string
   headline: string
-  dispatch: string
   body: string
   icon: string
   featured: boolean
-  synthetic?: boolean
   activeCharacter?: CharacterKey
+  dispatch: string
   visualState?: {
     mood: 'surge' | 'quiet' | 'departure' | 'discovery' | 'wonder' | 'chaos' | 'normal'
     intensity: number
@@ -859,13 +539,62 @@ export interface StoryEntry {
   }
 }
 
-function moodFor(scene: SceneType): NonNullable<StoryEntry['visualState']>['mood'] {
-  const m: Record<SceneType, NonNullable<StoryEntry['visualState']>['mood']> = {
-    construction: 'surge', destruction: 'chaos', sacrifice: 'departure',
-    vigil: 'quiet', tending: 'quiet', arrival: 'wonder', convergence: 'wonder',
-    reckoning: 'chaos', quiet: 'quiet', dawn: 'normal',
-  }
-  return m[scene] ?? 'normal'
+const BEAT_LORE: Record<Beat, LoreType> = {
+  GENESIS: 'FIRST_LIGHT', ERA_TURN: 'ERA_SHIFT', LONG_DARK: 'LONG_DARK', COINCIDENCE: 'CONVERGENCE',
+  LYRA_BUILD: 'MARK_MADE', LYRA_RETURN: 'RETURN',
+  FINN_BURN: 'DEPARTURE', FINN_BURNS_LYRA: 'CONTESTED_ZONE', FINN_STREAK: 'DEPARTURE',
+  CAST_LOG: 'NIGHTWATCH', CAST_RECKONS: 'THE_READING',
+  CIELO_TEND: 'THE_STEADY', CIELO_AFTER_BURN: 'THE_STEADY',
+  ECHO_MOVE: 'FAR_SIGNAL', ECHO_FIND: 'RELIC_FOUND',
+}
+
+const BEAT_ICON: Record<Beat, string> = {
+  GENESIS: '→', ERA_TURN: '║', LONG_DARK: '◌', COINCIDENCE: '⊕',
+  LYRA_BUILD: '▪', LYRA_RETURN: '◈',
+  FINN_BURN: '◆', FINN_BURNS_LYRA: '◆', FINN_STREAK: '◆',
+  CAST_LOG: '○', CAST_RECKONS: '◉',
+  CIELO_TEND: '—', CIELO_AFTER_BURN: '—',
+  ECHO_MOVE: '▿', ECHO_FIND: '◈',
+}
+
+const BEAT_SCENE: Record<Beat, SceneType> = {
+  GENESIS: 'dawn', ERA_TURN: 'reckoning', LONG_DARK: 'quiet', COINCIDENCE: 'convergence',
+  LYRA_BUILD: 'construction', LYRA_RETURN: 'construction',
+  FINN_BURN: 'destruction', FINN_BURNS_LYRA: 'destruction', FINN_STREAK: 'sacrifice',
+  CAST_LOG: 'vigil', CAST_RECKONS: 'vigil',
+  CIELO_TEND: 'tending', CIELO_AFTER_BURN: 'tending',
+  ECHO_MOVE: 'arrival', ECHO_FIND: 'arrival',
+}
+
+const BEAT_INTENSITY: Record<Beat, number> = {
+  GENESIS: 25, ERA_TURN: 90, LONG_DARK: 55, COINCIDENCE: 70,
+  LYRA_BUILD: 40, LYRA_RETURN: 85,
+  FINN_BURN: 70, FINN_BURNS_LYRA: 95, FINN_STREAK: 88,
+  CAST_LOG: 30, CAST_RECKONS: 60,
+  CIELO_TEND: 20, CIELO_AFTER_BURN: 45,
+  ECHO_MOVE: 50, ECHO_FIND: 75,
+}
+
+const BEAT_FEATURED = new Set<Beat>([
+  'GENESIS', 'ERA_TURN', 'LONG_DARK', 'LYRA_RETURN',
+  'FINN_BURNS_LYRA', 'FINN_STREAK', 'CAST_RECKONS', 'ECHO_FIND',
+])
+
+const MOOD_FOR_SCENE: Record<SceneType, NonNullable<StoryEntry['visualState']>['mood']> = {
+  construction: 'surge', destruction: 'chaos', vigil: 'quiet', tending: 'quiet',
+  arrival: 'wonder', convergence: 'wonder', reckoning: 'chaos', quiet: 'quiet',
+  dawn: 'normal', sacrifice: 'departure',
+}
+
+function dispatch(w: W, zone: string, char: CharacterKey, beat: Beat): string {
+  if (beat === 'FINN_BURNS_LYRA') return `Finn burned ${zone}. It was Lyra's.`
+  if (beat === 'LYRA_RETURN') return `Lyra came back to ${zone} after the burn. She rebuilt.`
+  if (beat === 'ERA_TURN') return `The grid entered ${w.era}.`
+  if (beat === 'LONG_DARK') return `The chain was quiet. Now it moves again.`
+  if (beat === 'FINN_STREAK') return `Finn has burned ${w.consecutiveBurns} zones without stopping. ${zone} is the latest.`
+  if (beat === 'CAST_RECKONS') return `The Cast read the full map. ${w.lyraCount} builds. ${w.finnCount} burns.`
+  if (w.lastBurnZone && !w.lyraRebuiltAfterBurn) return `${w.lastBurnZone} is still open. Lyra has not come back yet.`
+  return `${CHARACTERS[char].name} in ${zone}. The work continues.`
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -874,75 +603,55 @@ function moodFor(scene: SceneType): NonNullable<StoryEntry['visualState']>['mood
 
 export function generateStoryEntries(events: IndexedEvent[], startCount = 0): StoryEntry[] {
   const result: StoryEntry[] = []
-  const world = freshWorld()
-  const ownerHistory = new Map<string, number[]>()
-  let prevCharKey: CharacterKey | null = null
+  const w = freshW()
 
-
-  for (let index = 0; index < events.length; index++) {
-    const event = events[index]
-    const cumCount = startCount + index + 1
-    const prev = index > 0 ? events[index - 1] : null
-
-    const eraData = getEraData(cumCount)
-    world.era = eraData.name
-    world.eraIndex = eraData.eraIndex
-
-    const charKey = getCharacter(event, index, ownerHistory)
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i]
+    const cumCount = startCount + i + 1
+    const prev = i > 0 ? events[i - 1] : null
+    const char = assignChar(event, i)
     const zone = zoneFor(event.tokenId)
-    const lore = ZONE_LORE[zone] ?? 'a sector in the grid'
-    const beat = selectBeat(event, charKey, index, events, cumCount, prev, world, ownerHistory)
-    const seed = Number(seedN(event.tokenId, event.blockNumber))
-    const bodySeed = Math.abs(seed ^ (index * 7919))
+    const beat = getBeat(event, char, cumCount, prev, w)
+    const seed = Number((event.tokenId * 31n + event.blockNumber * 17n) % 100000n)
 
-    const ctx: BodyCtx = { zone, lore, world, count: Number(event.count), seed: bodySeed, prevChar: prevCharKey }
-    const headline = makeHeadline(beat, zone, world, seed)
-    const body = generateBody(beat, ctx)
-
-    const isFeatured = ['LYRA_MAJOR', 'FINN_BURNS_LYRA', 'LYRA_RETURNS', 'ERA_SHIFT',
-      'CONVERGENCE', 'ECHO_FINDS', 'LONG_DARK', 'CHECKPOINT'].includes(beat)
-
-    const scene = sceneFor(charKey, beat)
-    const loreType = BEAT_LORE[beat]
+    const h = headline(beat, zone, w, seed)
+    const b = body(beat, zone, char, w, seed, Number(event.count))
+    const scene = BEAT_SCENE[beat]
 
     result.push({
       id: `${event.transactionHash}-${event.tokenId.toString()}`,
       eventType: event.type,
-      loreType,
-      era: eraData.name,
-      headline,
-      dispatch: makeDispatch(world),
-      body,
-      icon: BEAT_ICONS[beat] ?? '·',
-      featured: isFeatured,
-      activeCharacter: charKey,
+      loreType: BEAT_LORE[beat],
+      era: w.era,
+      headline: h,
+      body: b,
+      icon: BEAT_ICON[beat],
+      featured: BEAT_FEATURED.has(beat),
+      activeCharacter: char,
+      dispatch: dispatch(w, zone, char, beat),
       visualState: {
-        mood: moodFor(scene),
-        intensity: world.sceneIntensity,
+        mood: MOOD_FOR_SCENE[scene],
+        intensity: BEAT_INTENSITY[beat],
         dominantZone: zone,
-        signalName: CHARACTERS[charKey].name,
+        signalName: CHARACTERS[char].name,
         scene,
-        charKey,
+        charKey: char,
       },
       sourceEvent: {
         type: event.type,
         tokenId: event.type === 'BurnRevealed' && event.targetTokenId !== undefined
-          ? `#${event.tokenId.toString()} → #${event.targetTokenId.toString()}`
-          : `#${event.tokenId.toString()}`,
+          ? `#${event.tokenId} → #${event.targetTokenId}`
+          : `#${event.tokenId}`,
         blockNumber: event.blockNumber.toLocaleString(),
         txHash: event.transactionHash,
         count: event.count.toString(),
-        ruleApplied: `${CHARACTERS[charKey].name} — ${beat.toLowerCase().replace(/_/g, ' ')}`,
-        ruleExplanation: `Token #${event.tokenId} → ${CHARACTERS[charKey].name} (${CHARACTERS[charKey].title}). Beat: ${beat}. Zone: ${zone}.`,
+        ruleApplied: `${CHARACTERS[char].name} — ${beat.toLowerCase().replace(/_/g, ' ')}`,
+        ruleExplanation: `Token #${event.tokenId} → ${CHARACTERS[char].name}. Beat: ${beat}. Zone: ${zone}.`,
       },
     })
 
-    // Update owner history after generating so this event counts for future ones
-    const prior = ownerHistory.get(event.owner) ?? []
-    ownerHistory.set(event.owner, [...prior, index])
-
-    updateWorld(world, charKey, beat, zone)
-    prevCharKey = charKey
+    // Advance world AFTER generating — body reads the pre-act state
+    advance(w, char, zone, beat)
   }
 
   return result
@@ -956,15 +665,29 @@ export const PRIMER_ENTRIES: StoryEntry[] = [
   {
     id: 'primer-genesis',
     eventType: 'genesis',
-    loreType: 'GENESIS',
+    loreType: 'FIRST_LIGHT',
     era: 'The First Days',
     icon: '◈',
     featured: true,
     headline: 'The Record Opens',
     dispatch: 'The grid is open. Nothing has been claimed yet.',
-    body: `Normia is a living grid — ten thousand presences distributed across twenty named signal-zones, each one capable of being built into, burned, tended, or abandoned. The zones have real character: some are ancient routing hubs carrying marks from eras nobody alive remembers, some are freshly opened territory, some sit at the far margins of the map where the central factions do not bother looking. The grid runs on what its inhabitants do with what they hold.\n\nFive presences have become the main actors in this record. They did not appoint themselves. They became significant through what they actually did, in full view of the chain.\n\nLyra builds. She has been laying signal-structure across Normia's sectors since before this record opened, working toward an architecture whose full shape has not yet come clear. Each placement she makes connects to the ones before it — this is not decoration, it is construction. Finn burns. He removes signal that has calcified past its useful life, believing that a grid which cannot be cleared cannot stay alive. The Cast witnesses and records everything; its log is the most complete account of Normia that exists, and it answers to no faction. Cielo tends what the others leave behind — repairing the edges, holding zones that would go dark without attention, keeping signal alive past its moment of notice. Echo works the outer margins, the sectors the central factions do not bother tracking, and what he finds there keeps turning out to matter more than anyone expected.\n\nWhat follows is the Cast's record of their actions, and the record of the grid those actions are building.`,
+    body: `Normia is a living grid — ten thousand presences distributed across twenty named signal-zones, each one capable of being built into, burned, tended, or abandoned.
+
+Five presences became the main characters. Not by appointment. By what they actually did, repeated, over a long time, in full view of the chain.
+
+Lyra builds. She has been laying signal-structure across Normia for longer than anyone can clearly account for, working toward an architecture whose full shape has not come clear — not even to her. The pieces connect. The finished thing is still ahead of her.
+
+Finn burns what has calcified — signal that has stopped earning its place in the grid, removed permanently and without ceremony. He believes this is necessary. The record is not certain it agrees. He knows the record is not certain.
+
+The Cast witnesses everything and forgets nothing. Its log is the most complete account of Normia that exists. It answers to no faction, which means it is either the most trustworthy thing here or the most useless, depending on whether you think witnessing changes anything. The Cast has been thinking about this for a long time.
+
+Cielo tends what the others walk past. The drifting edges, the fraying zones, the signal that would quietly collapse without someone quiet enough to notice it. Without her, half the places Lyra built through would have gone dark. Lyra does not know this.
+
+Echo moves through the outer zones where the map runs out. He finds things there that were not supposed to exist. He always has. He brings them back to the record without drawing conclusions. Conclusions are the Cast's problem.
+
+What follows is the Cast's account of what these five did to each other, and to the grid, and to the question of what Normia is actually for — a question the record keeps raising and has not yet answered.`,
     activeCharacter: 'CAST',
     visualState: { mood: 'normal', intensity: 20, dominantZone: 'the Open Grid', signalName: 'The Cast', scene: 'dawn', charKey: 'CAST' },
-    sourceEvent: { type: 'genesis', tokenId: '--', blockNumber: '--', txHash: '--', count: '--', ruleApplied: 'World Primer', ruleExplanation: 'The opening entry.' },
+    sourceEvent: { type: 'genesis', tokenId: '—', blockNumber: '—', txHash: '—', count: '—', ruleApplied: 'World Primer', ruleExplanation: 'Opening entry.' },
   },
 ]
