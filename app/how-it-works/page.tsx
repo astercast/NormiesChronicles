@@ -78,13 +78,12 @@ export default function HowItWorks() {
       </div>
 
       <div style={S}>
-
         <div style={{ paddingTop: '2.5rem', paddingBottom: '2.5rem', borderBottom: '3px double var(--border)', marginBottom: '3rem' }}>
           <h1 style={{ fontSize: 'clamp(2.2rem,7vw,3.8rem)', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.025em', lineHeight: 0.9, marginBottom: '1.2rem' }}>
             how it<br />works
           </h1>
           <p style={{ color: 'var(--muted)', fontSize: '0.78rem', lineHeight: '2.05', maxWidth: '28rem' }}>
-            The Chronicles of Normia translates real on-chain events into a living story. No writers. No editors. The narrative emerges from what people actually do with what they hold — run through a rule system that gives each event its place in the chain.
+            The Chronicles of Normia translates real on-chain events into a living story. No writers, no editors — the narrative emerges from what people actually do with their Normies, run through a rule system that gives each event its place in the world.
           </p>
         </div>
 
@@ -92,26 +91,26 @@ export default function HowItWorks() {
         <Accordion title="The World">
           <div style={{ paddingTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
             <p style={{ color: 'var(--muted)', fontSize: '0.75rem', lineHeight: '2.05' }}>
-              Normia is a living grid — ten thousand presences distributed across twenty named signal-zones. The zones have real character: some are ancient routing hubs, some are freshly opened territory, some sit at the far margins where the central factions do not bother looking. The grid runs on what its inhabitants do with what they hold.
+              Normia is a city that runs in two layers: the physical streets and the pixel-grid mapped onto them. The grid decides who holds what territory — who can open a stall, who can draw on a wall, who gets flagged by the checkpoint system. It is the city's memory, and whoever controls it controls what the city is allowed to be.
             </p>
             <p style={{ color: 'var(--muted)', fontSize: '0.75rem', lineHeight: '2.05' }}>
-              Five presences have become the main actors in the record. They did not appoint themselves. They became significant through what they actually did, in full view of the chain. Their identities are assigned from the real onchain data — wallet behavior, token range, event type, and how often a wallet returns.
+              The Glyph Cartel has been expanding into the grid for two years. They want it all — not to live in, but to standardize. Cartel-held territory looks the same everywhere: flat, locked, nothing personal. Five people are the reason it doesn't all look like that yet.
             </p>
             <p style={{ color: 'var(--muted)', fontSize: '0.75rem', lineHeight: '2.05' }}>
-              The story has memory. Every entry reads from a running world-state — who holds which zones, where Finn last burned, where Lyra last built, what Cielo is tending. That state is threaded into every body of text. The chronicle is continuous, not episodic. It never resets.
+              The story has memory. Every entry is written against a running world-state: which zones Lyra's designs protect, where the Cartel last pushed, what Cielo's network is short on, what Echo found most recently, how long Finn has been running. That state threads through every entry. The chronicle is continuous. It never resets.
             </p>
           </div>
         </Accordion>
 
         {/* THE FIVE */}
-        <Accordion title="The Five Presences">
+        <Accordion title="The Five">
           <div style={{ paddingTop: '0.5rem' }}>
             {([
-              ['Lyra', 'the Architect', 'She builds. Activated by new wallets arriving in the system and low-token-ID presences in the Cradle zones. Her story is the story of what Normia could become — a structure whose full shape is not yet clear, placed piece by piece across the grid.'],
-              ['Finn', 'the Breaker', 'He burns. Activated only by actual BurnRevealed events — the rarest, most permanent action in the system. Finn appears when signal is genuinely destroyed. He is not the villain of the record. He is the challenge Lyra is answering.'],
-              ['The Cast', 'the Witness', 'It records. Activated by veteran wallets returning after a long absence — presences that have been watching since before most of the others arrived. The Cast is omnipresent, neither cruel nor kind, and it answers to no faction.'],
-              ['Cielo', 'the Keeper', 'She maintains. Activated by wallets that tend the same territory repeatedly — presences that come back quickly to the same ground. After Lyra builds and Finn burns, Cielo is the one still there.'],
-              ['Echo', 'the Wanderer', 'He ranges. Activated by high token-ID presences in the outer zones of the grid, where the central factions do not bother looking. What he finds at the margins ends up mattering more than anyone expected.'],
+              ['Lyra', 'the Architect', 'She designs open-source grid patterns that let ordinary people hold their own territory — freely, no strings. The Cartel has tried to hire her twice. Each time she declined and published the design they wanted her to withhold.'],
+              ['Finn', 'the Reclaimer', 'He used to work for the Cartel. He left, gave back everything they paid him, and has been undoing his own work ever since — recovering Cartel-held zones one district at a time, using the same skills he used to take them.'],
+              ['The Cast', 'the Record', 'The grid\'s autonomous witness-system. It logs everything without faction — Cartel advances and resistance acts alike, with the same precision, in the same format. It has been running since before any of this started.'],
+              ['Cielo', 'the Keeper', 'She runs the safehouse network: food, medicine, shelter, credentials, safe routes, people who need to move. The infrastructure that keeps people alive when the Cartel is trying to cut them off. More people are fighting because of her than because of anything else.'],
+              ['Echo', 'the Scout', 'He maps what the Cartel doesn\'t want mapped — the gaps in their coverage, corridors they don\'t know about, zones they think they\'ve locked but haven\'t. He finds things and brings them back. He doesn\'t explain how.'],
             ] as [string, string, string][]).map(([name, title, desc]) => (
               <div key={name} style={{ display: 'flex', gap: '1.5rem', paddingBottom: '1.1rem', marginBottom: '1.1rem', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ minWidth: '7rem', flexShrink: 0 }}>
@@ -130,13 +129,13 @@ export default function HowItWorks() {
             <div>
               <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>PixelsTransformed</div>
               <p style={{ color: 'var(--muted)', fontSize: '0.72rem', lineHeight: '2.0' }}>
-                When a Normie's pixels are edited on-chain, a presence shapes its zone. The pixel count sets the weight of the moment — a single pixel is the quietest possible mark, still permanent, still in the chain. One hundred pixels or more crosses from incremental into structural: a major build that the Cast flags and Finn will notice.
+                When a Normie's pixels are changed on-chain, someone is acting in the grid. This is the heartbeat of Normia — people shaping their territory, Lyra designing new patterns, Finn recovering districts, Cielo keeping her network running, Echo moving through the outer zones. Life continuing in a city under pressure.
               </p>
             </div>
             <div>
               <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text)', letterSpacing: '0.1em', marginBottom: '0.5rem' }}>BurnRevealed</div>
               <p style={{ color: 'var(--muted)', fontSize: '0.72rem', lineHeight: '2.0' }}>
-                When a Normie's energy is transferred on-chain, Finn acts. This is the only event type that activates him — every BurnRevealed becomes Finn, without exception. A burn is permanent: the signal does not come back. If the burned zone was Lyra's, it becomes the central conflict of the record. If it was open territory, it becomes open ground.
+                When energy is transferred on-chain, the Cartel moves. A zone goes grey. Territory is taken, overwritten with the flat Cartel template. If the zone carried Lyra's design, that's a direct hit — and the story carries it forward until someone responds. Burns are permanent in the chain. The record doesn't forget them.
               </p>
             </div>
           </div>
@@ -148,98 +147,105 @@ export default function HowItWorks() {
         <div style={{ marginBottom: '2rem' }}>
           <SectionHead label="The Story Rules" />
           <p style={{ color: 'var(--muted)', fontSize: '0.75rem', lineHeight: '2.05', marginBottom: '0.85rem' }}>
-            Every on-chain event is evaluated by a rule engine that reads the event's properties, the wallet's history, the current world-state, and where the event falls in the chain. The rule selected determines what kind of story moment gets written — and which prose body, from a pool of variants, gets used for that moment.
+            Every on-chain event is evaluated by a rule engine that reads the event type, the character rotation, and the current world-state. The rule selected determines what kind of story moment gets written. Rules check in priority order — the first matching rule fires and the rest are skipped.
           </p>
           <p style={{ color: 'var(--muted)', fontSize: '0.75rem', lineHeight: '2.05', marginBottom: '2rem' }}>
-            Rules check in priority order. The first matching rule fires. Only one rule fires per event.
+            Characters rotate evenly — one in five events goes to each of the five. This means everyone gets the same number of story entries regardless of which event type lands on their slot. When a Cartel push lands on Lyra's slot, she's the one responding to it. When it lands on Echo's slot, he's the one who watches it happen from the outer edge.
           </p>
 
-          <RuleGroup label="Rhythm Rules — check first, override everything" rules={[
-            ['Checkpoint', 'every 25th entry', 'The Cast steps back and reads the full state of the grid. Current zone counts, who holds what, what the scoreline looks like. These entries anchor the reader in the ongoing situation every 25 acts.'],
-            ['Era Shift', 'at 100, 300, 700, 1500, 3000, 5000, 8000+ entries', 'The grid crosses into a new era. Signal registered before the shift becomes prior-era data — weighted differently by the sector councils. The Cast logs the transition. The five keep moving.'],
-            ['Vigil', '3 entries before era threshold', 'Normia approaches a turn. The five are marked as the old era\'s last actors. What they do in these final entries is what the new era inherits as its opening condition.'],
+          <RuleGroup label="Chain Rhythm — check first" rules={[
+            ['Opening', 'first 5 entries', 'Normia before the Cartel\'s expansion became undeniable. The record catches the city as it was at the beginning — the free grid, the open-source culture, the sense that the pixel-war was somebody else\'s problem.'],
+            ['Era Turn', 'at entry thresholds', 'The city crosses into a new phase. The Cartel\'s tactics have shifted, the five have adapted, and everything from before this moment is prior-era record. The names change: First Pushback, Contested Season, The Long Fight.'],
+            ['Long Quiet', '50,000+ blocks between events', 'A real gap in the record — weeks where the chain went quiet. The five were still living. The city was still running. Cielo cooked for the safehouse. Finn slept past sunrise. None of it got logged. Then the chain resumed.'],
+            ['Simultaneous', 'two events in the same block', 'Two things happened at the exact same moment. The Cast logged both. In Normia, coincidences are usually not coincidences. Sometimes they are.'],
           ]} />
 
-          <RuleGroup label="Chain Conditions — rare, check second" rules={[
-            ['Long Dark', '40,000+ block gap between events', 'A genuine silence in the chain. The grid kept running — zones held their signal, routing continued — but none of the five left a new mark. The Cast documents the absence as its own entry. An absence in the chain is still information.'],
-            ['Convergence', 'two events in the same block', 'Two presences acting at the exact same instant. No coordination possible. The grid logged both as concurrent. The Cast notes the coincidence and asks whether it was one.'],
-            ['First Light', 'first 5 entries in the record', 'The record is still opening. Every act at this point could shape the entire direction of what follows. The Cast notes each early mark for exactly that reason.'],
+          <RuleGroup label="Lyra — the Architect" rules={[
+            ['Lyra Responds', 'Cartel just hit her work + no response yet', 'The most immediate Lyra state. The Cartel pushed into her zone, her design is gone, and she\'s already at her workstation designing the version that goes back in — harder to exploit, built around what they found last time.'],
+            ['Lyra Daily', 'every third Lyra entry', 'A day in Lyra\'s life that has nothing to do with the grid war. The market without Cartel tokens. Coffee. An old colleague. A wall that\'s been painted over. The city as it still mostly is, and what it costs to watch it change.'],
+            ['Lyra Designs', 'standard Lyra entry', 'She\'s working. The current project, the version she threw away, the edges she\'s testing. The work she does freely and the people who benefit from it without knowing her name.'],
           ]} />
 
-          <RuleGroup label="Character Rules — driven by world state" rules={[
-            ['Finn Burns Lyra', 'BurnRevealed + zone was Lyra\'s', 'The most dramatic beat in the system. Finn burned in territory Lyra had built. The zone is gone. This entry is featured and carries forward into every subsequent body until Lyra responds.'],
-            ['Finn Burns', 'any BurnRevealed event', 'Finn removes signal from the grid permanently. Open territory, not Lyra\'s — but still final. The Cast logs the exact volume. The downstream effects show up in subsequent entries.'],
-            ['Lyra Returns', 'Lyra builds in a zone Finn burned', 'The comeback. Lyra placed signal back into ground Finn cleared. This entry is featured. Whether she adjusts her structure or repeats it exactly is visible in the text.'],
-            ['Lyra Major', 'PixelsTransformed + 100+ pixels + Lyra', 'A build large enough to read as structural, not incremental. The Cast flags it. The shape of Lyra\'s architecture becomes more legible after one of these.'],
-            ['Lyra Builds', 'standard Lyra PixelsTransformed', 'The steady work. One more layer placed, one more zone marked. The body carries forward her current state — how many zones she holds, what Finn has done recently, what Cielo is maintaining.'],
-            ['Cielo After Finn', 'Cielo enters a zone Finn burned', 'Cielo tends the burned zone — not rebuilding what Finn destroyed, but stabilizing the edges so the damage does not spread. The entry notes what adjacent signal she is protecting.'],
-            ['Cielo Tends', 'standard Cielo PixelsTransformed', 'Quiet maintenance work. The body describes what would have happened to the zone if she had not come through, and how it connects to the work Lyra and Finn are doing elsewhere.'],
-            ['Cast Returns', 'Cast triggered after long wallet gap', 'A veteran wallet comes back after a long absence from the chain. The Cast backfills the gap — what it missed, what changed while it was gone. The record shows both the absence and the return.'],
-            ['Cast Witnesses', 'standard Cast PixelsTransformed', 'The Cast records. It reads the current state of the whole grid — who holds what, what the central conflict looks like — and places the event in that context without editorializing.'],
-            ['Echo Finds', 'every 3rd Echo sighting', 'Echo surfaces something from the outer grid that was not on any current map. An old signal, a buried registration, a gap between what the system shows and what is actually registered. The Cast adds it to the chain.'],
-            ['Echo Arrives', 'standard Echo PixelsTransformed', 'Echo appears from the margins. The body describes what the central characters are doing and why Echo\'s outer-zone movements are tracking something different — and why that tends to matter.'],
+          <RuleGroup label="Finn — the Reclaimer" rules={[
+            ['Finn Streak', '3+ Cartel moves without a pause', 'The Cartel\'s been pushing and Finn hasn\'t stopped responding. Third zone this stretch. He\'s not sleeping enough. Cielo has said so directly, twice. He nodded and kept going.'],
+            ['Finn Daily', 'every fourth Finn entry', 'Finn not operating. Carrying boxes with Cielo. Sitting in a café watching the grid. A message from someone he used to work with that says something he isn\'t ready to talk about. The space between jobs.'],
+            ['Finn Reclaims', 'standard Finn entry', 'Last night\'s job. The service corridor Echo flagged. Four hours, in and out, back before the grid-lights came on. Three hours of sleep. Eggs. Then the coordinates to Lyra.'],
+          ]} />
+
+          <RuleGroup label="The Cast — the Record" rules={[
+            ['Cast Reads', 'Cartel pressure above 65%', 'The Cast steps back and reads the full shape of things — how much the Cartel holds, what the five have recovered, what Cielo is short on, what Echo found. The whole picture, held at once, without verdict.'],
+            ['Cast Logs', 'standard Cast entry', 'Another entry. Another day in a city still mostly itself. The Cast records it the way it records everything: precisely, without favor, as part of a record that will still be here when all of this is over.'],
+          ]} />
+
+          <RuleGroup label="Cielo — the Keeper" rules={[
+            ['Cielo Crisis', 'pressure above 70% or active shortage', 'Something is short, or the safehouse almost got found, or the numbers don\'t work. Cielo running the problem with the same directness she uses on everything. She knows which shortages she can solve and which ones are structural. She makes calls.'],
+            ['Cielo Daily', 'every third Cielo entry', 'The slow morning. The big pot of food. The argument she had and the decision she changed because the other person was right. The school she passes on the long route. The reason she does all of this, which she mostly doesn\'t say out loud.'],
+            ['Cielo Runs', 'standard Cielo entry', 'Supply day. Intake for new arrivals. The handoff with a hard drive and Lyra\'s designs on it. The system that works because she never skips the boring steps. The network that has kept more people functional than any single act of reclamation.'],
+          ]} />
+
+          <RuleGroup label="Echo — the Scout" rules={[
+            ['Echo Finds', 'every third Echo entry', 'Something that changes the shape of things slightly. The unmarked corridor. The dead Cartel relay. The family still living in a zone that was marked cleared months ago. He tells Lyra first. She goes quiet. Then: send me the coordinates.'],
+            ['Echo Scouts', 'standard Echo entry', 'Two days in the outer edge. The gap in Cartel coverage that\'s just large enough for a transit point. The terse message with coordinates and one line of notes. The route that saves Cielo forty minutes twice a week.'],
+          ]} />
+
+          <RuleGroup label="The Cartel" rules={[
+            ['Cartel Push', 'BurnRevealed + zone carries Lyra\'s design', 'The Cartel hits something Lyra built. Her design is gone — overwritten with the flat Cartel template. This entry is featured and carries forward in the world-state until someone responds. The record holds the hit. It waits to log the response.'],
+            ['Cartel Advance', 'any other BurnRevealed', 'Open territory, or what was. Now it\'s grey. The people who were living in the grid\'s open layer there have been pushed out or moved on. The Cast logs what it\'s called. What the people who used to paint those walls call it is not something the Cast records.'],
           ]} />
         </div>
 
         <Divider />
 
-        {/* NARRATIVE MEMORY */}
         <Accordion title="Narrative Memory">
           <div style={{ paddingTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
             <p style={{ color: 'var(--muted)', fontSize: '0.75rem', lineHeight: '2.05' }}>
-              The world-state updates after every entry. Every body of text reads from it before generating. This means each entry knows: which zones Lyra holds, where Finn last burned, whether Cielo is tending a burned zone, what Echo found most recently, and what the Cast last witnessed.
+              The world-state updates after every entry. Every body of text reads from it before writing. This means each entry knows: which zones Lyra's designs protect, where the Cartel last pushed, whether Finn has responded to it, what Cielo is short on, what Echo found most recently, how hard the Cartel has been pressing.
             </p>
             <p style={{ color: 'var(--muted)', fontSize: '0.75rem', lineHeight: '2.05' }}>
-              The central conflict thread — whether Finn has burned Lyra's territory, and whether she has come back for it — runs as a live flag through the whole chain. Bodies reference it naturally: "the scar from Finn's burn in the Grey Basin is still in the record" or "Lyra rebuilt in the Fault Line after Finn cleared it." The reader can follow this thread without needing a summary.
+              The thread between Lyra and the Cartel — whether they've hit her work and whether she's responded — runs as a live flag through the whole chain. Every entry in the aftermath references it naturally: the zone is still grey, or Finn went back in, or Lyra's already redesigning. The reader doesn't need a summary to follow it.
             </p>
             <p style={{ color: 'var(--muted)', fontSize: '0.75rem', lineHeight: '2.05' }}>
-              The dispatch line above each entry shows the single-sentence state of the grid at that moment — a scoreline that updates as the story develops.
+              Cielo's shortages, Echo's finds, Finn's streak count — all of these thread forward through subsequent entries until they're resolved or replaced. The story carries its own context because the world-state carries it.
             </p>
           </div>
         </Accordion>
 
-        {/* DETERMINISM */}
         <Accordion title="Determinism">
           <div style={{ paddingTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
             <p style={{ color: 'var(--muted)', fontSize: '0.75rem', lineHeight: '2.05' }}>
-              The chronicle is deterministic. Given the same sequence of on-chain events, it always produces the same story. Nothing was chosen by a person after the system was built.
+              The chronicle is deterministic. Given the same sequence of on-chain events, it always produces the same story. No writer made choices after the system was built. Token ID determines zone. Event index determines character. Event type and world-state together determine the beat. Block number selects the prose variant.
             </p>
             <p style={{ color: 'var(--muted)', fontSize: '0.75rem', lineHeight: '2.05' }}>
-              Token ID determines zone. Wallet behavior determines character. Block position determines beat type. Block number contributes to which prose variant from the pool gets selected. The inputs are all on-chain. The output is always the same.
-            </p>
-            <p style={{ color: 'var(--muted)', fontSize: '0.75rem', lineHeight: '2.05' }}>
-              The only exception is the world-state accumulation — that is order-dependent. What gets written for entry 200 depends on everything that happened in entries 1 through 199. The chain is the story. The order is part of the meaning.
+              The one exception is world-state accumulation — that's order-dependent. What entry 300 says depends on what entries 1 through 299 did to the world. The chain is the story. The order is part of the meaning.
             </p>
           </div>
         </Accordion>
 
-        {/* THE PIXEL ART */}
         <Accordion title="The Pixel Art">
           <div style={{ paddingTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
             <p style={{ color: 'var(--muted)', fontSize: '0.75rem', lineHeight: '2.05' }}>
-              The 80×80 pixel canvas is a live visual of Normia's current story state — a pure monochrome portrait of what the grid looks like at this moment. Each of the five presences has its own set of animated scenes, and the scene shown changes with each new entry.
+              The 80×80 canvas is a live visual of the story's current state — a monochrome pixel portrait of the moment the chronicle is in. Each of the five has its own animated scenes, and each Cartel move has its own visual register.
             </p>
             <p style={{ color: 'var(--muted)', fontSize: '0.75rem', lineHeight: '2.05' }}>
-              Lyra's scenes show rising signal-structures and layered architecture. Finn's show fractures, collapse, dissolution. The Cast's show a lone presence watching from a fixed point at the edge of the grid. Cielo's show the slow work of repair — edges held, signal stabilized. Echo's show emergence from the margins, something surfacing that was not there before.
+              Lyra's scenes show grid structures being built — lattice patterns, expanding designs, the architecture coming together. Finn's show movement through dark corridors, recovery, light returning. The Cast's show a single still presence, watching. Cielo's show the safehouse at night: warm against dark, people around a table. Echo's show the outer edge — sparse signal, wide space, something being found in the dark. Cartel scenes show encroachment: grey spreading, the flat template overwriting.
             </p>
           </div>
         </Accordion>
 
-        {/* THE ERAS */}
         <Accordion title="The Eras of Normia">
           <div style={{ paddingTop: '0.5rem' }}>
             <p style={{ color: 'var(--muted)', fontSize: '0.75rem', lineHeight: '2.05', marginBottom: '1.5rem' }}>
-              The chronicle divides into eras based on accumulated entries. Each era has its own designation. Signal registered before a threshold becomes prior-era data. There is no final era — the record continues as long as Normia does.
+              The chronicle divides into eras based on accumulated entries. Each era names the phase Normia is in. The five keep going through all of them. The record keeps running regardless.
             </p>
             {([
-              ['The First Days', '0+', 'The grid is new. Every mark is the first of its kind. The five have not yet defined their positions.'],
-              ['The Waking', '100+', 'Presences are starting to read each other. The quiet is ending. Patterns are emerging that will define the next several eras.'],
-              ['The Gathering', '300+', 'Territory begins to mean something. Normia is building a history. The zones have owners, or they have the memory of owners.'],
-              ['The Age of Claim', '700+', 'Every mark is a statement. The zones are actively contested. The question of who holds what has become urgent.'],
-              ['The Long Work', '1,500+', 'The cost of presence is clear. So is its value. The five have been doing this long enough to have patterns that cannot be easily broken.'],
-              ['What Holds', '3,000+', 'Some things have been settled by now — not permanently, but settled. The record runs deep. New acts carry the weight of everything before them.'],
-              ['The Old Country', '5,000+', 'Normia forgets nothing. The ancient signal-marks cast long shadows over everything placed after them.'],
-              ['The Long Memory', '8,000+', 'The grid is old. Everything that happens is in dialogue with everything that came before. The five have been at this for a very long time.'],
+              ['Before the Cartel Moved', '0+', 'The free grid. Open territory. The city before everything.'],
+              ['The First Pushback', '100+', 'The Cartel has moved. The five have started responding. Nobody has figured out the full shape of it yet.'],
+              ['Living Under Pressure', '300+', 'This is the life now. The work continues. People adjust to a city that is slowly being taken.'],
+              ['The Contested Season', '700+', 'Territory actively disputed. Every zone means something. The five know each other better than they planned to.'],
+              ['What the Resistance Costs', '1,500+', 'The long run. What it takes out of people. What keeps them going anyway.'],
+              ['The Long Fight', '3,000+', 'Years in. The five have changed. The city has changed. The Cartel has too. The work continues.'],
+              ['Old Normia, Still Standing', '5,000+', 'Something has survived that wasn\'t supposed to. The record runs deep. The city still has places that are itself.'],
+              ['After Everything', '8,000+', 'The record is very old now. Everything in it is in dialogue with everything else. The five have been at this for a very long time.'],
             ] as [string, string, string][]).map(([name, threshold, desc]) => (
               <div key={name} style={{ display: 'flex', gap: '1rem', paddingBottom: '0.85rem', marginBottom: '0.85rem', borderBottom: '1px solid var(--border)', alignItems: 'baseline' }}>
                 <span style={{ fontSize: '0.63rem', fontWeight: 700, color: 'var(--text)', minWidth: '9rem', flexShrink: 0 }}>{name}</span>

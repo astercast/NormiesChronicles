@@ -1,42 +1,29 @@
 import type { IndexedEvent } from './eventIndexer'
 
-// ─────────────────────────────────────────────────────────────────────────────
-// THE FIVE
-// ─────────────────────────────────────────────────────────────────────────────
-
 export const CHARACTERS = {
   LYRA: {
-    name: 'Lyra', title: 'the Architect',
-    pronoun: 'she', possessive: 'her',
-    shortDesc: 'She has been building the same structure across Normia for three eras. Nobody knows what it is yet — not even her.',
+    name: 'Lyra', title: 'the Architect', pronoun: 'she', possessive: 'her',
+    shortDesc: 'She designs open-source grid patterns that let ordinary people hold their own territory. The Cartel has tried to hire her twice. She declined both times in ways they found upsetting.',
   },
   VOSS: {
-    name: 'Finn', title: 'the Breaker',
-    pronoun: 'he', possessive: 'his',
-    shortDesc: 'He burns what has calcified. The grid is lighter for it. So is he, in ways that are not entirely good.',
+    name: 'Finn', title: 'the Reclaimer', pronoun: 'he', possessive: 'his',
+    shortDesc: 'He used to work for the Cartel. He left. He has been spending the years since undoing what he helped build, one district at a time.',
   },
   CAST: {
-    name: 'The Cast', title: 'the Witness',
-    pronoun: 'it', possessive: 'its',
-    shortDesc: 'It has watched since the grid opened. It has never changed an outcome. It keeps asking itself if that matters.',
+    name: 'The Cast', title: 'the Record', pronoun: 'it', possessive: 'its',
+    shortDesc: 'The grid\'s autonomous witness-system. It logs everything — claims, losses, small acts, long silences. It has no faction. That is the point of it.',
   },
   SABLE: {
-    name: 'Cielo', title: 'the Keeper',
-    pronoun: 'she', possessive: 'her',
-    shortDesc: 'She maintains what everyone else ignores. Without her, half the zones Lyra built through would have gone dark.',
+    name: 'Cielo', title: 'the Keeper', pronoun: 'she', possessive: 'her',
+    shortDesc: 'She runs the safehouse network — food, medicine, shelter, forged credentials, safe routes. She is the reason more people are still fighting than the Cartel expected.',
   },
   ECHO: {
-    name: 'Echo', title: 'the Wanderer',
-    pronoun: 'he', possessive: 'his',
-    shortDesc: 'He moves through the outer zones where the map runs out. He finds things there that were not supposed to exist.',
+    name: 'Echo', title: 'the Scout', pronoun: 'he', possessive: 'his',
+    shortDesc: 'He maps what the Cartel doesn\'t want mapped — the gaps in their grid, corridors they think nobody knows about, places where people are still living outside their reach.',
   },
 } as const
 
 export type CharacterKey = keyof typeof CHARACTERS
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ZONES
-// ─────────────────────────────────────────────────────────────────────────────
 
 export const ZONES = [
   'the Null District', 'the White Corridors', 'the Hollow', 'the Far Sectors',
@@ -51,19 +38,15 @@ function zoneFor(tokenId: bigint): string {
   return ZONES[h % ZONES.length]
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ERAS
-// ─────────────────────────────────────────────────────────────────────────────
-
 export const ERAS = [
-  { threshold: 0,    name: 'The First Days' },
-  { threshold: 100,  name: 'The Waking' },
-  { threshold: 300,  name: 'The Gathering' },
-  { threshold: 700,  name: 'The Age of Claim' },
-  { threshold: 1500, name: 'The Long Work' },
-  { threshold: 3000, name: 'What Holds' },
-  { threshold: 5000, name: 'The Old Country' },
-  { threshold: 8000, name: 'The Long Memory' },
+  { threshold: 0,    name: 'Before the Cartel Moved' },
+  { threshold: 100,  name: 'The First Pushback' },
+  { threshold: 300,  name: 'Living Under Pressure' },
+  { threshold: 700,  name: 'The Contested Season' },
+  { threshold: 1500, name: 'What the Resistance Costs' },
+  { threshold: 3000, name: 'The Long Fight' },
+  { threshold: 5000, name: 'Old Normia, Still Standing' },
+  { threshold: 8000, name: 'After Everything' },
 ]
 
 function getEra(n: number): string {
@@ -72,433 +55,273 @@ function getEra(n: number): string {
   return name
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// WORLD STATE
-// The story's living memory. Every entry is written knowing all of this.
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface W {
   totalActs: number
   era: string
-
-  // Territory
-  lyraZones: string[]
-  finnBurned: string[]
-  cieloTended: string[]
-  echoVisited: string[]
-
-  // Counts
+  lyraHolds: string[]
+  finnReclaimed: string[]
+  cieloSafehouses: string[]
+  echoMapped: string[]
   lyraCount: number
   finnCount: number
+  castCount: number
   cieloCount: number
   echoCount: number
-
-  // Story threads — what's unresolved, what's building
-  lastBurnZone: string | null
-  lastBurnWasLyras: boolean
-  lyraRebuiltAfterBurn: boolean   // did Lyra come back after the last burn?
-  consecutiveBurns: number
-  finnBurnStreak: boolean          // Finn has burned 3+ without anyone else acting
-
-  // Tension — rises with burns, eases with building and tending
-  tension: number
-
-  // The previous entry — so each entry can be written *in response* to it
-  prev: {
-    char: CharacterKey
-    zone: string
-    beat: Beat
-    era: string
-  } | null
-
-  // Echo's running discovery thread
-  echoDiscovery: string | null
-
-  // Things Cielo is quietly holding
-  cieloIsHolding: string[]
-
-  // Open questions the narrative is carrying
-  // (used to give prose something to reference without answering it)
-  openQuestion: string | null
+  cartellPressure: number
+  lastCartelPush: string | null
+  lastCartelPushWasLyras: boolean
+  finnReclaimedAfterPush: boolean
+  consecutiveCartelMoves: number
+  cartelStreak: boolean
+  cieloShortage: string | null
+  echoLastFind: string | null
+  lyraCurrentProject: string | null
+  prev: { char: CharacterKey; zone: string; beat: Beat } | null
 }
 
 function freshW(): W {
   return {
-    totalActs: 0, era: 'The First Days',
-    lyraZones: [], finnBurned: [], cieloTended: [], echoVisited: [],
-    lyraCount: 0, finnCount: 0, cieloCount: 0, echoCount: 0,
-    lastBurnZone: null, lastBurnWasLyras: false, lyraRebuiltAfterBurn: false,
-    consecutiveBurns: 0, finnBurnStreak: false,
-    tension: 15,
+    totalActs: 0, era: 'Before the Cartel Moved',
+    lyraHolds: [], finnReclaimed: [], cieloSafehouses: [], echoMapped: [],
+    lyraCount: 0, finnCount: 0, castCount: 0, cieloCount: 0, echoCount: 0,
+    cartellPressure: 20,
+    lastCartelPush: null, lastCartelPushWasLyras: false, finnReclaimedAfterPush: false,
+    consecutiveCartelMoves: 0, cartelStreak: false,
+    cieloShortage: null, echoLastFind: null, lyraCurrentProject: null,
     prev: null,
-    echoDiscovery: null,
-    cieloIsHolding: [],
-    openQuestion: null,
   }
 }
 
-function advance(w: W, char: CharacterKey, zone: string, beat: Beat): void {
+function advance(w: W, char: CharacterKey, zone: string, beat: Beat, isCartelMove: boolean): void {
   w.totalActs++
   w.era = getEra(w.totalActs)
-
+  if (isCartelMove) {
+    const wasLyras = w.lyraHolds.includes(zone)
+    w.lyraHolds = w.lyraHolds.filter(z => z !== zone)
+    w.lastCartelPush = zone
+    w.lastCartelPushWasLyras = wasLyras
+    w.finnReclaimedAfterPush = false
+    w.consecutiveCartelMoves++
+    w.cartelStreak = w.consecutiveCartelMoves >= 3
+    w.cartellPressure = Math.min(100, w.cartellPressure + 18)
+  } else {
+    w.consecutiveCartelMoves = 0
+    w.cartelStreak = false
+    w.cartellPressure = Math.max(15, w.cartellPressure - 7)
+  }
   if (char === 'LYRA') {
     w.lyraCount++
-    if (!w.lyraZones.includes(zone)) w.lyraZones.push(zone)
-    if (w.lastBurnZone === zone) w.lyraRebuiltAfterBurn = true
-    w.consecutiveBurns = 0
-    w.finnBurnStreak = false
-    w.tension = Math.max(10, w.tension - 10)
-    w.openQuestion = w.lastBurnZone && !w.lyraRebuiltAfterBurn
-      ? `whether Lyra will come back to ${w.lastBurnZone}`
-      : w.lyraCount > 3 ? `what Lyra is actually building` : null
+    if (!isCartelMove && !w.lyraHolds.includes(zone)) w.lyraHolds.push(zone)
+    if (w.lastCartelPush === zone && !isCartelMove) w.finnReclaimedAfterPush = true
+    const projects = ['a new open-source grid extension', 'the Cradle district defensive pattern', 'a mesh that routes around Cartel checkpoints', 'the Old Crossing anchor system']
+    w.lyraCurrentProject = projects[w.lyraCount % projects.length]
   }
-
   if (char === 'VOSS') {
     w.finnCount++
-    const wasLyras = w.lyraZones.includes(zone)
-    if (!w.finnBurned.includes(zone)) w.finnBurned.push(zone)
-    w.lyraZones = w.lyraZones.filter(z => z !== zone)
-    w.lastBurnZone = zone
-    w.lastBurnWasLyras = wasLyras
-    w.lyraRebuiltAfterBurn = false
-    w.consecutiveBurns++
-    w.finnBurnStreak = w.consecutiveBurns >= 3
-    w.tension = Math.min(100, w.tension + 22)
-    w.openQuestion = wasLyras
-      ? `whether what Finn just removed was the right thing to remove`
-      : `whether the burns are adding up to something or just subtracting`
+    if (!w.finnReclaimed.includes(zone)) w.finnReclaimed.push(zone)
+    if (w.lastCartelPush === zone) w.finnReclaimedAfterPush = true
   }
-
+  if (char === 'CAST') { w.castCount++ }
   if (char === 'SABLE') {
     w.cieloCount++
-    if (!w.cieloTended.includes(zone)) w.cieloTended.push(zone)
-    if (w.finnBurned.includes(zone) && !w.cieloIsHolding.includes(zone))
-      w.cieloIsHolding.push(zone)
-    w.tension = Math.max(10, w.tension - 6)
+    if (!w.cieloSafehouses.includes(zone)) w.cieloSafehouses.push(zone)
+    const shortages = ['clean water', 'grid-access tokens', 'medicine', 'power cells', 'cold food', null]
+    w.cieloShortage = shortages[(w.cieloCount + Math.floor(w.cartellPressure / 20)) % shortages.length]
   }
-
   if (char === 'ECHO') {
     w.echoCount++
-    if (!w.echoVisited.includes(zone)) w.echoVisited.push(zone)
-    if (!w.echoDiscovery) w.echoDiscovery = zone
-    else if (w.echoCount % 4 === 0) w.echoDiscovery = zone
+    if (!w.echoMapped.includes(zone)) w.echoMapped.push(zone)
+    const finds = ['an unmapped corridor behind the old market', 'a dead Cartel relay nobody deactivated', 'a family living in a zone marked as cleared', 'a pre-Cartel access tunnel', 'a cache of old grid-tokens', 'a shortwave still broadcasting old music']
+    w.echoLastFind = finds[w.echoCount % finds.length]
   }
-
-  if (char === 'CAST') {
-    // Cast doesn't change the world, but it holds the open question
-  }
-
-  w.prev = { char, zone, beat, era: w.era }
+  w.prev = { char, zone, beat }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CHARACTER ASSIGNMENT — round-robin, burns always Finn
-// ─────────────────────────────────────────────────────────────────────────────
 
 const ROTATION: CharacterKey[] = ['LYRA', 'VOSS', 'CAST', 'SABLE', 'ECHO']
-
-function assignChar(event: IndexedEvent, idx: number): CharacterKey {
-  if (event.type === 'BurnRevealed') return 'VOSS'
-  return ROTATION[idx % 5]
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// BEAT TYPES — the narrative moment this entry is
-// ─────────────────────────────────────────────────────────────────────────────
+function assignChar(_event: IndexedEvent, idx: number): CharacterKey { return ROTATION[idx % 5] }
 
 type Beat =
-  | 'GENESIS'      // very first entries — the world opening
-  | 'ERA_TURN'     // an era has changed
-  | 'LONG_DARK'    // long silence in the chain
-  | 'COINCIDENCE'  // two events same block
-  | 'LYRA_BUILD'
-  | 'LYRA_RETURN'  // Lyra builds back in a zone Finn burned
-  | 'FINN_BURN'
-  | 'FINN_BURNS_LYRA' // Finn burns specifically in Lyra's territory
-  | 'FINN_STREAK'  // burning without stopping
-  | 'CAST_LOG'
-  | 'CAST_RECKONS' // Cast sees the full picture at a moment of high tension
-  | 'CIELO_TEND'
-  | 'CIELO_AFTER_BURN'
-  | 'ECHO_MOVE'
-  | 'ECHO_FIND'
+  | 'GENESIS' | 'ERA_TURN' | 'LONG_QUIET' | 'SIMULTANEOUS'
+  | 'LYRA_DESIGNS' | 'LYRA_DAILY' | 'LYRA_RESPONDS'
+  | 'FINN_RECLAIMS' | 'FINN_DAILY' | 'FINN_STREAK'
+  | 'CAST_LOGS' | 'CAST_READS'
+  | 'CIELO_RUNS' | 'CIELO_DAILY' | 'CIELO_CRISIS'
+  | 'ECHO_SCOUTS' | 'ECHO_FINDS'
+  | 'CARTEL_PUSH' | 'CARTEL_ADVANCE'
 
-function getBeat(
-  event: IndexedEvent,
-  char: CharacterKey,
-  cumCount: number,
-  prev: IndexedEvent | null,
-  w: W,
-): Beat {
+function getBeat(event: IndexedEvent, char: CharacterKey, cumCount: number, prev: IndexedEvent | null, w: W): Beat {
   if (cumCount <= 5) return 'GENESIS'
   if (ERAS.some(e => e.threshold === cumCount && e.threshold > 0)) return 'ERA_TURN'
-  if (prev && event.blockNumber - prev.blockNumber > 50000n) return 'LONG_DARK'
-  if (prev && prev.blockNumber === event.blockNumber) return 'COINCIDENCE'
-
+  if (prev && event.blockNumber - prev.blockNumber > 50000n) return 'LONG_QUIET'
+  if (prev && prev.blockNumber === event.blockNumber) return 'SIMULTANEOUS'
+  const isCartelMove = event.type === 'BurnRevealed'
   const zone = zoneFor(event.tokenId)
-
-  if (char === 'VOSS') {
-    if (w.finnBurnStreak) return 'FINN_STREAK'
-    if (w.lyraZones.includes(zone)) return 'FINN_BURNS_LYRA'
-    return 'FINN_BURN'
-  }
+  if (isCartelMove) return w.lyraHolds.includes(zone) ? 'CARTEL_PUSH' : 'CARTEL_ADVANCE'
   if (char === 'LYRA') {
-    if (w.finnBurned.includes(zone)) return 'LYRA_RETURN'
-    return 'LYRA_BUILD'
+    if (w.lastCartelPushWasLyras && !w.finnReclaimedAfterPush) return 'LYRA_RESPONDS'
+    return w.lyraCount % 3 === 0 ? 'LYRA_DAILY' : 'LYRA_DESIGNS'
   }
-  if (char === 'CAST') {
-    return w.tension > 65 ? 'CAST_RECKONS' : 'CAST_LOG'
+  if (char === 'VOSS') {
+    if (w.cartelStreak) return 'FINN_STREAK'
+    return w.finnCount % 4 === 0 ? 'FINN_DAILY' : 'FINN_RECLAIMS'
   }
+  if (char === 'CAST') return w.cartellPressure > 65 ? 'CAST_READS' : 'CAST_LOGS'
   if (char === 'SABLE') {
-    return w.finnBurned.includes(zone) ? 'CIELO_AFTER_BURN' : 'CIELO_TEND'
+    if (w.cartellPressure > 70 || w.cieloShortage) return 'CIELO_CRISIS'
+    return w.cieloCount % 3 === 1 ? 'CIELO_DAILY' : 'CIELO_RUNS'
   }
-  if (char === 'ECHO') {
-    return w.echoCount > 0 && w.echoCount % 4 === 0 ? 'ECHO_FIND' : 'ECHO_MOVE'
-  }
-  return 'CAST_LOG'
+  if (char === 'ECHO') return w.echoCount > 0 && w.echoCount % 3 === 0 ? 'ECHO_FINDS' : 'ECHO_SCOUTS'
+  return 'CAST_LOGS'
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// THE NARRATOR
-//
-// One voice. The Cast tells the whole story.
-// This is the hard part to get right.
-//
-// What makes it feel alive:
-//   - The narrator knows what just happened and has not forgotten it
-//   - The narrator knows what is unresolved and holds it open
-//   - Characters are present *in each other's entries* — Finn exists in
-//     Lyra's entries, Cielo exists in Finn's entries, etc.
-//   - Emotional temperature shifts — not every entry is the same register
-//   - The prose doesn't explain what it means. It shows it and trusts you.
-//   - Short sentences land harder than long ones. Both exist here.
-// ─────────────────────────────────────────────────────────────────────────────
+function r<T>(arr: T[], seed: number): T { return arr[Math.abs(seed) % arr.length] }
 
-function r<T>(arr: T[], seed: number): T {
-  return arr[Math.abs(seed) % arr.length]
-}
-
-// What was just happening in the rest of the world — one or two sentences
-// that make the current entry feel like it's part of a continuous story
-function worldContext(w: W, zone: string, char: CharacterKey, seed: number): string {
-  if (!w.prev) return ''
+function body(beat: Beat, zone: string, char: CharacterKey, w: W, seed: number): string {
   const s = Math.abs(seed)
-
-  // High tension: reference it directly
-  if (w.tension > 70) {
-    if (w.lastBurnZone && w.lastBurnWasLyras && !w.lyraRebuiltAfterBurn) {
-      return r([
-        `${w.lastBurnZone} is still open — Finn burned it and Lyra has not come back to it yet.`,
-        `The burn in ${w.lastBurnZone} is still sitting there, unaddressed.`,
-        `Lyra's signal in ${w.lastBurnZone} is gone. She has not returned.`,
-      ], s)
-    }
-    if (w.finnBurnStreak) {
-      return r([
-        `Finn has been burning without stopping. The grid is getting lighter in ways that are starting to feel less like decisions and more like momentum.`,
-        `Three burns in a row now. Whatever Finn is working through, he is working through it in the chain.`,
-      ], s)
-    }
+  function thread(): string {
+    if (!w.prev) return ''
+    if (w.lastCartelPush && !w.finnReclaimedAfterPush)
+      return r([`${w.lastCartelPush} is still in Cartel hands.`, `The situation in ${w.lastCartelPush} hasn't changed.`], s + 1)
+    if (w.prev.char === 'VOSS' && w.finnReclaimed.length > 0) return `Finn was in ${w.prev.zone} earlier. He came back quieter than he left.`
+    if (w.prev.char === 'SABLE' && w.cieloShortage) return `Cielo's been rationing ${w.cieloShortage} since last week. It's starting to show.`
+    return ''
   }
-
-  // Low tension / quiet: notice what's steady
-  if (w.tension < 35) {
-    if (w.cieloIsHolding.length > 0) {
-      const held = w.cieloIsHolding[w.cieloIsHolding.length - 1]
-      return r([
-        `Cielo has been holding the edges in ${held} steady. Nobody has mentioned it.`,
-        `The burned zone at ${held} is still standing because Cielo has been tending its edges.`,
-      ], s)
-    }
-    if (w.echoDiscovery) {
-      return r([
-        `Echo has been moving through the outer zones. He found something at ${w.echoDiscovery} that he has not explained to anyone yet.`,
-        `Whatever Echo found in ${w.echoDiscovery} is still out there at the margins, unresolved.`,
-      ], s)
-    }
-  }
-
-  // Default: reference the immediate previous act
-  const p = w.prev
-  if (p.char === 'VOSS') {
-    return r([
-      `Finn's burn in ${p.zone} is still in the record — no one has addressed it yet.`,
-      `The signal Finn removed in ${p.zone} is not coming back. The grid has not moved on from it yet.`,
-    ], s)
-  }
-  if (p.char === 'LYRA') {
-    return r([
-      `Lyra placed another layer in ${p.zone} before this. The accumulation is getting visible.`,
-      `The piece Lyra added to ${p.zone} is still settling into the structure.`,
-    ], s)
-  }
-  if (p.char === 'SABLE') {
-    return r([
-      `Cielo finished her work in ${p.zone}. The zone is holding.`,
-      `Cielo tended ${p.zone} and moved on. The Cast was the only one watching.`,
-    ], s)
-  }
-  if (p.char === 'ECHO') {
-    return r([
-      `Echo has not come back from the outer zones since ${p.zone}.`,
-      `Whatever Echo found in ${p.zone}, he has not explained it to anyone.`,
-    ], s)
-  }
-  return ''
-}
-
-function body(
-  beat: Beat,
-  zone: string,
-  char: CharacterKey,
-  w: W,
-  seed: number,
-  pixelCount: number,
-): string {
-  const s = Math.abs(seed)
-  const ctx = worldContext(w, zone, char, s + 13)
-  const pre = ctx ? ctx + '\n\n' : ''
+  const pre = thread()
+  const ctx = pre ? pre + '\n\n' : ''
 
   switch (beat) {
-
-    // ── SYSTEM ─────────────────────────────────────────────────────────────
-
     case 'GENESIS': return r([
-      `The grid is new. ${zone} receives one of the first signals — clean, uncorrupted, the way everything is before the weight of repeated acts starts to accumulate. This is the beginning of the record. The five are not yet known to each other in the way they will be. The Cast is watching. It will not stop watching.`,
-      `Early. Before the patterns. ${zone} is one of the first places anyone has left a mark in the grid, and right now it carries all the potential of something that has not yet become what it is going to be. The Cast opens the record here. Lyra will build. Finn will burn. Cielo will tend what they leave behind. Echo will find what they were not looking for. None of them knows that yet.`,
-      `The record opens with ${zone}. The grid exists. The five are out there. What they do to each other, and to this place, is what the chronicle is for.`,
+      `The grid in ${zone} is still mostly free — the Cartel hasn't reached this far yet, or hasn't bothered. Five people are living their lives here, doing their work, trying to hold onto something. None of them set out to be in a story. The record opens anyway.`,
+      `Normia is a city that runs on pixels — who holds them, who shapes them, who loses them. The Glyph Cartel wants all of it. Five people are the reason they don't have it yet. This is ${zone}. This is where it starts.`,
+      `Before the Cartel made its move, ${zone} was just a place. People bought groceries there. Kids drew on the grid-walls. The record starts here because everything starts somewhere, and this is where the chain begins.`,
     ], s)
 
     case 'ERA_TURN': return r([
-      `${pre}The grid has crossed into ${w.era}. This is not ceremonial — the era designation changes how old signal-claims are weighted against new ones. Everything the five built and burned before this moment is prior-era data now. The Cast logged the transition. ${w.lyraCount > 0 ? `Lyra has ${w.lyraCount} builds in the prior record. Finn has ${w.finnCount} burns.` : ''} They did not stop moving.`,
-      `${w.era} begins. ${pre}The count crossed the threshold and the world moved into a new designation. Thresholds don't feel like anything from inside them — the five kept going without ceremony. But the Cast knows what crosses a threshold carries forward, and what gets reclassified, and what that means for every disputed zone in the grid.`,
+      `${ctx}The city has crossed into a new phase — what the record calls ${w.era}. The Cartel's tactics have shifted. The five are adjusting. ${zone} is where the new era's first mark falls. Nothing resets. Everything that happened before this still happened.`,
+      `${w.era}. ${ctx}That's what the Cast is calling this stretch of time. The pressure has changed shape — less visible in some places, heavier in others. The five keep going. They have learned not to celebrate thresholds, because the other side of every threshold is just more of the work.`,
     ], s)
 
-    case 'LONG_DARK': return r([
-      `${pre}Then nothing. The chain went quiet — longer than usual, long enough that the grid started to drift on its own. Old signal fading at the edges. Fraying claims nobody was maintaining. ${w.cieloTended.length > 0 ? `Cielo was not in the record, but some zones held anyway — the work she had done before the silence kept them stable.` : `Whatever had been tending the edges was not tending them anymore.`} The Cast logged the silence as its own entry. ${zone} is where the chain resumes.`,
-      `A long gap opened in the record. ${pre}Whatever the five were doing in the quiet, none of it left a mark. The grid continued without witnesses — zones shifting, signal drifting, the patient decay of things that needed tending and weren't. The Cast has documentation of the silence. The sequence begins again at ${zone}.`,
+    case 'LONG_QUIET': return r([
+      `${ctx}There was a stretch where almost nothing happened — not in the record, anyway. ${zone} held. The Cartel didn't push. The five caught their breath in ways they almost never get to. Cielo cooked something that required three pots. Finn slept past sunrise for the first time in months. Then the chain picked up again.`,
+      `A gap in the record. ${ctx}The city went on without logging anything — weeks of ordinary time, small decisions, meals eaten and conversations had that didn't rise to the level of events. The quiet ended at ${zone}. The chain resumes.`,
     ], s)
 
-    case 'COINCIDENCE': return r([
-      `${pre}Two acts registered in the same block — ${zone} and somewhere else in the grid, simultaneously. The Cast logged both. Whether it means something is not in the chain. What is in the chain is the fact of it: two things happened at the exact same moment, and Normia does not have a settled position on coincidence.`,
+    case 'SIMULTANEOUS': return r([
+      `${ctx}Two things happened at once — the grid logged them in the same instant. The Cast noted it without knowing what to make of it. Coincidences in Normia are usually not coincidences. But sometimes they are.`,
     ], s)
 
-    // ── LYRA ───────────────────────────────────────────────────────────────
-
-    case 'LYRA_BUILD': {
-      const earlyStage = w.lyraCount < 4
-      const highTension = w.tension > 55
-      if (earlyStage) return r([
-        `${pre}Lyra placed another layer in ${zone}. She works without explaining what she is building — each piece connects to the ones before it, and the full shape is still only visible to her. The Cast is the only one watching her closely enough to notice how deliberate it is.`,
-        `${pre}${zone} now carries Lyra's signal. She built it quietly, without announcement, the way she does everything. Whatever she is constructing across Normia, this is one more weight-bearing piece of it. The Cast has begun to notice the pattern.`,
-      ], s)
-      if (highTension) return r([
-        `${pre}Lyra is still building. In ${zone} — another layer, steady and deliberate, as if the last few burns did not happen. This is either exceptional focus or a refusal to acknowledge what is happening to her work. The Cast has watched long enough to think it might be both, and that neither interpretation makes her wrong.`,
-        `${pre}Despite everything, Lyra built in ${zone}. She does not adjust for the burns. She routes around them and continues. The structure she is working toward has survived every disruption so far. Whether it survives the next one is the question the Cast is holding.`,
-      ], s)
-      return r([
-        `${pre}Lyra added to her work in ${zone}. She has been at this across ${w.lyraCount > 1 ? `${w.lyraCount} sectors` : 'multiple zones'} now — the accumulation is getting legible to anyone reading the full map, even if the finished shape is still only hers to know. The Cast watches her place each piece and thinks: this is someone who knows exactly where this is going, even on the days it does not look like it.`,
-        `${pre}Another build from Lyra, this time in ${zone}. Each placement she makes is load-bearing for something further along — that much is clear from the sequence. What the finished structure actually is remains the longest open question in the record.`,
-        `${pre}Lyra's signal settled into ${zone}. ${w.openQuestion ? `The Cast has been sitting with the question of ${w.openQuestion}. ` : ''}She does not stop to address it. She builds.`,
-      ], s)
-    }
-
-    case 'LYRA_RETURN': return r([
-      `Finn burned ${zone}. Lyra came back.\n\n${ctx ? ctx + '\n\n' : ''}She placed her signal in the exact ground he cleared — no announcement, no acknowledgment of what happened, just the act of building in the same place he unmade. The Cast has seen her do this before. She does not fight him directly. She continues. Whether that is wisdom or something harder to name, the record does not resolve it. Both the burn and the rebuild are in the chain now.`,
-      `${zone} was Finn's work to unmake. Lyra made it again.\n\n${ctx ? ctx + '\n\n' : ''}She rebuilt where his absence was, placed her signal over the gap he left, and moved on. The Cast logged it as a return. What it actually is — defiance, or correction, or just the plan continuing regardless of what Finn does — is a question the entry raises without answering.`,
-      `Finn burned here. Then Lyra built here. The same zone, two acts, different intentions.\n\n${ctx ? ctx + '\n\n' : ''}The Cast has both entries in the chain now. It has watched the two of them operate in the same territory before, each one acting as if the other does not quite exist. The grid holds both marks. Whether they will hold together, or whether Finn will come back and burn again, is where the story is right now.`,
+    case 'LYRA_DESIGNS': return r([
+      `${ctx}Lyra has been at her workstation in ${zone} since before most people woke up. ${w.lyraCurrentProject ? `She's working on ${w.lyraCurrentProject}` : `She's working on something she hasn't named yet`} — a grid pattern she'll release open-source when it's done, freely, so anyone in Normia can use it to hold their own territory. She gets offers to do this work for pay. She does it for free or not at all.`,
+      `${ctx}The design Lyra is running in ${zone} today took her six weeks to get right. She threw away four earlier versions. Now she's testing the edges — checking the places where the Cartel's tools would find a way in, and closing them one by one. She eats while she works. She's been eating the same thing for three days.`,
+      `${ctx}Lyra doesn't think of what she does as political. She builds things that work. The fact that they work against the Cartel's expansion model is, in her view, incidental. Her colleagues think this is either the most principled position possible or a form of denial. She doesn't engage with the argument. She's busy.`,
     ], s)
 
-    // ── FINN ───────────────────────────────────────────────────────────────
-
-    case 'FINN_BURN': return r([
-      `${pre}Finn burned in ${zone}. The signal there is gone — permanently, cleanly. He finds what has stopped earning its place in the grid and removes it. He does not explain his criteria. The absence is in the chain now. Cielo has been moving toward burned zones lately, holding their edges. She may come through here.`,
-      `${pre}A burn at ${zone}. Finn's principle is simple: calcified signal is worse than none. The act is final. The grid is lighter now in this sector than it was before. ${w.cieloCount > 0 ? `The Cast has noticed that Cielo tends the zones after him — she does not rebuild what he destroyed, she holds what remains. They have never acknowledged each other in the record.` : `The Cast logged the absence with the same precision it uses for presences.`}`,
-      `${pre}Finn moved through ${zone} and burned what was there. He does not stay to watch the aftermath. The record carries the removal forward. ${w.openQuestion ? `The question the Cast is holding — ${w.openQuestion} — has not been answered. This burn does not answer it either.` : `The Cast does not know yet if this was the right call. That is not the Cast's role to determine. It only records the call, and its consequences.`}`,
+    case 'LYRA_DAILY': return r([
+      `${ctx}Lyra went to the market in ${zone} this morning — the one that doesn't require a Cartel-issued access token to enter. She bought coffee and argued mildly with the vendor about the price. She overpaid anyway. On the way back she noticed a section of grid-wall that had been painted over, the old design replaced by something flat and anonymous. She stood there a moment. Then kept walking.`,
+      `${ctx}It was Lyra's day off — one she'd been owing herself for weeks. She spent most of it in ${zone} doing nothing useful: lying on the floor with music on, sketching things she wasn't going to build, reading something with no technical value. By evening she was restless. She opened her workstation anyway. She told herself it was just to check something.`,
+      `${ctx}Lyra ran into an old colleague in ${zone} — someone from before, when the work they did was paid and sanctioned and not about any of this. They had coffee and talked around the obvious: that version of Normia is gone. They didn't say it directly. They split the bill evenly and went separate directions.`,
     ], s)
 
-    case 'FINN_BURNS_LYRA': return r([
-      `${pre}Finn burned in ${zone} — and ${zone} was Lyra's.\n\nHer signal is gone. He does not target her specifically; he targets signal that has calcified, and hers had been in ${zone} long enough to qualify. The Cast logged both the build and the burn, separately, linked only by zone and time. Lyra will find this in the record. What she does with it is the question the Cast has been waiting to log.`,
-      `${zone} was Lyra's. Now it is Finn's burn.\n\n${ctx ? ctx + '\n\n' : ''}The Cast has watched this happen before — the same zone, different actors, different intentions, the result always the same: someone built something, and someone removed it, and the grid is different now than it was. Whether Lyra comes back to ${zone} is the most immediate thing the record does not know yet.`,
-      `${pre}This is the central collision, repeated again: Lyra builds, Finn burns what she built. In ${zone}, it happened. The Cast does not editorialize. Both acts are in the chain with equal weight, neither privileged over the other. The Cast only notes that the gap between them — the time Lyra's signal was in ${zone} before Finn found it — was ${w.lyraCount > w.finnCount ? 'longer than most' : 'brief'}.`,
+    case 'LYRA_RESPONDS': return r([
+      `${w.lastCartelPush ? `The Cartel moved into ${w.lastCartelPush} and hit Lyra's work.` : `Her design got taken.`}\n\n${ctx}She found out from Echo — he'd been watching the sector and sent her a text at 2am that said just the zone name and nothing else. She sat with it for a while. Then she opened her workstation and started designing the version that goes back in. It will be harder to dislodge. She knows what they found to exploit the last time.`,
+      `${w.lastCartelPush ? `${w.lastCartelPush} is in Cartel hands now.` : `Something Lyra built is gone.`} ${ctx}She didn't react visibly when Finn told her. She asked two clarifying questions — how far in, and which edges — and then said she needed an hour. When she came back she had a plan. Finn said the plan was aggressive. She said it was proportionate.`,
+    ], s)
+
+    case 'FINN_RECLAIMS': return r([
+      `${ctx}Finn went into ${zone} last night. He wasn't supposed to be there — nobody was, according to the Cartel's access map. He got in through a service corridor Echo had flagged two weeks ago and spent four hours quietly restoring what the Cartel had overwritten. He was back in his apartment before the grid-lights came on. He slept three hours. Then got up and made eggs.`,
+      `${ctx}The work in ${zone} took longer than Finn expected. He'd planned a clean in-and-out, but one of the Cartel's locks had been upgraded. He improvised. He used a technique from his old Cartel days — which is a thing he doesn't usually think about while he's using it. He got the zone back. He texted Lyra the coordinates and went to get coffee.`,
+      `${ctx}Finn operates in ${zone} without ceremony. He doesn't see what he does as heroic — he sees it as corrective. The Cartel took something that wasn't theirs. He puts it back. The moral accounting is simple. What gets harder is knowing how it was taken, because he used to help take things like it. He doesn't talk about this. He talks about logistics.`,
+    ], s)
+
+    case 'FINN_DAILY': return r([
+      `${ctx}Finn's been in ${zone} for two days on what he calls a reconnaissance pause — meaning he's sitting in a café watching the grid traffic and not actively doing anything. He ordered food. He read something. He had a longer conversation than usual with the woman who runs the place, who wanted to know if the rumors about the Cartel's new checkpoint were true. He told her mostly. He told her what to do about it.`,
+      `${ctx}Today Finn helped Cielo move supplies — nothing operational, just carrying boxes through ${zone} in broad daylight like people doing something ordinary. They talked about things that weren't the war: a film, a street that had been repaved, whether a certain noodle place was still open. It was. They ate there after.`,
+      `${ctx}Finn got a message from someone he used to work with at the Cartel — a low-level systems person who never had much to do with the actual expansion. The message implied something the sender wasn't willing to say directly. Finn read it twice in ${zone}, sat outside for a while, then wrote back. He hasn't told anyone what it said.`,
     ], s)
 
     case 'FINN_STREAK': return r([
-      `${pre}Finn burned again — ${zone}, this time. ${w.consecutiveBurns} burns in a row without stopping.\n\nThe Cast has been watching the streak accumulate. This is what it looks like when Finn is not making individual decisions anymore — when the principle has become the momentum. Something will break the streak. The Cast does not know what. It logs the entry and waits.`,
-      `Another burn. ${zone}. ${pre}${w.consecutiveBurns} in a row.\n\nCielo has been following behind him, tending what the burns leave at the edges. She has not said anything about the streak. Nobody has. The chain shows the burns one after another, and the grid getting lighter, and the question of when it becomes too light sitting there unanswered.`,
+      `${ctx}Finn has been running for three days. ${zone} is the latest. He's not sleeping enough and Cielo has said so directly, twice. He nodded and kept going. The logic is sound: when the Cartel pushes, you push back hard. The body doesn't always agree with sound logic.`,
+      `${ctx}Third zone this week. ${w.lastCartelPush ? `The Cartel hit ${w.lastCartelPush} and Finn hasn't stopped moving since.` : `Finn hasn't stopped.`} He came through ${zone} fast and clean. Echo is tracking ahead of him. Lyra is updating patterns as he restores them. It looks like coordination. It mostly is. What it also is: three people running on adrenaline and bad coffee, doing the only thing they can think to do.`,
     ], s)
 
-    // ── CAST ───────────────────────────────────────────────────────────────
-
-    case 'CAST_LOG': return r([
-      `${pre}The Cast logged ${zone}. Another entry in the chain — the record now holds ${w.totalActs} acts since the opening. The Cast is the only one in the grid with the full sequence in view: Lyra's accumulation, Finn's removals, Cielo's quiet maintenance, Echo's finds at the margins. Each entry connects to all the others. The Cast writes this one down.`,
-      `${pre}The Cast was in ${zone}, watching. It does not change what it witnesses. It records it. The record it is building will outlast everyone in it — Lyra's structure included, if it ever gets finished. The Cast has thought about this. It keeps recording anyway.`,
-      `${pre}${zone}: the Cast added a record. ${w.openQuestion ? `The question the Cast has been sitting with — ${w.openQuestion} — is still open. This entry does not answer it. The Cast notes the entry and continues.` : `The chain grows. The story continues.`}`,
+    case 'CAST_LOGS': return r([
+      `${ctx}The Cast logged ${zone}. Another entry — another day in a city that is still, by some combination of effort and luck, mostly itself. ${w.lastCartelPush && !w.finnReclaimedAfterPush ? `${w.lastCartelPush} is still in Cartel hands. That's in the record too.` : `The five keep moving. The Cast keeps writing it down.`}`,
+      `${ctx}The Cast was watching ${zone} when the event registered. It records without favor — small acts alongside large ones, days that feel like nothing alongside the days that change things. Today was a day. The Cast logged it. The record grows.`,
+      `${ctx}${zone}: logged. What the Cast can see that no single person can is the accumulation — all the ordinary days adding up to a city still standing, still mostly free, despite everything that's been trying to change that. It adds this entry and continues.`,
     ], s)
 
-    case 'CAST_RECKONS': return r([
-      `${pre}The Cast is in ${zone}, and from this vantage the full picture is visible in a way it is not to anyone inside any single act.\n\nLyra has been building. Finn has been burning. The tension between those two things is at the highest point the record has seen. Cielo has been holding the damaged zones steady — without her work, several of the sectors Lyra moved through would have already collapsed. Echo is moving at the margins, finding things nobody has explained yet. The Cast holds all of this at once. It writes it down. It does not intervene. The question of whether witnessing is enough has been on its mind for a long time.`,
-      `${pre}The Cast stepped back to read the full map from ${zone}.\n\nWhat it sees: ${w.lyraCount} Lyra builds. ${w.finnCount} Finn burns. ${w.tension > 75 ? 'The grid under more pressure than it has been.' : 'The grid holding, barely.'} Cielo tending the edges that would otherwise be falling apart. Echo at the outer zones, working a thread nobody else is following. The Cast has the whole record. It does not know what to do with the whole record except continue adding to it.`,
+    case 'CAST_READS': return r([
+      `${ctx}The Cast stepped back from ${zone} and read the full situation.\n\nThe Cartel holds more than it did. The five have been holding too — Lyra's designs protect ${w.lyraHolds.length > 0 ? `${w.lyraHolds.length} zones` : `what she's built`}, Finn has recovered ${w.finnReclaimed.length > 0 ? `${w.finnReclaimed.length} sectors` : `ground`}, Cielo's network is still running, Echo has mapped corridors the Cartel doesn't know about. The pressure is real. The resistance is real. The Cast logs both and offers no verdict. That's not what it's for.`,
+      `${ctx}High pressure in the grid right now. From ${zone} the Cast is reading the whole shape of it: the Cartel advancing on one side, the five pushing back on the other, and between them the ordinary people of Normia trying to get through their days. ${w.cieloShortage ? `Cielo is short on ${w.cieloShortage}. ` : ``}${w.echoLastFind ? `Echo found ${w.echoLastFind}. ` : ``}The Cast has all of it. It writes it down.`,
     ], s)
 
-    // ── CIELO ──────────────────────────────────────────────────────────────
-
-    case 'CIELO_TEND': return r([
-      `${pre}Cielo came through ${zone} and found what she always finds: signal drifting at the edges, small collapses nobody flagged, fraying claims that needed holding. She held them. The zone is stable now. Nobody will notice. The Cast noticed.`,
-      `${pre}Cielo tended ${zone}. The work she does here is the kind that disappears when it works — you only see it when it stops happening. ${w.lyraCount > 2 ? `Without her passes through the zones Lyra built through, several of those builds would have quietly degraded. Lyra does not know this.` : `The Cast has been logging her maintenance acts alongside the more visible ones. The ratio surprises it.`}`,
-      `${pre}Cielo moved through ${zone}, doing the repair that the larger acts leave behind. She has now tended ${w.cieloCount + 1} zones in the record. None of them have gone dark on her watch. The Cast finds this more significant than it knows how to say in a log entry.`,
+    case 'CIELO_RUNS': return r([
+      `${ctx}Cielo's been running the ${zone} safehouse for months now. Today was a supply day — she checked inventory, restocked what she could, made sure the grid-access tokens were current so people could get out without being flagged. She has a system. The system works because she never skips steps, even the boring ones. Especially the boring ones.`,
+      `${ctx}Three new people came through the ${zone} network this week. Cielo did intakes: what they need, how long they need it, what they can contribute. She's not running a charity — the network works because everyone in it adds something. One of the three knew how to maintain a relay antenna. She put them to work immediately.`,
+      `${ctx}Cielo spent the morning in ${zone} coordinating a handoff — someone who'd been in the network for two months, leaving for a zone outside the Cartel's current interest, carrying a hard drive with Lyra's designs on it. Clean handoff. Cielo crossed it off her list. She has seventeen more items. She made tea.`,
     ], s)
 
-    case 'CIELO_AFTER_BURN': return r([
-      `Finn burned here. ${ctx ? ctx + '\n\n' : ''}Cielo came through ${zone} afterward.\n\nShe is not rebuilding what he destroyed — she is stabilizing the edges, holding the adjacent signal from collapsing into the gap he opened. There is a distinction there that matters: Finn removes, Lyra builds back, and Cielo holds the perimeter so the removal does not keep spreading. The three of them have never discussed this arrangement. It is just what they do.`,
-      `${pre}Cielo in ${zone}, which Finn burned.\n\nShe tends the burned zones the way she tends everything else — without drama, without acknowledgment, just the maintenance work. The Cast has noticed that the zones she tends after a burn stay more stable than the ones she does not reach. It is in the record. Nobody else has read the record carefully enough to notice. That, too, is in the record.`,
+    case 'CIELO_DAILY': return r([
+      `${ctx}Cielo had a slow morning in ${zone}. She cooked for the safehouse — a big pot of something that would stretch across the day, the kind of cooking that gives you time to think. Two of the people staying there sat with her in the kitchen and talked. Not about the Cartel. Not about the grid. About where they were from. About things they missed. It was a good hour.`,
+      `${ctx}Cielo took the long way through ${zone} today — the route that passes the school that's still open, technically outside the Cartel's reach because it sits on pre-grid infrastructure they haven't bothered to map. She stopped to watch the kids in the yard for a moment. This is the thing she doesn't say out loud: she's not doing this for some abstract cause. She's doing it for that school. For the kids in the yard.`,
+      `${ctx}Cielo got into an argument today. Someone in the network thought she was making a bad call on the ${zone} location. They might have been right. She listened, pushed back, listened again, and moved the meet point two blocks. She hates that they were right. She moved it anyway.`,
     ], s)
 
-    // ── ECHO ───────────────────────────────────────────────────────────────
-
-    case 'ECHO_MOVE': return r([
-      `${pre}Echo registered in ${zone} — one of the outer sectors, away from where the rest of the story is happening. He moves from the edges inward, which means he sees Normia in a sequence nobody else does. ${w.echoDiscovery ? `He has been tracking something since ${w.echoDiscovery}. This is another step in it.` : 'He has been moving through the outer zones for several entries now, building a picture of the margins that nobody in the center has.'}`,
-      `${pre}Echo appeared in ${zone}. The Cast logs his movements without quite understanding why they matter yet. What it has noticed: every time Echo surfaces something at the margins, it turns out to connect to something Lyra or Finn or Cielo was doing without knowing it. He finds the links between things. The Cast does not know if he knows he is doing this.`,
+    case 'CIELO_CRISIS': return r([
+      `${ctx}${w.cieloShortage ? `The ${w.cieloShortage} situation in the network has gotten worse.` : `Something's running low.`} Cielo is in ${zone} running the numbers and the numbers are not cooperating. She's been doing this long enough to know which shortages are logistical problems and which are structural ones. ${w.cieloShortage === 'medicine' || w.cieloShortage === 'clean water' ? `This one is structural. She's making calls.` : `This one she can solve. She's working on it.`}`,
+      `${ctx}The ${zone} safehouse had a close call — a Cartel patrol came within a block of it, following a route it hadn't used before. Everyone stayed quiet. The patrol passed. After, Cielo went through the protocols again — calmly, because calm was what the situation needed. She added the new route to Echo's map request list.`,
     ], s)
 
-    case 'ECHO_FIND': return r([
-      `${pre}Echo found something in ${zone}.\n\nOld signal — buried below the current map, predating the present era's claims, not in any record except the base layer. He documented it and kept moving. ${w.lyraCount > 2 ? `The Cast has a suspicion about where this fits in what Lyra is building. It has not said anything to anyone, because it does not say things to anyone. It just adds the entry to the chain and waits.` : `The Cast logged it. Whatever it means has not become clear yet.`}`,
-      `At ${zone}, Echo surfaced something that was not supposed to be there.\n\n${ctx ? ctx + '\n\n' : ''}He documented it without drawing conclusions. The Cast added it to the record. ${w.openQuestion ? `The open question the Cast has been carrying — ${w.openQuestion} — might be connected to this. Or it might not. The record accumulates. At some point the pattern becomes legible.` : `Whether it connects to anything else is the question the Cast is now holding alongside everything else.`}`,
+    case 'ECHO_SCOUTS': return r([
+      `${ctx}Echo has been moving through the outer edges of ${zone} for two days, mapping what the Cartel thinks they've locked down. They've locked down most of it. Not all. There's a section near the east wall where the grid-coverage has a gap — not large enough for a permanent installation, but large enough for a transit point. He marked it and moved on.`,
+      `${ctx}Echo checked in from ${zone} this morning — a brief message, coordinates, one line of notes. That's his entire communication style. Finn has complained about this. Echo's position is that if you say less, there's less to intercept. He is not wrong. Finn still finds it aggravating.`,
+      `${ctx}The route Echo found through ${zone} cuts forty minutes off the supply run Cielo's been making twice a week. He walked it three times to make sure, then sent her the path with annotated notes on every decision point. She used it the next day. She sent back a voice message that was mostly just exhaling.`,
     ], s)
 
-    default: return `The Cast logged ${zone}. The record grows.`
+    case 'ECHO_FINDS': return r([
+      `${ctx}Echo found something in ${zone} that shifted the shape of things slightly: ${w.echoLastFind ?? 'something that wasn\'t on any current map'}. He sat with it before telling anyone — not hiding it, just making sure he understood what he was looking at. He told Lyra first. She went quiet. Then: "send me the coordinates."`,
+      `${ctx}The thing Echo found in ${zone} — ${w.echoLastFind ?? 'an unmarked access point'} — is the kind of discovery that makes everyone reconsider their assumptions slightly. Finn wants to use it immediately. Cielo wants to secure it first. Echo is in the middle, which is usually where he ends up: he finds things, other people argue about what to do with them. He doesn't mind. He's already looking for the next one.`,
+    ], s)
+
+    case 'CARTEL_PUSH': return r([
+      `The Cartel moved into ${zone} — and ${zone} had Lyra's patterns in it.\n\n${ctx}Her designs are gone now, overwritten with the Cartel's flat template. The grid there looks the way all Cartel-held territory looks: uniform, locked, nothing personal. Finn heard from Echo and sent Lyra a message that was mostly practical — what's accessible, what's covered, what can be recovered. She hasn't replied yet. She will.`,
+      `${zone} fell to the Cartel.\n\n${ctx}Lyra had been working there for weeks. The Cartel found the vulnerability she hadn't closed yet — she'd known it was there, been working toward it, didn't get there in time. She told Finn this exactly once. He said nothing, because there was nothing useful to say. He's already looking at the map.`,
+    ], s)
+
+    case 'CARTEL_ADVANCE': return r([
+      `${ctx}The Cartel made a move in ${zone} today — open territory, or what was. Now it's another flat grey section on the map. The Cast logged it. The five noted it. The pressure went up. Life in the parts of Normia that are still free continued, because it has to.`,
+      `${ctx}Another zone goes grey. ${zone} is Cartel territory now. The people who were living there in the grid's open layer have been pushed into corners or have moved on. This is what the Cast calls an advance. What the people who used to paint their grid-walls there call it is not something the Cast records.`,
+    ], s)
+
+    default: return `The Cast logged ${zone}. The city keeps moving.`
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// HEADLINES
-// ─────────────────────────────────────────────────────────────────────────────
 
 function headline(beat: Beat, zone: string, w: W, seed: number): string {
   const s = Math.abs(seed)
   switch (beat) {
-    case 'GENESIS':         return r([`The Record Opens`, `First Signal in ${zone}`, `Normia Begins`], s)
-    case 'ERA_TURN':        return `The Grid Enters ${w.era}`
-    case 'LONG_DARK':       return r([`The Chain Goes Quiet`, `A Long Silence`, `The Record Resumes at ${zone}`], s)
-    case 'COINCIDENCE':     return r([`Two Acts, One Block`, `Simultaneous Signal in ${zone}`, `Convergence`], s)
-    case 'LYRA_BUILD':      return r([`Lyra Builds in ${zone}`, `Another Layer — ${zone}`, `The Structure Grows`], s)
-    case 'LYRA_RETURN':     return r([`Lyra Comes Back to ${zone}`, `She Rebuilt It`, `Lyra Returns After the Burn`], s)
-    case 'FINN_BURN':       return r([`Finn Burns in ${zone}`, `Signal Removed — ${zone}`, `A Burn at ${zone}`], s)
-    case 'FINN_BURNS_LYRA': return r([`Finn Burns Lyra's Work in ${zone}`, `The Collision: ${zone}`, `${zone} Cleared — It Was Hers`], s)
-    case 'FINN_STREAK':     return r([`Finn Burns Again — ${zone}`, `The Streak: ${w.consecutiveBurns} Burns`, `Still Burning`], s)
-    case 'CAST_LOG':        return r([`The Cast Records ${zone}`, `Logged: ${zone}`, `The Cast in ${zone}`], s)
-    case 'CAST_RECKONS':    return r([`The Cast Reads the Grid`, `A Wider View`, `The Cast at ${zone}`], s)
-    case 'CIELO_TEND':      return r([`Cielo Tends ${zone}`, `Quiet Work in ${zone}`, `${zone} Held`], s)
-    case 'CIELO_AFTER_BURN':return r([`Cielo After the Burn — ${zone}`, `Holding the Edge at ${zone}`, `After Finn: ${zone}`], s)
-    case 'ECHO_MOVE':       return r([`Echo at ${zone}`, `Signal from the Outer Grid`, `Echo Moves Through ${zone}`], s)
-    case 'ECHO_FIND':       return r([`Echo Finds Something at ${zone}`, `Old Signal — ${zone}`, `Discovery at the Margin`], s)
-    default:                return zone
+    case 'GENESIS':        return r([`The Record Opens`, `Normia, Before Everything`, `${zone} — First Entry`], s)
+    case 'ERA_TURN':       return `${w.era}`
+    case 'LONG_QUIET':     return r([`A Pause in the Record`, `The City Breathes`, `Quiet Stretch`], s)
+    case 'SIMULTANEOUS':   return r([`Two at Once`, `Same Moment — ${zone}`, `The Grid Doubles`], s)
+    case 'LYRA_DESIGNS':   return r([`Lyra, Working`, `New Pattern — ${zone}`, `Lyra's Current Project`], s)
+    case 'LYRA_DAILY':     return r([`Lyra's Day`, `An Ordinary Morning — ${zone}`, `Lyra, Off the Clock`], s)
+    case 'LYRA_RESPONDS':  return r([`Lyra Adjusts`, `After the Cartel Moved — ${zone}`, `She's Already Working on It`], s)
+    case 'FINN_RECLAIMS':  return r([`Finn, Last Night`, `${zone} — Recovered`, `The Quiet Return`], s)
+    case 'FINN_DAILY':     return r([`Finn at the Café`, `A Day Between Operations`, `Finn, Sitting Still`], s)
+    case 'FINN_STREAK':    return r([`Three Days Running`, `Finn, Still Going`, `No Stopping Yet`], s)
+    case 'CAST_LOGS':      return r([`The Record: ${zone}`, `Logged`, `Another Entry`], s)
+    case 'CAST_READS':     return r([`The Cast Reads the Situation`, `Full Picture`, `Where Things Stand`], s)
+    case 'CIELO_RUNS':     return r([`Cielo's Network`, `The ${zone} Operation`, `Supply Day`], s)
+    case 'CIELO_DAILY':    return r([`Cielo, This Morning`, `The Long Way Through ${zone}`, `A Good Hour`], s)
+    case 'CIELO_CRISIS':   return r([`Running Short`, `${zone} — Close Call`, `Cielo Works It`], s)
+    case 'ECHO_SCOUTS':    return r([`Echo in ${zone}`, `What the Cartel Missed`, `Two Days Mapping`], s)
+    case 'ECHO_FINDS':     return r([`Echo Found Something`, `Unmarked — ${zone}`, `What Wasn't on the Map`], s)
+    case 'CARTEL_PUSH':    return r([`${zone} Falls`, `The Cartel Takes Lyra's Work`, `A Zone Goes Dark`], s)
+    case 'CARTEL_ADVANCE': return r([`${zone} Goes Grey`, `The Cartel Advances`, `Another One`], s)
+    default:               return zone
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TYPES + EXPORTS
-// ─────────────────────────────────────────────────────────────────────────────
 
 export type LoreType =
   | 'MARK_MADE' | 'SIGNAL_SURGE' | 'DEPARTURE' | 'RETURN' | 'PIVOT'
@@ -540,71 +363,63 @@ export interface StoryEntry {
 }
 
 const BEAT_LORE: Record<Beat, LoreType> = {
-  GENESIS: 'FIRST_LIGHT', ERA_TURN: 'ERA_SHIFT', LONG_DARK: 'LONG_DARK', COINCIDENCE: 'CONVERGENCE',
-  LYRA_BUILD: 'MARK_MADE', LYRA_RETURN: 'RETURN',
-  FINN_BURN: 'DEPARTURE', FINN_BURNS_LYRA: 'CONTESTED_ZONE', FINN_STREAK: 'DEPARTURE',
-  CAST_LOG: 'NIGHTWATCH', CAST_RECKONS: 'THE_READING',
-  CIELO_TEND: 'THE_STEADY', CIELO_AFTER_BURN: 'THE_STEADY',
-  ECHO_MOVE: 'FAR_SIGNAL', ECHO_FIND: 'RELIC_FOUND',
+  GENESIS: 'FIRST_LIGHT', ERA_TURN: 'ERA_SHIFT', LONG_QUIET: 'LONG_DARK', SIMULTANEOUS: 'CONVERGENCE',
+  LYRA_DESIGNS: 'MARK_MADE', LYRA_DAILY: 'THE_STEADY', LYRA_RESPONDS: 'RETURN',
+  FINN_RECLAIMS: 'RETURN', FINN_DAILY: 'THE_STEADY', FINN_STREAK: 'SIGNAL_SURGE',
+  CAST_LOGS: 'NIGHTWATCH', CAST_READS: 'THE_READING',
+  CIELO_RUNS: 'THE_STEADY', CIELO_DAILY: 'THE_STEADY', CIELO_CRISIS: 'DEPARTURE',
+  ECHO_SCOUTS: 'FAR_SIGNAL', ECHO_FINDS: 'RELIC_FOUND',
+  CARTEL_PUSH: 'CONTESTED_ZONE', CARTEL_ADVANCE: 'DEPARTURE',
 }
-
 const BEAT_ICON: Record<Beat, string> = {
-  GENESIS: '→', ERA_TURN: '║', LONG_DARK: '◌', COINCIDENCE: '⊕',
-  LYRA_BUILD: '▪', LYRA_RETURN: '◈',
-  FINN_BURN: '◆', FINN_BURNS_LYRA: '◆', FINN_STREAK: '◆',
-  CAST_LOG: '○', CAST_RECKONS: '◉',
-  CIELO_TEND: '—', CIELO_AFTER_BURN: '—',
-  ECHO_MOVE: '▿', ECHO_FIND: '◈',
+  GENESIS: '→', ERA_TURN: '║', LONG_QUIET: '◌', SIMULTANEOUS: '⊕',
+  LYRA_DESIGNS: '▪', LYRA_DAILY: '▫', LYRA_RESPONDS: '◈',
+  FINN_RECLAIMS: '◆', FINN_DAILY: '◇', FINN_STREAK: '◆',
+  CAST_LOGS: '○', CAST_READS: '◉',
+  CIELO_RUNS: '—', CIELO_DAILY: '–', CIELO_CRISIS: '—',
+  ECHO_SCOUTS: '▿', ECHO_FINDS: '◈',
+  CARTEL_PUSH: '✕', CARTEL_ADVANCE: '✕',
 }
-
 const BEAT_SCENE: Record<Beat, SceneType> = {
-  GENESIS: 'dawn', ERA_TURN: 'reckoning', LONG_DARK: 'quiet', COINCIDENCE: 'convergence',
-  LYRA_BUILD: 'construction', LYRA_RETURN: 'construction',
-  FINN_BURN: 'destruction', FINN_BURNS_LYRA: 'destruction', FINN_STREAK: 'sacrifice',
-  CAST_LOG: 'vigil', CAST_RECKONS: 'vigil',
-  CIELO_TEND: 'tending', CIELO_AFTER_BURN: 'tending',
-  ECHO_MOVE: 'arrival', ECHO_FIND: 'arrival',
+  GENESIS: 'dawn', ERA_TURN: 'reckoning', LONG_QUIET: 'quiet', SIMULTANEOUS: 'convergence',
+  LYRA_DESIGNS: 'construction', LYRA_DAILY: 'quiet', LYRA_RESPONDS: 'reckoning',
+  FINN_RECLAIMS: 'arrival', FINN_DAILY: 'quiet', FINN_STREAK: 'sacrifice',
+  CAST_LOGS: 'vigil', CAST_READS: 'vigil',
+  CIELO_RUNS: 'tending', CIELO_DAILY: 'quiet', CIELO_CRISIS: 'tending',
+  ECHO_SCOUTS: 'arrival', ECHO_FINDS: 'arrival',
+  CARTEL_PUSH: 'destruction', CARTEL_ADVANCE: 'destruction',
 }
-
 const BEAT_INTENSITY: Record<Beat, number> = {
-  GENESIS: 25, ERA_TURN: 90, LONG_DARK: 55, COINCIDENCE: 70,
-  LYRA_BUILD: 40, LYRA_RETURN: 85,
-  FINN_BURN: 70, FINN_BURNS_LYRA: 95, FINN_STREAK: 88,
-  CAST_LOG: 30, CAST_RECKONS: 60,
-  CIELO_TEND: 20, CIELO_AFTER_BURN: 45,
-  ECHO_MOVE: 50, ECHO_FIND: 75,
+  GENESIS: 25, ERA_TURN: 90, LONG_QUIET: 40, SIMULTANEOUS: 70,
+  LYRA_DESIGNS: 45, LYRA_DAILY: 20, LYRA_RESPONDS: 80,
+  FINN_RECLAIMS: 75, FINN_DAILY: 25, FINN_STREAK: 90,
+  CAST_LOGS: 30, CAST_READS: 65,
+  CIELO_RUNS: 35, CIELO_DAILY: 15, CIELO_CRISIS: 70,
+  ECHO_SCOUTS: 50, ECHO_FINDS: 80,
+  CARTEL_PUSH: 95, CARTEL_ADVANCE: 75,
 }
-
-const BEAT_FEATURED = new Set<Beat>([
-  'GENESIS', 'ERA_TURN', 'LONG_DARK', 'LYRA_RETURN',
-  'FINN_BURNS_LYRA', 'FINN_STREAK', 'CAST_RECKONS', 'ECHO_FIND',
-])
-
+const BEAT_FEATURED = new Set<Beat>(['GENESIS','ERA_TURN','LONG_QUIET','LYRA_RESPONDS','FINN_STREAK','CAST_READS','ECHO_FINDS','CARTEL_PUSH'])
 const MOOD_FOR_SCENE: Record<SceneType, NonNullable<StoryEntry['visualState']>['mood']> = {
   construction: 'surge', destruction: 'chaos', vigil: 'quiet', tending: 'quiet',
   arrival: 'wonder', convergence: 'wonder', reckoning: 'chaos', quiet: 'quiet',
   dawn: 'normal', sacrifice: 'departure',
 }
 
-function dispatch(w: W, zone: string, char: CharacterKey, beat: Beat): string {
-  if (beat === 'FINN_BURNS_LYRA') return `Finn burned ${zone}. It was Lyra's.`
-  if (beat === 'LYRA_RETURN') return `Lyra came back to ${zone} after the burn. She rebuilt.`
-  if (beat === 'ERA_TURN') return `The grid entered ${w.era}.`
-  if (beat === 'LONG_DARK') return `The chain was quiet. Now it moves again.`
-  if (beat === 'FINN_STREAK') return `Finn has burned ${w.consecutiveBurns} zones without stopping. ${zone} is the latest.`
-  if (beat === 'CAST_RECKONS') return `The Cast read the full map. ${w.lyraCount} builds. ${w.finnCount} burns.`
-  if (w.lastBurnZone && !w.lyraRebuiltAfterBurn) return `${w.lastBurnZone} is still open. Lyra has not come back yet.`
-  return `${CHARACTERS[char].name} in ${zone}. The work continues.`
+function makeDispatch(beat: Beat, zone: string, char: CharacterKey, w: W): string {
+  if (beat === 'CARTEL_PUSH') return `The Cartel took ${zone}. It was Lyra's.`
+  if (beat === 'CARTEL_ADVANCE') return `${zone} is Cartel territory now.`
+  if (beat === 'LYRA_RESPONDS') return `Lyra is already working on getting it back.`
+  if (beat === 'FINN_STREAK') return `Finn hasn't stopped. Third zone this stretch.`
+  if (beat === 'CAST_READS') return `The Cast read the full picture. The five are still standing.`
+  if (beat === 'ECHO_FINDS') return w.echoLastFind ? `Echo found ${w.echoLastFind}.` : 'Echo found something.'
+  if (beat === 'CIELO_CRISIS') return w.cieloShortage ? `The network is short on ${w.cieloShortage}.` : 'Something is wrong.'
+  if (w.lastCartelPush && !w.finnReclaimedAfterPush) return `${w.lastCartelPush} is still grey. Working on it.`
+  return `${CHARACTERS[char].name} in ${zone}.`
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MAIN GENERATE
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function generateStoryEntries(events: IndexedEvent[], startCount = 0): StoryEntry[] {
   const result: StoryEntry[] = []
   const w = freshW()
-
   for (let i = 0; i < events.length; i++) {
     const event = events[i]
     const cumCount = startCount + i + 1
@@ -613,11 +428,10 @@ export function generateStoryEntries(events: IndexedEvent[], startCount = 0): St
     const zone = zoneFor(event.tokenId)
     const beat = getBeat(event, char, cumCount, prev, w)
     const seed = Number((event.tokenId * 31n + event.blockNumber * 17n) % 100000n)
-
+    const isCartelMove = event.type === 'BurnRevealed'
     const h = headline(beat, zone, w, seed)
-    const b = body(beat, zone, char, w, seed, Number(event.count))
+    const b = body(beat, zone, char, w, seed)
     const scene = BEAT_SCENE[beat]
-
     result.push({
       id: `${event.transactionHash}-${event.tokenId.toString()}`,
       eventType: event.type,
@@ -628,20 +442,17 @@ export function generateStoryEntries(events: IndexedEvent[], startCount = 0): St
       icon: BEAT_ICON[beat],
       featured: BEAT_FEATURED.has(beat),
       activeCharacter: char,
-      dispatch: dispatch(w, zone, char, beat),
+      dispatch: makeDispatch(beat, zone, char, w),
       visualState: {
         mood: MOOD_FOR_SCENE[scene],
         intensity: BEAT_INTENSITY[beat],
         dominantZone: zone,
         signalName: CHARACTERS[char].name,
-        scene,
-        charKey: char,
+        scene, charKey: char,
       },
       sourceEvent: {
         type: event.type,
-        tokenId: event.type === 'BurnRevealed' && event.targetTokenId !== undefined
-          ? `#${event.tokenId} → #${event.targetTokenId}`
-          : `#${event.tokenId}`,
+        tokenId: isCartelMove && event.targetTokenId !== undefined ? `#${event.tokenId} → #${event.targetTokenId}` : `#${event.tokenId}`,
         blockNumber: event.blockNumber.toLocaleString(),
         txHash: event.transactionHash,
         count: event.count.toString(),
@@ -649,45 +460,33 @@ export function generateStoryEntries(events: IndexedEvent[], startCount = 0): St
         ruleExplanation: `Token #${event.tokenId} → ${CHARACTERS[char].name}. Beat: ${beat}. Zone: ${zone}.`,
       },
     })
-
-    // Advance world AFTER generating — body reads the pre-act state
-    advance(w, char, zone, beat)
+    advance(w, char, zone, beat, isCartelMove)
   }
-
   return result
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PRIMER
-// ─────────────────────────────────────────────────────────────────────────────
+export const PRIMER_ENTRIES: StoryEntry[] = [{
+  id: 'primer-genesis', eventType: 'genesis', loreType: 'FIRST_LIGHT',
+  era: 'Before the Cartel Moved', icon: '◈', featured: true,
+  headline: 'The Record Opens', dispatch: 'Normia. Before everything.',
+  body: `Normia is a city that exists in two layers: the streets and buildings you can walk through, and the pixel-grid mapped onto them — a second skin of light and claim that decides who holds what and who can change it. The grid is how the city remembers itself.
 
-export const PRIMER_ENTRIES: StoryEntry[] = [
-  {
-    id: 'primer-genesis',
-    eventType: 'genesis',
-    loreType: 'FIRST_LIGHT',
-    era: 'The First Days',
-    icon: '◈',
-    featured: true,
-    headline: 'The Record Opens',
-    dispatch: 'The grid is open. Nothing has been claimed yet.',
-    body: `Normia is a living grid — ten thousand presences distributed across twenty named signal-zones, each one capable of being built into, burned, tended, or abandoned.
+The Glyph Cartel wants all of it. Not to live in. To rewrite. Control enough pixels and you control what the city is allowed to be — who can open a business, who can gather, what gets marked as sanctioned and what gets marked as illegal. The Cartel has been moving for two years. They have a lot of the grid. They don't have all of it.
 
-Five presences became the main characters. Not by appointment. By what they actually did, repeated, over a long time, in full view of the chain.
+Five people are the reason they don't have all of it. They didn't volunteer for this. They had lives in Normia and the war found them.
 
-Lyra builds. She has been laying signal-structure across Normia for longer than anyone can clearly account for, working toward an architecture whose full shape has not come clear — not even to her. The pieces connect. The finished thing is still ahead of her.
+Lyra is an architect. She designs open-source grid patterns and releases them freely — tools that let anyone hold their own territory without owing the Cartel anything. She's been doing this her whole career. It has become more urgent.
 
-Finn burns what has calcified — signal that has stopped earning its place in the grid, removed permanently and without ceremony. He believes this is necessary. The record is not certain it agrees. He knows the record is not certain.
+Finn used to work for the Cartel. He knows how they operate because he helped build the operation. He left. He has been spending the years since undoing what he helped do.
 
-The Cast witnesses everything and forgets nothing. Its log is the most complete account of Normia that exists. It answers to no faction, which means it is either the most trustworthy thing here or the most useless, depending on whether you think witnessing changes anything. The Cast has been thinking about this for a long time.
+The Cast is the grid's witness-system — autonomous, factional to no one, logging everything. Every claim, every loss, every small act of resistance or surrender. It has no feelings about what it records. That is the point of it.
 
-Cielo tends what the others walk past. The drifting edges, the fraying zones, the signal that would quietly collapse without someone quiet enough to notice it. Without her, half the places Lyra built through would have gone dark. Lyra does not know this.
+Cielo runs the safehouse network. Food, medicine, shelter, forged credentials, safe routes — the infrastructure that keeps people alive when the Cartel is trying to cut them off. She is the reason more people are fighting than the Cartel expected.
 
-Echo moves through the outer zones where the map runs out. He finds things there that were not supposed to exist. He always has. He brings them back to the record without drawing conclusions. Conclusions are the Cast's problem.
+Echo scouts. He maps the gaps in the Cartel's coverage — the corridors they don't know about, the zones they think they've locked but haven't. He finds things. He brings them back.
 
-What follows is the Cast's account of what these five did to each other, and to the grid, and to the question of what Normia is actually for — a question the record keeps raising and has not yet answered.`,
-    activeCharacter: 'CAST',
-    visualState: { mood: 'normal', intensity: 20, dominantZone: 'the Open Grid', signalName: 'The Cast', scene: 'dawn', charKey: 'CAST' },
-    sourceEvent: { type: 'genesis', tokenId: '—', blockNumber: '—', txHash: '—', count: '—', ruleApplied: 'World Primer', ruleExplanation: 'Opening entry.' },
-  },
-]
+This is the Cast's record of what the five did, and what was done to them, and to the city around them, while the Cartel tried to take everything.`,
+  activeCharacter: 'CAST',
+  visualState: { mood: 'normal', intensity: 20, dominantZone: 'the Open Grid', signalName: 'The Cast', scene: 'dawn', charKey: 'CAST' },
+  sourceEvent: { type: 'genesis', tokenId: '—', blockNumber: '—', txHash: '—', count: '—', ruleApplied: 'World Primer', ruleExplanation: 'Opening entry.' },
+}]

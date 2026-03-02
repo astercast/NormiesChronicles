@@ -97,27 +97,21 @@ function buildAIPrompt(entries: StoryEntry[]): string {
     return `${i + 1}. ${c?.name ?? '?'} — ${e.headline}`
   }).join('\n')
 
-  return `You are the Grand Chronicler of Normia — a living world of ten thousand faces. Five presences shape this world: Lyra (the Architect, she builds), Finn (the Breaker, he unmakes and remakes), The Cast (the Witness, it records everything — use it/its pronouns), Cielo (the Keeper, she tends what others abandon), Echo (the Wanderer, he arrives from the margins).
+  return `You are summarizing the Chronicles of Normia for someone who has never read it. The story is about five people in a cyber-fantasy city being taken over by the Glyph Cartel. Lyra designs open-source grid patterns to help people hold territory. Finn is an ex-Cartel operative recovering what he helped take. The Cast is an autonomous witness logging everything. Cielo runs the safehouse network keeping people alive. Echo scouts the gaps in Cartel coverage.
 
-Write a single paragraph — 4 to 6 sentences — as a tight narrative summary of this chronicle. Write as if narrating from inside the world. No mention of blockchain, pixels, tokens, wallets, NFTs, or anything technical. Name specific characters, zones, and eras. Cover who has shaped the world most, what the key turning points were, and what the current state feels like. Specific, grounded, present tense.
+Write exactly 2 sentences:
+1. What is happening RIGHT NOW — name specific characters and the actual situation (is the Cartel winning? are the five pushing back? what's the tension?).
+2. Why someone should keep reading — be honest and specific, like a friend recommending it.
 
-THE FULL CHRONICLE (${total} acts across ${eras.length} era${eras.length > 1 ? 's' : ''}):
+No technical or NFT language. No vague phrases like "complex world" or "intricate dynamics."
 
-CURRENT ERA: ${currentEra}
-ERAS LIVED: ${eras.join(' → ')}
+CURRENT STATE:
+- Era: ${currentEra}
+- ${charLines}
+- Recent: ${recentLines}
+- Key moments: ${keyEvents || 'Still early.'}
 
-CHARACTER STANDING:
-${charLines}
-
-RECENT MOMENTUM (last ${recentDyn.length} acts): ${recentLines}
-
-KEY MOMENTS:
-${keyEvents || 'None major yet.'}
-
-FULL SEQUENCE:
-${allHeadlines}
-
-One paragraph only. No headers. No line breaks within the paragraph.`
+Two sentences only.`
 }
 
 function useAISummary(entries: StoryEntry[]) {
@@ -285,16 +279,16 @@ function CharacterRoster({
               }}
             >
               {rank && (
-                <div style={{ fontSize: '0.45rem', letterSpacing: '0.1em', color: isFocused ? 'var(--bg)' : (isLeading ? 'var(--text)' : 'var(--muted)'), opacity: isFocused ? 0.7 : (isLeading ? 1 : 0.45), marginBottom: '0.2rem', fontWeight: isLeading ? 700 : 400 }}>
+                <div style={{ fontSize: '0.54rem', letterSpacing: '0.1em', color: isFocused ? 'var(--bg)' : (isLeading ? 'var(--text)' : 'var(--muted)'), opacity: isFocused ? 0.7 : (isLeading ? 1 : 0.45), marginBottom: '0.25rem', fontWeight: isLeading ? 700 : 400 }}>
                   #{rank}
                 </div>
               )}
-              <div style={{ fontSize: '0.6rem', fontWeight: 700, color: isFocused ? 'var(--bg)' : 'var(--text)', marginBottom: '0.25rem', letterSpacing: '0.02em' }}>{char.name}</div>
-              <div style={{ fontSize: '0.44rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: isFocused ? 'var(--bg)' : 'var(--muted)', marginBottom: '0.4rem', opacity: isFocused ? 0.7 : 1 }}>{char.title}</div>
+              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: isFocused ? 'var(--bg)' : 'var(--text)', marginBottom: '0.3rem', letterSpacing: '0.01em', lineHeight: 1.1 }}>{char.name}</div>
+              <div style={{ fontSize: '0.54rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: isFocused ? 'var(--bg)' : 'var(--muted)', marginBottom: '0.45rem', opacity: isFocused ? 0.7 : 1 }}>{char.title}</div>
               {summary ? (
-                <div style={{ fontSize: '0.5rem', color: isFocused ? 'var(--bg)' : 'var(--muted)', opacity: isFocused ? 0.65 : 0.6 }}>{summary.acts} acts</div>
+                <div style={{ fontSize: '0.6rem', color: isFocused ? 'var(--bg)' : 'var(--muted)', opacity: isFocused ? 0.65 : 0.6, marginTop: '0.1rem' }}>{summary.acts} acts</div>
               ) : (
-                <div style={{ fontSize: '0.46rem', color: isFocused ? 'var(--bg)' : 'var(--muted)', opacity: 0.4, fontStyle: 'italic' }}>not yet</div>
+                <div style={{ fontSize: '0.54rem', color: isFocused ? 'var(--bg)' : 'var(--muted)', opacity: 0.4, fontStyle: 'italic' }}>not yet</div>
               )}
               {isActive && !isFocused && (
                 <div style={{ marginTop: '0.4rem', width: 4, height: 4, background: 'var(--text)' }} />
