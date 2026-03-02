@@ -733,13 +733,8 @@ export function ChroniclesClient() {
   }, [scrollTargetId, view])
 
   const handleEntryClick = useCallback((e: StoryEntry) => {
-    // Switch to chronicle view, search by headline to surface the entry, then scroll to it
-    setScrollTargetId(e.id)
-    setSearch(e.headline.slice(0, 40)) // search surfaces the entry in flat list
-    const p = new URLSearchParams(sp.toString())
-    p.set('view', 'chronicle')
-    router.push(`/chronicles?${p.toString()}`, { scroll: false })
-  }, [router, sp])
+    setSelected(e)
+  }, [])
 
   return (
     <>
@@ -753,18 +748,9 @@ export function ChroniclesClient() {
               <button onClick={() => setView('now')} style={{ fontFamily: 'inherit', fontSize: '0.73rem', paddingRight: '1rem', height: '100%', cursor: 'pointer', background: 'none', border: 'none', color: view === 'now' ? 'var(--text)' : 'var(--muted)', fontWeight: view === 'now' ? 700 : 400 }}>now</button>
               <button onClick={() => setView('chronicle')} style={{ fontFamily: 'inherit', fontSize: '0.73rem', paddingLeft: '0.75rem', paddingRight: '1rem', height: '100%', cursor: 'pointer', background: 'none', border: 'none', color: view === 'chronicle' ? 'var(--text)' : 'var(--muted)', fontWeight: view === 'chronicle' ? 700 : 400 }}>full chronicle</button>
             </div>
-            {view === 'chronicle' ? (
-              <div className="flex-1 flex items-center" style={{ paddingLeft: '1rem', height: '100%' }}>
-                <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="search by character, era, keyword…" disabled={isLoading}
-                  style={{ width: '100%', background: 'transparent', fontFamily: 'inherit', fontSize: '0.73rem', color: 'var(--text)', border: 'none', outline: 'none', opacity: isLoading ? 0.4 : 1 }} />
-                {search && <button onClick={() => setSearch('')} style={{ fontFamily: 'inherit', fontSize: '0.6rem', color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', marginLeft: '0.5rem' }}>×</button>}
-              </div>
-            ) : (
-              <p className="flex-1 text-right" style={{ fontSize: '0.6rem', color: 'var(--muted)', opacity: 0.5 }}>
-                {!isLoading && dynamic.length > 0 ? `${dynamic.length} acts · five characters` : ''}
-              </p>
-            )}
+            <p className="flex-1 text-right" style={{ fontSize: '0.6rem', color: 'var(--muted)', opacity: 0.5 }}>
+              {!isLoading && dynamic.length > 0 ? `${dynamic.length} acts · five characters` : ''}
+            </p>
           </div>
         </div>
 
@@ -796,6 +782,21 @@ export function ChroniclesClient() {
                       <span style={{ fontSize: '0.5rem', color: 'var(--muted)', opacity: 0.4 }}>reflecting last act</span>
                     </div>
                     <WarGrid entries={entries} activeEntry={selected} isDark={isDark} onEntryClick={handleEntryClick} />
+                  </div>
+
+                  {/* Search bar — lives here, below the scene */}
+                  <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)', marginBottom: '2rem', paddingBottom: '0.6rem', gap: '0.5rem' }}>
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      placeholder="search by character, era, keyword…"
+                      disabled={isLoading}
+                      style={{ flex: 1, background: 'transparent', fontFamily: 'inherit', fontSize: '0.73rem', color: 'var(--text)', border: 'none', outline: 'none', opacity: isLoading ? 0.4 : 1 }}
+                    />
+                    {search && (
+                      <button onClick={() => setSearch('')} style={{ fontFamily: 'inherit', fontSize: '0.6rem', color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer' }}>× clear</button>
+                    )}
                   </div>
 
                   {!search && genesis.map(e => <ChronicleEntry key={e.id} entry={e} onSelect={handleSelect} />)}
