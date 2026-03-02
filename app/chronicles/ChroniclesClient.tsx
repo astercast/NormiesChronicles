@@ -185,7 +185,12 @@ function EntryModal({ entry, onClose }: { entry: StoryEntry; onClose: () => void
 
         <div style={{ padding: '1.5rem 1.2rem' }}>
           <div style={{ fontSize: '1.4rem', lineHeight: 1, marginBottom: '0.9rem' }}>{entry.icon}</div>
-          <h2 className="font-bold" style={{ color: 'var(--text)', fontSize: '1.05rem', lineHeight: 1.48, marginBottom: '1.3rem' }}>{entry.headline}</h2>
+          <h2 className="font-bold" style={{ color: 'var(--text)', fontSize: '1.05rem', lineHeight: 1.48, marginBottom: '0.6rem' }}>{entry.headline}</h2>
+          {entry.dispatch && (
+            <p style={{ fontSize: '0.62rem', color: 'var(--muted)', letterSpacing: '0.03em', lineHeight: 1.7, marginBottom: '1.1rem', opacity: 0.65, fontStyle: 'italic' }}>
+              {entry.dispatch}
+            </p>
+          )}
           <p style={{ color: 'var(--text)', fontSize: '0.8rem', lineHeight: '2.1', whiteSpace: 'pre-line' }}>{entry.body}</p>
           {char && (
             <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
@@ -528,6 +533,11 @@ function ChronicleEntry({ entry, onSelect, prev }: { entry: StoryEntry; onSelect
           <span style={{ color: 'var(--border)', fontSize: '0.45rem' }}>·</span>
           <span style={{ fontSize: '0.58rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--muted)' }}>{entry.era}</span>
         </div>
+        {entry.dispatch && (
+          <p style={{ fontSize: '0.62rem', color: 'var(--muted)', letterSpacing: '0.03em', lineHeight: 1.7, marginBottom: '0.8rem', opacity: 0.65, fontStyle: 'italic' }}>
+            {entry.dispatch}
+          </p>
+        )}
         <button className="w-full text-left" onClick={() => onSelect(entry)}>
           <h2 className="font-bold hover:opacity-55 transition-opacity"
             style={{ color: 'var(--text)', fontSize: 'clamp(0.92rem,2.2vw,1.06rem)', lineHeight: 1.48, marginBottom: '0.9rem' }}>

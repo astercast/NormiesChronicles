@@ -11,6 +11,7 @@ export function NavBar() {
   useEffect(() => setMounted(true), [])
 
   const links = [
+    { href: '/', label: 'home' },
     { href: '/chronicles', label: 'chronicles' },
     { href: '/characters', label: 'characters' },
     { href: '/how-it-works', label: 'how it works' },
@@ -24,7 +25,7 @@ export function NavBar() {
     >
       <div className="max-w-5xl mx-auto px-6 h-11 flex items-center justify-between">
         <Link
-          href="/"
+          href="/chronicles"
           className="font-mono text-sm font-bold tracking-tight"
           style={{ color: 'var(--text)' }}
         >

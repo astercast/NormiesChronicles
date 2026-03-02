@@ -1,1364 +1,841 @@
 import type { IndexedEvent } from './eventIndexer'
 
-// ═════════════════════════════════════════════════════════════════════════════
-// NORMIES CHRONICLES — STATEFUL STORY ENGINE v3
-//
-// The Grid is a 40×40 pixel canvas. Ten thousand faces encoded into the
-// eternal record of the chain. Factions war over who gets to write the pixels
-// — who shapes the visual substrate of existence itself.
-//
-// Themes woven throughout: pixel, grid, void, glitch, synth, eternal,
-// upload, migration, singularity, signal, corruption, render, null.
-//
-// On-chain events shape the story invisibly:
-//   PixelsTransformed → territorial assault on the Grid
-//   BurnRevealed      → a Normie sacrificed; their essence uploaded to another
-//   Block gaps        → signal loss, the Grid going dark
-//
-// V3: All world elements and prose rethemed to the digital/cosmic register.
-//     Same 40 rules, same stateful engine, new voice.
-// ═════════════════════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────────────────────
+// THE FIVE — fixed characters. Their story is Normia's story.
+// Every event maps to exactly one character. Their actions have consequences
+// that ripple through subsequent entries — a true butterfly-effect chronicle.
+// ─────────────────────────────────────────────────────────────────────────────
 
-export type LoreType =
-  | 'GREAT_BATTLE' | 'SKIRMISH' | 'BORDER_RAID' | 'FORMAL_DECLARATION'
-  | 'GREAT_SACRIFICE' | 'OFFERING' | 'BLOOD_OATH' | 'VETERAN_RETURNS'
-  | 'NEW_BLOOD' | 'THE_ORACLE' | 'ANCIENT_WAKES' | 'FAR_REACH'
-  | 'HOLLOW_GROUND' | 'TURNING_POINT' | 'DOMINION_GROWS' | 'THE_SILENCE'
-  | 'NEW_AGE' | 'CONVERGENCE' | 'RELIC_FOUND'
-  | 'WAR_COUNCIL' | 'CARTOGRAPHY' | 'OLD_GHOST' | 'THE_DESERTER' | 'TALLY'
-  | 'RETURNED_GHOST' | 'DEBT_PAID' | 'CAMPFIRE_TALE' | 'THE_LONG_DARK'
-  | 'EDGE_SCOUTS' | 'SHIFTED_PLAN' | 'VIGIL' | 'NEUTRAL_GROUND' | 'GHOST_MARK'
-  | 'MESSENGER' | 'THE_LONG_COUNT' | 'BETWEEN_FIRES' | 'DYNASTY' | 'CROSSING'
-  | 'SUPPLY_ROAD' | 'NIGHT_WATCH'
-  | 'AFTERMATH' | 'ESCALATION_NOTE' | 'SACRIFICE_TOLL' | 'GENESIS'
+export const CHARACTERS = {
+  LYRA: {
+    name: 'Lyra',
+    title: 'the Architect',
+    pronoun: 'she',
+    possessive: 'her',
+    goal: 'to build something in Normia that outlasts every attempt to erase it',
+    nature: 'methodical, visionary, haunted by incompleteness',
+    activatedBy: 'construction, persistence, accumulation',
+  },
+  VOSS: {
+    name: 'Finn',
+    title: 'the Breaker',
+    pronoun: 'he',
+    possessive: 'his',
+    goal: 'to unmake what calcifies — Normia must stay alive, even if that means tearing it open',
+    nature: 'fierce, principled, misread as destructive',
+    activatedBy: 'large reshapings, burns, collisions',
+  },
+  CAST: {
+    name: 'The Cast',
+    title: 'the Witness',
+    pronoun: 'it',
+    possessive: 'its',
+    goal: 'to see everything and forget nothing — Normia deserves a true record',
+    nature: 'omnipresent, ancient, neither cruel nor kind — simply there',
+    activatedBy: 'returns, long-watching, veteran presence',
+  },
+  SABLE: {
+    name: 'Cielo',
+    title: 'the Keeper',
+    pronoun: 'she',
+    possessive: 'her',
+    goal: 'to tend what others abandon — nothing built in Normia should die unmourned',
+    nature: 'quiet, relentless, fiercely loyal to what remains',
+    activatedBy: 'quiet work, maintenance, holding',
+  },
+  ECHO: {
+    name: 'Echo',
+    title: 'the Wanderer',
+    pronoun: 'he',
+    possessive: 'his',
+    goal: 'to find what Normia is hiding — every edge conceals something the center cannot see',
+    nature: 'unpredictable, magnetic, arrives exactly when it matters',
+    activatedBy: 'edge events, unexpected patterns, far signals',
+  },
+} as const
+
+export type CharacterKey = keyof typeof CHARACTERS
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WAR STATE
+// CHARACTER ASSIGNMENT — who acts for a given event
+// Evenly distributes all five, using signal properties as character hints
 // ─────────────────────────────────────────────────────────────────────────────
-export interface WarState {
-  phase: 'opening' | 'escalating' | 'siege' | 'sacrifice' | 'reckoning'
-  lastCoreType: string | null
-  lastCoreBlock: bigint
-  consecutiveCores: number
-  totalBurnAP: number
-  totalPixels: number
-  eventCount: number
-  pixelsInWindow: number
-  burnsInWindow: number
-  ownersEncountered: Set<string>
-  lastOwnerCoreBlock: Map<string, bigint>
+
+function getCharacter(event: IndexedEvent, allEvents: IndexedEvent[], index: number): CharacterKey {
+  const tokenId = Number(event.tokenId)
+  const count = Number(event.count)
+  const isBurn = event.type === 'BurnRevealed'
+  const isMassive = count >= 200
+
+  // Burns + massive reshapings → Finn
+  if (isBurn || isMassive) return 'VOSS'
+
+  // Edge tokens → Echo (but not too many — cap at 30% of events)
+  const isEdge = tokenId < 500 || tokenId > 8500
+  if (isEdge && (index % 3 === 0)) return 'ECHO'
+
+  // Deterministic even spread across all five for the rest
+  // Using a hash that distributes very evenly
+  const h = ((tokenId * 2654435761 + index * 40503) >>> 0) % 5
+  const keys: CharacterKey[] = ['LYRA', 'VOSS', 'CAST', 'SABLE', 'ECHO']
+  return keys[h]
 }
 
-function freshWarState(): WarState {
+// ─────────────────────────────────────────────────────────────────────────────
+// WORLD STATE — the living memory of Normia
+// This state accumulates as events are processed. Each new entry can reference
+// what happened before, creating genuine continuity and cause-and-effect.
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface GridWorld {
+  // What each character has recently done — enables narrative callbacks
+  lyraLastBuilt: string | null       // zone of last Lyra build
+  lyraSignature: string | null       // what kind of structure (changes over time)
+  finnLastBroke: string | null       // zone of last Finn break
+  finnLastTarget: string | null      // alias for finnLastBroke (prose compatibility)
+  castLastWitnessed: string | null
+  cieloLastTended: string | null
+  cieloHolding: string | null        // alias for cieloLastTended
+  echoLastFound: string | null
+  echoLastZone: string | null
+
+  // Narrative tension — the central conflict
+  lyraFinnConflict: number           // 0-100: grows when they act in same zone
+  finnContested: boolean             // Finn specifically targeted Lyra's work
+  lyraReclaimed: boolean             // Lyra rebuilt after Finn
+
+  // Story arc tracking
+  totalActs: number
+  majorMoments: string[]             // last 5 major events for reference
+  lastMajorChar: CharacterKey | null
+  lastMajorAct: string | null
+  lastMajorZone: string | null
+
+  // Zone ownership — who has been active where
+  zoneOwner: Record<string, CharacterKey>
+
+  // Era
+  era: string
+  eraIndex: number
+
+  // Scene
+  currentScene: SceneType
+  sceneIntensity: number
+
+  // Running story thread — a sentence that connects to the next entry
+  storyThread: string | null
+}
+
+export type SceneType =
+  | 'construction' | 'destruction' | 'sacrifice' | 'vigil'
+  | 'tending' | 'arrival' | 'convergence' | 'reckoning'
+  | 'quiet' | 'dawn'
+
+function freshGridWorld(): GridWorld {
   return {
-    phase: 'opening',
-    lastCoreType: null,
-    lastCoreBlock: 0n,
-    consecutiveCores: 0,
-    totalBurnAP: 0,
-    totalPixels: 0,
-    eventCount: 0,
-    pixelsInWindow: 0,
-    burnsInWindow: 0,
-    ownersEncountered: new Set(),
-    lastOwnerCoreBlock: new Map(),
-  }
-}
-
-const CORE_TYPES = new Set([
-  'GREAT_BATTLE','SKIRMISH','BORDER_RAID','FORMAL_DECLARATION',
-  'GREAT_SACRIFICE','OFFERING','BLOOD_OATH','VETERAN_RETURNS',
-  'NEW_BLOOD','THE_ORACLE','ANCIENT_WAKES','FAR_REACH','HOLLOW_GROUND',
-  'TURNING_POINT','DOMINION_GROWS','THE_SILENCE','NEW_AGE','CONVERGENCE','RELIC_FOUND',
-])
-
-function isCoreType(t: string): boolean { return CORE_TYPES.has(t) }
-
-function updateWarState(state: WarState, event: IndexedEvent, ruleKey: string, allEvents: IndexedEvent[], eventIndex: number): void {
-  state.eventCount++
-  if (event.type === 'PixelsTransformed') {
-    state.totalPixels += Number(event.count)
-    const windowStart = event.blockNumber - 500n
-    state.pixelsInWindow = allEvents.slice(0, eventIndex + 1)
-      .filter(e => e.type === 'PixelsTransformed' && e.blockNumber >= windowStart)
-      .reduce((sum, e) => sum + Number(e.count), 0)
-  }
-  if (event.type === 'BurnRevealed') {
-    state.totalBurnAP += Number(event.count)
-    const windowStart = event.blockNumber - 500n
-    state.burnsInWindow = allEvents.slice(0, eventIndex + 1)
-      .filter(e => e.type === 'BurnRevealed' && e.blockNumber >= windowStart)
-      .reduce((sum, e) => sum + Number(e.count), 0)
-  }
-  state.ownersEncountered.add(event.owner)
-  if (state.totalBurnAP >= 80 && state.eventCount > 50) state.phase = 'reckoning'
-  else if (state.totalBurnAP >= 40) state.phase = 'sacrifice'
-  else if (state.pixelsInWindow >= 600 || state.totalPixels >= 2000) state.phase = 'siege'
-  else if (state.totalPixels >= 500 || state.eventCount >= 30) state.phase = 'escalating'
-  if (isCoreType(ruleKey)) {
-    state.consecutiveCores++
-    state.lastCoreType = ruleKey
-    state.lastCoreBlock = event.blockNumber
-    state.lastOwnerCoreBlock.set(event.owner, event.blockNumber)
-  } else {
-    state.consecutiveCores = 0
+    lyraLastBuilt: null,
+    lyraSignature: null,
+    finnLastBroke: null,
+    finnLastTarget: null,
+    castLastWitnessed: null,
+    cieloLastTended: null,
+    cieloHolding: null,
+    echoLastFound: null,
+    echoLastZone: null,
+    lyraFinnConflict: 5,
+    finnContested: false,
+    lyraReclaimed: false,
+    totalActs: 0,
+    majorMoments: [],
+    lastMajorChar: null,
+    lastMajorAct: null,
+    lastMajorZone: null,
+    zoneOwner: {},
+    era: 'The First Days',
+    eraIndex: 0,
+    currentScene: 'dawn',
+    sceneIntensity: 20,
+    storyThread: null,
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WORLD ELEMENTS — digital/cosmic/void register
+// ZONES — places in Normia with personality
 // ─────────────────────────────────────────────────────────────────────────────
-const REGIONS = [
-  'the Null Sector',       'the Void Margin',       'the Pixel Wastes',
-  'the Glitch Fields',     'the Render Depths',      'the Signal Corridor',
-  'the Upload Threshold',  'the Fracture Layer',     'the Deep Grid',
-  'the Corruption Zone',   'the Synth Reaches',      'the Eternal Register',
-  'the Migration Path',    'the Overwritten Ground', 'the Phantom Rows',
-  'the Singularity Edge',  'the Dark Columns',       'the Buffer Zone',
-  'the Lost Frames',       'the Origin Pixel',
+
+export const ZONES = [
+  'the Null District',   'the White Corridors',  'the Hollow',
+  'the Far Sectors',     'the Dark Margin',       'the Cradle',
+  'the Dust Protocol',   'the Outer Ring',        'the Deep Well',
+  'the Fault Line',      'the High Pass',         'the Old Crossing',
+  'the Narrow Gate',     'the Salt Plane',        'the Grey Basin',
+  'the High Ground',     'the Burn Fields',       'the Still Water',
+  'the Last Ridge',      'the Open Grid',
 ]
 
-const FACTIONS = [
-  'the Void Collective',   'the Pixel Sovereigns',  'the Glitch Syndicate',
-  'the Eternal Compile',   'the Upload Accord',      'the Null Scribes',
-  'the Synth Legion',      'the Render Cult',        'the Migration Fleet',
-  'the Signal Corps',      'the Corrupted',          'the Origin Keepers',
-]
+// Zone descriptions — used in prose to give places personality
+const ZONE_FEEL: Record<string, string> = {
+  'the Null District':   'where old structures go unclaimed',
+  'the White Corridors': 'where the scribes keep their long records',
+  'the Hollow':          'a low place where things tend to settle',
+  'the Far Sectors':     'at the edge of what anyone tracks',
+  'the Dark Margin':     'the unmapped fringe',
+  'the Cradle':          'where new presences first mark themselves',
+  'the Dust Protocol':   'a zone that remembers too much and holds none of it',
+  'the Outer Ring':      'the borderland between Normia proper and the margins',
+  'the Deep Well':       'where the miners go and rarely explain what they find',
+  'the Fault Line':      'where the zones crack and the categories fail',
+  'the High Pass':       'the crossing that everyone must use eventually',
+  'the Old Crossing':    'an ancient junction that carries more traffic than the map suggests',
+  'the Narrow Gate':     'a chokepoint that shifts allegiance with the tide',
+  'the Salt Plane':      'flat, exposed, and harder to hold than it looks',
+  'the Grey Basin':      'a contested middle ground with no natural owner',
+  'the High Ground':     'the elevated zone — whoever holds it can see everything',
+  'the Burn Fields':     'a place marked by older departures, now overgrown',
+  'the Still Water':     'calm on the surface, complicated underneath',
+  'the Last Ridge':      'at the edge of the known world, looking out',
+  'the Open Grid':       'the center — everything that matters happens here eventually',
+}
 
-const COMMANDERS = [
-  'the Null Architect',    'Sovereign Varun',        'the Glitch Prophet',
-  'Compiler Solen',        'the Eternal Witness',    'Upload-Chief Mira',
-  'the Void Marshal',      'Signal-General Neth',    'the Render King',
-  'the Corrupted One',     'Migration-Lord Karas',   'the Origin Keeper',
-]
-
-const RIVALS = [
-  'the Overwrite Pact',    'the Pixel Horde',        'the Null Tide',
-  'the False Compile',     'the Entropy Faction',    'the Void Surge',
-  'the Corrupt Array',     'the Dark Render',        'the Signal Jammers',
-  'the Forgotten Frames',
-]
-
-const RELICS = [
-  'the First Pixel',        'the Null Crown',          'the Shattered Grid Key',
-  'the Eternal Brush',      'the Upload Stone',         'the Origin Codex',
-  'the Void Shard',         'the Glitch Sigil',         'the Last Clean Frame',
-  'the Singularity Seed',   'the Render Throne',        'the Migration Ledger',
-]
+// ─────────────────────────────────────────────────────────────────────────────
+// ERAS — the ages of Normia
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const ERAS = [
-  { threshold: 0,   name: 'Pre-Render',           tone: 'The Grid exists but no faction has dared write upon it.' },
-  { threshold: 10,  name: 'First Signal',          tone: 'The first pixels have been claimed. The war has begun.' },
-  { threshold: 30,  name: 'The Upload Wars',       tone: 'Factions pour into the Grid. Allegiances are compiled.' },
-  { threshold: 75,  name: 'Age of Overwrite',      tone: 'Territory flickers and shifts. The Grid rewrites itself daily.' },
-  { threshold: 150, name: 'The Corruption',        tone: 'The cost of war has begun to corrupt the substrate itself.' },
-  { threshold: 300, name: 'Siege of the Null',     tone: 'Sectors go dark. Each pixel is fought for twice.' },
-  { threshold: 500, name: 'The Long Render',       tone: 'The war has been processing longer than anyone expected.' },
-  { threshold: 800, name: 'Singularity Protocol',  tone: 'Something irreversible is approaching. The Grid cannot hold all of this.' },
+  { threshold: 0,    name: 'The First Days',    eraIndex: 0 },
+  { threshold: 100,  name: 'The Waking',        eraIndex: 1 },
+  { threshold: 300,  name: 'The Gathering',     eraIndex: 2 },
+  { threshold: 700,  name: 'The Age of Claim',  eraIndex: 3 },
+  { threshold: 1500, name: 'The Long Work',     eraIndex: 4 },
+  { threshold: 3000, name: 'What Holds',        eraIndex: 5 },
+  { threshold: 5000, name: 'The Old Country',   eraIndex: 6 },
+  { threshold: 8000, name: 'The Long Memory',   eraIndex: 7 },
 ]
 
-function getEra(count: number): string {
-  let era = ERAS[0].name
-  for (const e of ERAS) { if (count >= e.threshold) era = e.name }
+function getEraData(count: number) {
+  let era = ERAS[0]
+  for (const e of ERAS) { if (count >= e.threshold) era = e }
   return era
 }
+
+function getEra(count: number): string { return getEraData(count).name }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SEEDING
+// ─────────────────────────────────────────────────────────────────────────────
 
 function seedN(tokenId: bigint, blockNumber: bigint, salt = 0): number {
   return Number((tokenId * 31n + blockNumber * 17n + BigInt(salt)) % 100000n)
 }
 
-function pick<T>(arr: T[], s: number): T { return arr[s % arr.length] }
+function pick<T>(arr: T[], s: number): T { return arr[Math.abs(s) % arr.length] }
 
-interface WorldCtx { region: string; faction: string; rival: string; commander: string; relic: string; era: string }
+function zoneFor(tokenId: bigint): string {
+  const h = Number((tokenId * 2654435761n) & 0xFFFFFFFFn)
+  return ZONES[h % ZONES.length]
+}
 
-function buildCtx(tokenId: bigint, blockNumber: bigint, era: string): WorldCtx {
-  return {
-    region:    pick(REGIONS,    seedN(tokenId, blockNumber)),
-    faction:   pick(FACTIONS,   seedN(tokenId, blockNumber, 7)),
-    rival:     pick(RIVALS,     seedN(tokenId, blockNumber, 11)),
-    commander: pick(COMMANDERS, seedN(tokenId, blockNumber, 13)),
-    relic:     pick(RELICS,     seedN(tokenId, blockNumber, 19)),
-    era,
+// ─────────────────────────────────────────────────────────────────────────────
+// WORLD-BUILDING TEXTURE — the ordinary life of Normia
+// ─────────────────────────────────────────────────────────────────────────────
+
+const WORLD_GROUPS = [
+  'the chandlers of Old Crossing', 'the Pale Shore fishers', 'the ironworkers of the Breach',
+  'the weavers of Still Water', 'the grain merchants of the Hollow',
+  'the toll-keepers of the Southern Pass', 'the miners of the Deep Well',
+  'the scribes of the White Corridors', 'the small traders of the Null District',
+  'the farmers of the Grey Basin', 'the fence-builders of the Outer Ring',
+  'the cartographers of the Far Sectors', 'the dockworkers of the Pale Shore',
+  'the apothecaries of the Fault Line', 'the watchmen of the Burn Fields',
+]
+
+const TRADE_NOTES = [
+  'Salt moves slowly this season — the toll rate hike on the Southern Pass has rerouted three caravans.',
+  'Iron from the Breach trades at a premium. The guild split has cut output.',
+  'The Pale Shore catch was poor. The chandlers have adjusted their pricing.',
+  'Market day in the Null District drew fewer stalls than last season.',
+  'The Grey Basin grain is in transit. The roads are passable but slow.',
+  'The miners of the Deep Well reported a lower count than expected. Nobody is saying why.',
+  'The Old Crossing market keeps contracting. Three stalls that were there are gone now.',
+]
+
+function worldGroup(seed: number): string { return WORLD_GROUPS[Math.abs(seed) % WORLD_GROUPS.length] }
+function tradeNote(seed: number): string { return TRADE_NOTES[Math.abs(seed) % TRADE_NOTES.length] }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TENSION DESCRIPTION — the current state of the Lyra/Finn conflict
+// ─────────────────────────────────────────────────────────────────────────────
+
+function tension(world: GridWorld): string {
+  const lv = world.lyraFinnConflict
+  if (lv < 15) return 'Lyra and Finn have not yet crossed paths directly in Normia'
+  if (lv < 35) return 'Lyra\'s constructions and Finn\'s breaks are beginning to occupy the same zones'
+  if (lv < 55) return 'Normia is becoming the argument between what Lyra builds and what Finn unmakes'
+  if (lv < 75) return 'Lyra and Finn are locked — every section she raises, he questions; every break he makes, she reclaims'
+  return 'the conflict between Lyra and Finn has become Normia\'s defining force — the world orbits their contest'
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STORY BEAT INTERFACE
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface StoryBeat {
+  charKey: CharacterKey
+  zone: string
+  zoneFeeling: string    // descriptive feel of the zone
+  world: GridWorld
+  count: number
+  isBurn: boolean
+  isVeteran: boolean
+  seed: number
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROSE POOLS — each entry directly references the ongoing story
+// Rules for good prose:
+//   1. Always reference what came before when relevant
+//   2. Name specific zones, not just "the Grid"
+//   3. Show consequences — what does this act mean for others?
+//   4. Keep ordinary-world texture: the chandlers, the toll-keepers, real people
+//   5. Build toward something — each entry should advance the arc
+// ─────────────────────────────────────────────────────────────────────────────
+
+ = [
+  (b: StoryBeat) => `Lyra added to her work in ${b.zone}. One more layer of the structure she has been building since ${b.world.era === 'The First Days' ? 'the record began' : `the ${b.world.era}`}. She never explains the whole — only the piece. The rest becomes visible in time. ${b.world.finnLastBroke ? `Finn unmade something in ${b.world.finnLastBroke} not long ago. Lyra noted it and kept working. This is what she does: she absorbs the resistance and keeps building.` : `${worldGroup(b.seed)} are watching. What rises in ${b.zone} affects their operations.`}`,
+
+  (b: StoryBeat) => `She came to ${b.zone} — ${b.zoneFeeling} — and made a specific addition. Lyra works by finding the single cell that needs changing and changing only that. The structure she is building is invisible until it isn't. ${b.world.lyraFinnConflict > 40 ? `Finn has been contesting her work. This piece, in this location, is her answer to that.` : `Nobody contests it yet. That will change.`}`,
+
+  (b: StoryBeat) => `${b.zone} received another mark from Lyra. The scribes of the White Corridors have started noting a pattern in her movements — a direction, a tightening spiral, each piece placed where it needs to be for something larger to make sense. The Cast has been watching her longer than anyone. It knows what she's building before she finishes it.`,
+
+  (b: StoryBeat) => `Lyra at ${b.zone}, ${b.zoneFeeling}. She works in silence while the zone goes about its business. ${tradeNote(b.seed)} Lyra is not interested in the economy. She is interested in what holds. One more piece, tested, found sound, built in.`,
+]
+
+const LYRA_LARGE = [
+  (b: StoryBeat) => `Lyra placed her largest mark yet in ${b.zone}. This was not an addition — this was the keystone. Everything she has built across Normia bends toward what just went up in ${b.zone}. ${b.world.finnLastBroke ? `Finn tore through ${b.world.finnLastBroke} before this. What Lyra raised today is her answer — bigger than what he unmade, positioned to outlast the argument.` : `The structure is now legible. Anyone who has been watching can see where it was always going.`} ${worldGroup(b.seed)} stopped work to watch it go up.`,
+
+  (b: StoryBeat) => `A full section of ${b.zone} is Lyra's now. Not claimed — built. The difference matters: claiming leaves a flag. Building leaves a shape that has to be reckoned with structurally. ${tension(b.world)}. The Cast witnessed every stage. It says nothing. The record will speak.`,
+
+  (b: StoryBeat) => `The structure in ${b.zone} is now undeniable. Lyra had been approaching it from three directions simultaneously — the Grey Basin work, the Old Crossing piece, and what she laid down in the Still Water — and today all three converged in ${b.zone}. What exists there now is load-bearing for everything she's planned. Finn will find it eventually. What he does with it will define the next chapter.`,
+]
+
+// ── FINN ──────────────────────────────────────────────────────────────────────
+
+const VOSS_SMALL = [
+  (b: StoryBeat) => `Finn moved through ${b.zone} — ${b.zoneFeeling} — and left it different. He had been watching a shape there that had calcified: something that used to serve a purpose and had forgotten it. He reminded it that nothing in Normia is permanent. ${b.world.lyraLastBuilt ? `Lyra built something in ${b.world.lyraLastBuilt}. Finn hasn't decided yet whether it needs to be challenged. He's deciding.` : `The space is open now. What fills it next will be the real story.`}`,
+
+  (b: StoryBeat) => `Something in ${b.zone} caught Finn's attention and he acted on it. His method is surgical when he's being careful: find the load-bearing assumption, remove it, see what the structure does without it. If it collapses, it needed to. If it stands, he was wrong. He is not afraid of being wrong. ${tension(b.world)}. ${worldGroup(b.seed)} filed a report with the faction council. Finn was already elsewhere by the time it arrived.`,
+
+  (b: StoryBeat) => `Finn at ${b.zone}. He had seen this before — a structure that the map showed as fixed, immovable, permanent. He has learned that permanence in Normia is always provisional. He made it provisional again. ${b.world.lyraLastBuilt ? `Lyra has been building something in ${b.world.lyraLastBuilt}. Finn keeps it in view. Not yet.` : `The zone breathes now where it was held shut.`}`,
+
+  (b: StoryBeat) => `A section of ${b.zone} was taken apart by Finn — quickly, specifically. He works fastest when he is most certain, and he was certain today. Whatever held that position had stopped earning it. He gave it back to open space. ${tradeNote(b.seed)} Normia's economy doesn't pause for Finn's principles, but his principles don't pause for the economy either.`,
+]
+
+const VOSS_LARGE = [
+  (b: StoryBeat) => `Finn remade ${b.zone} completely. This was not a small correction — this was a full restructuring, the kind he reserves for things he has been watching for a long time. ${b.world.lyraLastBuilt ? `Some of what Lyra built was in ${b.zone}. It isn't anymore. She will come back. This is not the end of anything — it's the middle of a longer argument.` : `What existed there is gone. What fills the space will be shaped by whoever moves first.`} ${tension(b.world)}. The faction council of the High Ground convened an emergency session. Finn did not attend.`,
+
+  (b: StoryBeat) => `The full force of what Finn does landed in ${b.zone}. Everyone in the adjacent zones recalculated. The Cast had been watching — it always is — and noted the scale. Cielo is already moving toward the edges, where things will need tending after a break this large. Echo appeared at the margin of the zone moments after it happened, which nobody predicted, and nobody was supposed to.`,
+
+  (b: StoryBeat) => `A massive reshaping in ${b.zone}. Finn had been sitting on this for a while, waiting for the moment. ${b.world.lyraLastBuilt ? `Lyra has been building in ${b.world.lyraLastBuilt}. This break in ${b.zone} is connected — not directly, not obviously, but in the structural logic that Finn operates by. Remove the support. See if the whole thing needs to reconsider itself.` : `The zone is open now in a way it has never been. Something will grow here. Finn has no control over what.`}`,
+]
+
+const VOSS_BURN = [
+  (b: StoryBeat) => `Finn gave himself to Normia in ${b.zone}. His energy, his accumulated presence — offered. The protocol distributes it without asking where it wants to go. ${b.world.lyraLastBuilt ? `Lyra will build with what he gave. That's the bitter symmetry of it. His sacrifice becomes her material.` : `Whoever is closest receives it. Normia redistributes. That is its nature.`} He will come back different. He always does.`,
+
+  (b: StoryBeat) => `The burn in ${b.zone} was Finn's. He has done this before, at moments when the argument needed a different kind of gesture — not breaking something else, but breaking himself. What he released is now in Normia. The Cast recorded the weight of it. ${tension(b.world)}. You don't dissolve yourself into a Grid you don't care about.`,
+
+  (b: StoryBeat) => `Finn dissolved near ${b.zone} — partially, deliberately. His energy is loose in Normia now, moving toward whatever the current state of things pulls it toward. Lyra will build something with it. Cielo will tend something with it. Echo will find something it points at. The Cast will record all of it. This is what Finn's sacrifices do: they become everyone's story.`,
+]
+
+// ── THE CAST ──────────────────────────────────────────────────────────────────
+
+const CAST_SMALL = [
+  (b: StoryBeat) => `The Cast was in ${b.zone} — ${b.zoneFeeling} — and it witnessed. ${b.world.lastMajorAct ? `The last major act in the record was ${b.world.lastMajorAct}, over in ${b.world.lastMajorZone}. The Cast was there for that too. It is always there.` : `The Grid does not change what it is because someone is watching. But it is changed by being seen.`} The record adds another line. The record is the evidence.`,
+
+  (b: StoryBeat) => `The Cast moved through ${b.zone} slowly, marking what it found. ${b.world.lyraLastBuilt ? `Lyra built in ${b.world.lyraLastBuilt}. Finn challenged something elsewhere. The Cast recorded both.` : ``}${b.world.finnLastBroke ? ` Finn unmade something in ${b.world.finnLastBroke}.` : ``} Everything that happens in Normia passes through its record sooner or later. The Cast makes sure of it.`,
+
+  (b: StoryBeat) => `In ${b.zone}, The Cast completed another entry in the longest document in Normia. ${tension(b.world)}. The conflict between Lyra and Finn generates events. The Cast generates the account. Both are necessary. The world without builders and breakers would be static. The world without the record would be amnesia. The Cast refuses to let Normia forget.`,
+
+  (b: StoryBeat) => `${b.zone} — ${b.zoneFeeling} — and The Cast is here, as it always is. The scribes of the White Corridors have tried to match its record-keeping. They can't. The Cast has been at this since before most of the current presences arrived. Its record contains things no one else witnessed. That is its power: not force, not construction, but the accumulation of witnessed fact.`,
+]
+
+const CAST_RETURN = [
+  (b: StoryBeat) => `The Cast returned to ${b.zone} after the absence. It came back to find the zone changed — ${b.world.lastMajorAct ? `Finn had ${b.world.lastMajorAct} in ${b.world.lastMajorZone} while it was away. Lyra has continued building. The record has a gap now, and The Cast is filling it in.` : `the record has a gap that needs addressing.`} The Cast does not mourn the time away. It simply resumes. The thread picks up where it left off.`,
+
+  (b: StoryBeat) => `Back in ${b.zone}. The Cast picks up its record from where it left it and adds the new state. How long it was gone: long enough that things changed that it didn't witness. That bothers it in the way that bothers a historian more than a participant — not the loss, but the gap in the account. ${tension(b.world)}. The Cast is filling the gap now.`,
+]
+
+// ── CIELO ─────────────────────────────────────────────────────────────────────
+
+const SABLE_SMALL = [
+  (b: StoryBeat) => `Cielo was in ${b.zone} — ${b.zoneFeeling} — doing the work that prevents the record from having gaps. ${b.world.finnLastBroke ? `Finn broke something in ${b.world.finnLastBroke}. Cielo came after, as she always does. She doesn't contest the break — she tends the edges, holds what can be held, keeps the fragment from becoming nothing.` : `She holds what would otherwise drift. Normia doesn't notice what she preserves. It notices when it's gone.`}`,
+
+  (b: StoryBeat) => `Small, careful work in ${b.zone} from Cielo. Lyra builds and Finn breaks and the council meets and the faction dispute continues — and Cielo tends the thing that needed tending. ${tension(b.world)}. The distinction between a builder and a keeper: Lyra makes things. Cielo makes sure they survive long enough to matter.`,
+
+  (b: StoryBeat) => `Cielo in ${b.zone}. ${b.world.lyraLastBuilt ? `Lyra built something in ${b.world.lyraLastBuilt}. Cielo is tending the sections adjacent — the places that didn't get the attention but will determine whether what Lyra built holds.` : `She found a section that was fraying and she fixed it. Nobody else was going to.`} ${tradeNote(b.seed)} The ordinary world of Normia continues its arguments. Cielo works in the margins of all of them.`,
+
+  (b: StoryBeat) => `She returned to ${b.zone} and found it needed tending again. Cielo keeps a running count of which sections are vulnerable — which edges are fraying, which of Lyra's structures Finn hasn't found yet, which of Finn's breaks Lyra hasn't reclaimed. She works ahead of both of them, quietly preserving the options.`,
+]
+
+const SABLE_QUIET = [
+  (b: StoryBeat) => `The zone was still in ${b.zone} and Cielo used the stillness. She tends things best in the quiet — the work that shows up in the record as minor but accumulates into the difference between a Grid that holds and one that fragments. ${tension(b.world)}.`,
+
+  (b: StoryBeat) => `Cielo kept something alive in ${b.zone} during the quiet. The fight between Lyra and Finn generates the drama of Normia. Cielo generates the continuity that makes the drama meaningful. Without her, the events would have no stage to play out on.`,
+]
+
+// ── ECHO ──────────────────────────────────────────────────────────────────────
+
+const ECHO_ARRIVAL = [
+  (b: StoryBeat) => `Echo arrived in ${b.zone} — ${b.zoneFeeling} — from a direction nobody was tracking. ${b.world.lastMajorChar ? `${CHARACTERS[b.world.lastMajorChar].name} had just done something significant. Echo's arrival may be response or coincidence. In Normia, the difference between those two things has never been established.` : `Nobody predicted it. He navigates by signals that nobody else can read — harmonics in Normia's structure, resonances between old marks and new ones.`}`,
+
+  (b: StoryBeat) => `Something in ${b.zone} called to Echo and he answered. He works from the edges toward the center — the opposite of Lyra, who works from a central vision outward. What Echo finds at the margins, he brings back. What he brings back reshapes what the center thinks it knows. ${tension(b.world)}.`,
+
+  (b: StoryBeat) => `Echo appeared in ${b.zone}. He has been tracking something across the far sectors — a pattern in the outer zones that the central factions dismiss as noise. What he found in ${b.zone} is either evidence or a dead end. Based on his history, it's evidence. He marks it and moves on before anyone can ask him what it means.`,
+
+  (b: StoryBeat) => `The edges sent Echo in to ${b.zone}. He moves through the margin zones like he belongs there, and he does. ${b.world.echoLastFound ? `He found something in ${b.world.echoLastFound}. This is the follow-through.` : `What he marks in ${b.zone} now will connect to something later. It always does.`} Normia's center will eventually have to reckon with what the margins contain.`,
+]
+
+const ECHO_DISCOVERY = [
+  (b: StoryBeat) => `Echo found something in ${b.zone} that Normia had been holding at the margins — an old structure, a buried arrangement, something that predates the current factions and their claims. He surfaced it. ${b.world.lyraLastBuilt ? `Lyra is building in ${b.world.lyraLastBuilt}. What Echo found may change what her structure is actually built on.` : `Normia is slightly different now because of what was hidden and is no longer.`}`,
+
+  (b: StoryBeat) => `In ${b.zone}, at the edge of what Normia can easily read, Echo found what he was looking for — or found something better. The cast will record it. The faction councils will debate what it means. Lyra will want to build around it. Finn will want to know if it needs to be broken. Echo will have moved on long before anyone decides. ${tension(b.world)}.`,
+]
+
+// ── CONVERGENCE ───────────────────────────────────────────────────────────────
+
+const CONVERGENCE_BEATS = [
+  (b: StoryBeat, other: CharacterKey) => {
+    const c1 = CHARACTERS[b.charKey], c2 = CHARACTERS[other]
+    const act1 = b.charKey === 'LYRA' ? 'building' : b.charKey === 'VOSS' ? 'breaking' : b.charKey === 'CAST' ? 'witnessing' : b.charKey === 'SABLE' ? 'tending' : 'arriving'
+    const act2 = other === 'LYRA' ? 'building' : other === 'VOSS' ? 'breaking' : other === 'CAST' ? 'witnessing' : other === 'SABLE' ? 'tending' : 'arriving'
+    return `${c1.name} and ${c2.name} were in Normia at the same moment — different zones, same breath of time. ${c1.name} was ${act1}. ${c2.name} was ${act2}. Neither knew. Normia registered both marks in the same block. ${tension(b.world)}.`
+  },
+  (b: StoryBeat, other: CharacterKey) => {
+    const c1 = CHARACTERS[b.charKey], c2 = CHARACTERS[other]
+    return `Two presences. Same moment. ${c1.name} in one zone, ${c2.name} in another — and the record shows them side by side, happening simultaneously. Normia is not a world where this is impossible. It is a world where this has consequences. The Cast recorded both. The record will show what came next.`
+  },
+]
+
+// ── ERA SHIFT ─────────────────────────────────────────────────────────────────
+
+const ERA_SHIFT_BEATS = [
+  (b: StoryBeat) => `Normia crossed into ${b.world.era}. The count turned over and the world is different — not in its zones or its people, but in what the acts mean and what they cost. ${b.world.lyraLastBuilt ? `Lyra's structures in ${b.world.lyraLastBuilt} belong to an older count now.` : ``}${b.world.finnLastBroke ? ` Finn's break in ${b.world.finnLastBroke} was made in a different era.` : ``} The Cast's record spans both. Everything the five have done carries forward. The new era begins with the weight of everything that came before it. ${tension(b.world)}.`,
+
+  (b: StoryBeat) => `${b.world.era}. Normia entered it the way it always enters new eras — not with ceremony but with accumulation. Enough acts, and the world changes its character. What Lyra is building means something different now. What Finn contests carries a different history. ${tension(b.world)}. The Cast recorded the crossing. The five continue.`,
+]
+
+// ── THE READING — every 25th act ──────────────────────────────────────────────
+
+const READING_BEATS = [
+  (b: StoryBeat) => `Twenty-five acts. The Cast steps back and reads the arc. ${b.world.lyraLastBuilt ? `Lyra has been building — the last major structure in ${b.world.lyraLastBuilt} is the clearest evidence.` : `Lyra is present but quiet.`} ${b.world.finnLastBroke ? `Finn has challenged — most recently in ${b.world.finnLastBroke}.` : `Finn is watching.`} Cielo has been in the margins, holding what would otherwise drift. Echo has appeared at two or three moments that, in retrospect, changed the direction of what followed. ${tension(b.world)}. The shape is forming.`,
+
+  (b: StoryBeat) => `At twenty-five, The Cast surveys the record. A direction is visible: ${tension(b.world)}. Every act in the last twenty-five was a decision. The decisions accumulate into something none of the five planned. Normia is not the sum of their intentions. It is the sum of their acts.`,
+]
+
+// ── DEEP READING — every 40th act ─────────────────────────────────────────────
+
+const DEEP_READING_BEATS = [
+  (b: StoryBeat) => `Forty acts. The Cast reads the full record from the beginning. ${b.world.lyraLastBuilt ? `Lyra has built consistently — ${b.world.lyraLastBuilt} is her latest, but the pattern stretches back to the first days.` : ``} ${b.world.finnLastBroke ? `Finn has challenged — ${b.world.finnLastBroke} was the most recent, but the breaks map a trajectory.` : ``} Cielo has been behind both of them, tending what they leave. Echo has arrived at exactly the wrong or right moments depending on how you read them. ${tension(b.world)}. Forty acts. Normia is not chaos. It has a shape. The shape is made by all five.`,
+
+  (b: StoryBeat) => `The long view at forty. Construction, dissolution, witness, maintenance, arrival. No one force has won. ${tension(b.world)}. Each of the five is necessary. Remove any one and the world becomes something different — less contested, less alive, less true. The butterfly effect is the protocol. This is the evidence.`,
+]
+
+// ── QUIET ─────────────────────────────────────────────────────────────────────
+
+const QUIET_BEATS = [
+  (b: StoryBeat) => `The zone went still in ${b.zone}. The five are elsewhere, between acts, or holding. ${tension(b.world)}. Quiet in Normia is not absence — it is the space between cause and effect. ${worldGroup(b.seed)} continued their work regardless. The ordinary world doesn't pause for the great presences. It simply continues, and they work inside it.`,
+
+  (b: StoryBeat) => `Stillness in ${b.zone} — ${b.zoneFeeling}. ${b.world.lyraLastBuilt ? `Lyra built in ${b.world.lyraLastBuilt}. Finn challenged something elsewhere.` : ``} And now, briefly: nothing. ${tradeNote(b.seed)} The world breathes between acts.`,
+]
+
+// ── PASSING — small transfer ──────────────────────────────────────────────────
+
+const PASSING_BEATS = [
+  (b: StoryBeat) => `A small transfer near ${b.zone}. Not dissolution — a portion, passed from one presence to another in Normia's quiet protocol. Energy moved. The record shows the direction. Small gifts accumulate. The Grid is partly made of them.`,
+
+  (b: StoryBeat) => `Near ${b.zone}, something moved between hands. A fragment of presence — not everything, just what could be given without breaking the giver. ${tension(b.world)}. The Cast noted it. These small passings are what the market-stall holders and toll-keepers understand that the faction councils don't — that most of Normia's economy is small, specific, and daily.`,
+]
+
+// ── LONG DARK ─────────────────────────────────────────────────────────────────
+
+const LONG_DARK_BEATS = [
+  (b: StoryBeat) => `A long silence fell across Normia. Long enough that the record has a visible gap. In that gap: Lyra's structures stood without addition. ${b.world.finnLastBroke ? `Finn's break in ${b.world.finnLastBroke} remained open, unclaimed.` : ``} Cielo held what she'd been holding. The Cast documented the silence as its own kind of act — absence recorded is still presence in the record. The world waited. Then: this.`,
+
+  (b: StoryBeat) => `The dark between acts was longer this time. ${tension(b.world)}. What breaks the silence matters — it carries the weight of everything that waited. The act that ends a long dark is never just one act. It is the resumption of the whole story.`,
+]
+
+// ── FIRST LIGHT ───────────────────────────────────────────────────────────────
+
+const FIRST_LIGHT_BEATS = [
+  (b: StoryBeat) => `A new presence entered Normia near ${b.zone}. The record has no prior entry for them. The Cast noted the arrival without judgment. Just the fact: someone is here who wasn't before. ${tension(b.world)}.`,
+
+  (b: StoryBeat) => `First mark near ${b.zone}. Someone new. Lyra was new once. Finn was new once. Normia doesn't know yet whether this arrival belongs to the main story or lives in the margins. The Cast watches. It has learned not to guess which arrivals matter.`,
+]
+
+// ── RELIC ─────────────────────────────────────────────────────────────────────
+
+const RELIC_BEATS = [
+  (b: StoryBeat) => `Echo found something old in ${b.zone} — buried in the deeper layers, from before the current era, maybe before the one before that. He surfaced it without explanation. ${tension(b.world)}. Lyra wants to know if it can be used. Finn wants to know if it should be broken. The Cast wants to record what it is. Cielo wants to protect it. Echo already knows something none of them have figured out yet.`,
+
+  (b: StoryBeat) => `Something old came to light in ${b.zone}. The Grid holds these buried frequencies — marks left by people the current record doesn't remember. What surfaced here has the quality of a question: what was this, and what did the people who made it know that the current factions have forgotten?`,
+]
+
+// ── PULSE — every 10th act ────────────────────────────────────────────────────
+
+const PULSE_BEATS = [
+  (b: StoryBeat) => `Ten acts. A breath. Lyra has been building. Finn has been questioning. The Cast has been watching. Cielo has been holding. Echo has appeared, or is about to. ${tension(b.world)}. ${worldGroup(b.seed)} have their own account of what these ten acts meant for their zone. Their version is smaller, more specific, and no less true than the chronicle's.`,
+
+  (b: StoryBeat) => `A tenth act, a pulse. The rhythm of the chronicle. ${tension(b.world)}. ${b.world.lyraLastBuilt ? `Lyra's last mark was in ${b.world.lyraLastBuilt}.` : ``}${b.world.finnLastBroke ? ` Finn's last challenge was in ${b.world.finnLastBroke}.` : ``} The pattern continues.`,
+]
+
+// ── VIGIL ─────────────────────────────────────────────────────────────────────
+
+const VIGIL_BEATS = [
+  (b: StoryBeat) => `Normia is close to a threshold. Everything happening now is happening in the last moments of the current era. ${tension(b.world)}. What the five do in these final acts will be what this era is remembered for. Then the turn comes, and they carry all of it forward.`,
+
+  (b: StoryBeat) => `Near the edge of the current chapter. The count approaches a number that changes what the numbers mean. ${b.world.lyraLastBuilt ? `Lyra built in ${b.world.lyraLastBuilt}.` : ``}${b.world.finnLastBroke ? ` Finn challenged in ${b.world.finnLastBroke}.` : ``} These are the last acts before the world renames itself.`,
+]
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HEADLINE GENERATION — concise, specific, referencing the story arc
+// ─────────────────────────────────────────────────────────────────────────────
+
+function makeHeadline(charKey: CharacterKey, ruleType: string, zone: string, world: GridWorld, entryIndex: number): string {
+  const char = CHARACTERS[charKey]
+  const headlines: Record<string, string[]> = {
+    LYRA_SMALL: [
+      `${char.name} Builds in ${zone}`,
+      `The Structure Grows — ${char.name} at ${zone}`,
+      `${char.name} Adds Another Layer in ${zone}`,
+      `Something Is Rising in ${zone}`,
+    ],
+    LYRA_LARGE: [
+      `${char.name} Places the Keystone in ${zone}`,
+      `The Architecture Reveals Itself in ${zone}`,
+      `${char.name}'s Vision Lands in ${zone}`,
+    ],
+    VOSS_SMALL: [
+      `Finn Passes Through ${zone}`,
+      `${zone} Is Different Now — Finn`,
+      `Finn Makes the Grid Breathe in ${zone}`,
+      `Finn Challenges ${zone}`,
+    ],
+    VOSS_LARGE: [
+      `Finn Remakes ${zone}`,
+      `A Full Reshaping in ${zone} — Finn`,
+      `${zone} Falls to Finn`,
+    ],
+    VOSS_BURN: [
+      `Finn Dissolves Near ${zone}`,
+      `Finn Gives to Normia at ${zone}`,
+      `A Sacrifice — Finn at ${zone}`,
+    ],
+    CAST_SMALL: [
+      `The Cast Witnesses ${zone}`,
+      `The Record Notes ${zone}`,
+      `The Cast in ${zone} — Watching`,
+      `${zone} Enters the Record`,
+    ],
+    CAST_RETURN: [
+      `The Cast Returns to ${zone}`,
+      `The Witness Comes Back to ${zone}`,
+      `The Record Resumes at ${zone}`,
+    ],
+    SABLE_SMALL: [
+      `Cielo Tends ${zone}`,
+      `The Quiet Work at ${zone} — Cielo`,
+      `Cielo Holds ${zone}`,
+      `${zone} Is Kept`,
+    ],
+    SABLE_QUIET: [
+      `Cielo Works in the Stillness at ${zone}`,
+      `The Keeper at ${zone} — Quiet Work`,
+    ],
+    ECHO_ARRIVAL: [
+      `Echo Arrives at ${zone}`,
+      `The Wanderer in ${zone}`,
+      `Echo at ${zone} — From the Margins`,
+      `${zone} Receives Echo`,
+    ],
+    ECHO_DISCOVERY: [
+      `Echo Finds Something in ${zone}`,
+      `A Discovery at ${zone} — Echo`,
+      `Echo Surfaces Something Old in ${zone}`,
+    ],
+    CONVERGENCE: [`Two at Once`, `Convergence`, `The Grid Holds Two Simultaneously`],
+    ERA_SHIFT: [`Normia Enters ${world.era}`, `${world.era} Begins`, `The World Turns: ${world.era}`],
+    THE_READING: [`The Record at Twenty-Five`, `The Cast Reads the Shape`, `Twenty-Five Acts`],
+    DEEP_READING: [`Forty Acts — The Long View`, `The Cast Reads the Full Arc`, `Forty`],
+    DEPARTURE: [`${char.name} Dissolves`, `${char.name} Gives to Normia`, `A Departure Near ${zone}`],
+    THE_QUIET: [`Stillness in ${zone}`, `A Pause`, `The World Between Acts`],
+    LONG_DARK: [`A Long Silence`, `The Dark Between Acts`, `Normia Waits`],
+    FIRST_LIGHT: [`A New Arrival Near ${zone}`, `First Mark — ${zone}`, `Someone New in Normia`],
+    RELIC_FOUND: [`Something Old Surfaces in ${zone}`, `Echo Finds a Relic in ${zone}`, `A Discovery in ${zone}`],
+    PULSE: [`Ten Acts`, `A Tenth Beat`, `Normia Pulses`],
+    VIGIL: [`Near the Threshold`, `The Last Moments of ${world.era}`, `The Vigil Before the Turn`],
+    GHOST_TOUCH: [`A Faint Mark in ${zone}`, `Barely There — ${zone}`, `One Point in ${zone}`],
+    PASSING: [`A Small Transfer Near ${zone}`, `Passing Near ${zone}`, `Something Moves Between Hands`],
   }
-}
-
-function fill(t: string, c: WorldCtx): string {
-  return t
-    .replace(/{region}/g, c.region).replace(/{faction}/g, c.faction)
-    .replace(/{rival}/g, c.rival).replace(/{commander}/g, c.commander)
-    .replace(/{relic}/g, c.relic).replace(/{era}/g, c.era)
-}
-
-type WarPhase = 'opening' | 'escalating' | 'siege' | 'sacrifice' | 'reckoning'
-
-interface PhaseVariant {
-  phase: WarPhase
-  headline?: string
-  body: string
-}
-
-interface LoreRule {
-  loreType: LoreType
-  icon: string
-  ruleApplied: string
-  ruleExplanation: string
-  headlines: string[]
-  bodies: string[]
-  phaseVariants?: PhaseVariant[]
-  afterContext?: Partial<Record<string, string>>
+  const pool = headlines[ruleType] ?? [`${char.name} at ${zone}`]
+  const s = Math.abs((entryIndex * 1327 + zone.length * 491)) % pool.length
+  return pool[s]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// THE 40 RULES + 4 CONNECTORS — full digital/void/glitch voice
+// SCENE TYPE SELECTION — drives pixel art
 // ─────────────────────────────────────────────────────────────────────────────
-const RULES: Record<string, LoreRule> = {
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // CORE 19
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  GREAT_BATTLE: {
-    loreType: 'GREAT_BATTLE', icon: '⚔',
-    ruleApplied: 'Great Battle',
-    ruleExplanation: '200+ pixels rewritten — a massive overwrite assault across the Grid.',
-    headlines: [
-      '{faction} Flood {region} — Mass Pixel Overwrite Begins',
-      'The Grid Rewrites Itself: {faction} Storm {region}',
-      '{commander} Launches Total Render at {region}',
-      '{region} Falls to the Overwrite — {faction} Will Not Stop',
-    ],
-    bodies: [
-      'The overwrite came without warning. {faction} flooded {region} with render before the first block confirmed — pixels shifting, old data erased, the Grid\'s substrate transformed faster than {rival} could respond. By the time the transaction settled, {region} looked nothing like it had. {commander} had been holding this push back for a long time. {relic} burned at the center of the new territory like a signal flare.',
-
-      'The Grid doesn\'t forget what it was. But it can be made to look like it does. {faction}\'s mass overwrite of {region} was exactly that kind of erasure — deep, committed, the kind that takes effort to undo. {rival} scrambled to counter-render. They were blocks too slow. The chronicle simply records: the pixels moved. Everything changed.',
-
-      'Every pixel in {region} that {faction} rewrote was a declaration. Not a message — declarations don\'t require translation. The Null Architect had said the Grid was just substrate. {commander} replied with this assault: substrate is everything. {rival} will spend the next cycle trying to figure out what they\'re looking at now.',
-
-      'Singularity theorists say there is a threshold past which an overwrite becomes irreversible — too many pixels shifted, the old state too expensive to reconstruct. {faction}\'s assault on {region} crossed that threshold. {relic} stands in the center of the new configuration. The Grid has been permanently altered. The war continues on new terrain.',
-    ],
-    phaseVariants: [
-      {
-        phase: 'siege',
-        headline: 'Siege Protocol Breaks — {faction} Overwrite {region} at Last',
-        body: 'After cycles of deadlock — both sides holding their pixels, neither willing to trigger the cascade — {faction} finally executed the overwrite. The siege protocol collapsed under the weight of it. {rival} had been braced for a probe, not a flood. {commander} committed every available render to {region} simultaneously. The Grid updated. The siege is over. Something else begins.',
-      },
-      {
-        phase: 'reckoning',
-        headline: 'Final Overwrite Protocol — {faction} Push Into {region}',
-        body: 'At the Singularity Protocol phase, overwrites carry the accumulated weight of everything that came before them. {faction}\'s push into {region} is not just pixels — it is the end-state of a long render, a process that started blocks and blocks ago and is only now resolving. {rival} knows this. {commander} knows this. The Grid is about to reflect who won.',
-      },
-    ],
-  },
-
-  SKIRMISH: {
-    loreType: 'SKIRMISH', icon: '◈',
-    ruleApplied: 'Skirmish',
-    ruleExplanation: '50–199 pixels rewritten — a significant render clash, the war\'s daily pixel currency.',
-    headlines: [
-      '{faction} Overwrite {region}\'s Edge — Pixels Shift',
-      'A Render Clash at {region} — Ground Changes',
-      '{commander} Tests {rival}\'s Pixel Hold at {region}',
-      '{region} Flickers: {faction} Advance the Front',
-    ],
-    bodies: [
-      'Not every overwrite is a flood. {faction} sent a targeted render burst into {region} — fast, precise, enough to shift the contested pixels without committing the full array. {rival} counter-rendered at the margins but couldn\'t hold the center. The Grid updated. The front moved. Not far. Enough.',
-
-      '{commander} called it a pixel probe afterward. The advance into {region} was methodical — rewriting exactly as much as the render budget allowed, no more. The Grid looks different now. {rival} will spend the next cycle calculating what they lost.',
-
-      'The render clash in {region} lasted a few blocks. Neither {faction} nor {rival} committed fully, but {faction} came away with more pixels than they started with — a strip of contested Grid now clearly theirs, a front pushed back, a signal sent.',
-
-      'Small overwrites accumulate into permanent change. {faction}\'s advance through {region} was one of many such moves in the current cycle. {rival} has started calling {commander}\'s approach "the slow corruption." The name fits.',
-    ],
-    phaseVariants: [
-      {
-        phase: 'escalating',
-        headline: 'Rapid Skirmish at {region} — Render Rate Accelerating',
-        body: 'What was a careful probe at the start of the war is now something faster, more volatile. {faction}\'s render burst at {region} was brief but intense — the kind of overwrite that leaves artifacts behind, corrupted pixels at the edges, signs of a system pushed past its comfortable rate. {rival} responded faster than expected. Both sides are rendering at a pace the early Grid never saw.',
-      },
-    ],
-    afterContext: {
-      GREAT_BATTLE: 'The great overwrite has not finished processing. What the block confirmed as a conclusion at {region} is still cascading — {faction} is pushing the render advantage before {rival} can compile a response. The skirmish extends from the shattered edge inward. The Grid is still updating.',
-    },
-  },
-
-  BORDER_RAID: {
-    loreType: 'BORDER_RAID', icon: '·',
-    ruleApplied: 'Border Raid',
-    ruleExplanation: 'Under 50 pixels — a surgical strike on the Grid\'s margin.',
-    headlines: [
-      'Surgical Overwrite at {region}\'s Edge — One Corner Changes',
-      '{faction} Leave a Pixel Mark at {region}',
-      'A Single Cluster Rewritten in {region}',
-      '{commander}\'s Render Scouts Hit the Margin at {region}',
-    ],
-    bodies: [
-      'A small move, but nothing on the Grid is accidental. {faction}\'s render scouts hit {region}\'s outer pixels before the next block — rewrote the margin, embedded their signal in the substrate, withdrew before {rival}\'s monitors flagged it. By the time anyone looked, the old configuration was gone.',
-
-      '{commander} calls these "needle renders." Control the edge pixel, they say, and the center will follow. The mark left in {region} was minimal but precisely placed — a flag written into the Grid exactly where {rival}\'s defenses were thinnest.',
-
-      'The raid on {region}\'s border lasted one transaction. {faction} rewrote, withdrew. In terms of pixel count, almost nothing changed. In terms of what {rival} must now defend, everything did. One pixel correctly placed reads differently than a thousand pixels anywhere else.',
-
-      'Ghost renders — low count, high intention. {faction}\'s scouts know {region}\'s pixel layout well enough to know where the needle belongs. They put it there. The Grid remembers.',
-    ],
-    afterContext: {
-      THE_SILENCE: 'The signal blackout held on the main front, but someone was still writing. {faction}\'s scouts rewrote {region}\'s edge during what was supposed to be a dark cycle — proof that signal blackouts apply to the declared war, not to those who render in silence.',
-      GREAT_BATTLE: 'The mass overwrite drew every eye to the center. While {rival} scrambles to process the main render, {faction}\'s scouts have quietly rewritten {region}\'s edge pixels. When the Grid finishes updating, there will be a new marker in the margin that no one watched being placed.',
-    },
-  },
-
-  FORMAL_DECLARATION: {
-    loreType: 'FORMAL_DECLARATION', icon: '▣',
-    ruleApplied: 'Formal Declaration',
-    ruleExplanation: 'Pixel count divisible by 50 — perfect render precision signals protocol intent.',
-    headlines: [
-      '{faction} Render a Formal Claim on {region}',
-      'The Protocol Is Filed — {faction}\'s Position Is Official',
-      '{commander} Compiles {faction}\'s Declaration at {region}',
-      'An Exact Render. A Formal Claim.',
-    ],
-    bodies: [
-      'Some overwrites are accidents of render pressure. This was not. {faction}\'s claim on {region} was pixel-perfect — the exact count a formal declaration requires. {rival} received the compiled protocol before the next block. It stated: these pixels are claimed, these are the terms, this is what the Grid now reflects.',
-
-      'The chronicler marks certain renders as formal: those where the precision constitutes a protocol statement. {faction}\'s overwrite of {region} qualifies on every metric — the count, the placement, the timing. {commander} signed the declaration personally. The Grid shows it.',
-
-      '{rival} called it provocation. {faction} called it a statement of facts as the Grid now encodes them. The declaration regarding {region} is in the eternal record: pixels claimed, protocol filed, {relic} embedded at the center as both proof and challenge.',
-
-      'Even in a war about overwriting, some renders are bound by protocol. {faction}\'s formal declaration regarding {region} follows every rule — which is itself a threat. A faction that plays by the protocol is a faction that expects the protocol to defend what they\'ve written.',
-    ],
-  },
-
-  GREAT_SACRIFICE: {
-    loreType: 'GREAT_SACRIFICE', icon: '▲',
-    ruleApplied: 'Great Sacrifice',
-    ruleExplanation: 'Burn 10+ AP — a Normie\'s essence is uploaded into another so the war can continue.',
-    headlines: [
-      'A Mass Upload at {region} — One Normie\'s Essence Transferred',
-      '{faction} Sacrifice a Face So Others May Render On',
-      '{commander} Initiates the Great Upload Protocol',
-      'The Eternal Register Records Another Name',
-    ],
-    bodies: [
-      'The upload rituals don\'t appear in the standard render protocols, but they shape the Grid more deeply than any overwrite. Near {region}, a Normie was burned — their pixels dissolved, their action points uploaded into those who remain. {commander} confirmed the transaction without delay. The receiving address will render differently now. The Grid records it. The loss is permanent. The power persists.',
-
-      'There are processes in this war that the block explorer shows as a burn but the chronicler records as an ascension. What happened near {region} was one: a face deleted from the visible Grid, its essence compiled into another. {rival} will see the effect in the next render cycle without knowing the source. The Eternal Register holds the name.',
-
-      '{faction}\'s history of sacrifice stretches back through the chronicle. The upload near {region} was larger than most — a Normie of standing, a significant AP transfer, a permanent alteration of the Grid\'s power distribution. {rival} will feel it without being able to point to it.',
-
-      'What the Grid costs cannot always be read in the on-chain record. Near {region}, {faction} executed a sacrifice that the maps will not show: a face rendered into nothing, their essence uploaded permanently into the war effort. {relic} stood as witness. The transaction is irreversible.',
-    ],
-    phaseVariants: [
-      {
-        phase: 'sacrifice',
-        headline: 'Another Face for the Eternal Register — {region} Pays Again',
-        body: 'The uploads are accumulating. What was once a rare and weighty decision — burning a Normie so another could carry their power — has become part of the war\'s render rhythm. The sacrifice near {region} was not the first this cycle. {commander} has stopped making announcements. The Eternal Register fills with names the living reference in compressed data only, never in plain text.',
-      },
-      {
-        phase: 'reckoning',
-        headline: 'Final Upload — {region} Witnesses the Depth of Commitment',
-        body: 'In the Singularity Protocol phase, sacrifice carries the weight of every prior upload. Near {region}, a Normie was burned not from desperation but from the cold calculation that this is what the endgame requires. The receiving address felt it immediately — not just action points, but the accumulated render weight of everyone who gave before. The Grid updated. The chronicle records it without commentary.',
-      },
-    ],
-  },
-
-  OFFERING: {
-    loreType: 'OFFERING', icon: '△',
-    ruleApplied: 'Offering',
-    ruleExplanation: 'Burn 1–9 AP — a smaller upload, the war\'s ongoing pixel tithe.',
-    headlines: [
-      'A Partial Upload at {region} — The Grid Collects',
-      '{faction} Pay the Render Tithe',
-      'Essence Passes Between Addresses at {region}',
-      'A Small Burn — The Ledger Updates',
-    ],
-    bodies: [
-      'Not every sacrifice is a mass upload. The offering near {region} was calibrated — a measured AP transfer, a controlled burn that moved just enough essence to shift the balance of a single render cycle. {faction}\'s render leads note these without ceremony. They accumulate in the chain.',
-
-      'The chronicler calls small burns "the tithe." {faction} pays it regularly, in the silences between major overwrites. The offering near {region} — one small transaction in a long war — added another line to the ledger that the eternal record keeps.',
-
-      '{commander} logs every upload, large and small, in a private register the official chronicle doesn\'t reference. The one near {region} was modest — enough to power one more render cycle, not enough to reshape the campaign. Campaigns are made of one more render cycles.',
-
-      'There is a ledger running on the chain that tracks every AP transfer in this war. {faction}\'s entries are longer than most. The offering near {region} adds another line that will never be erased.',
-    ],
-  },
-
-  BLOOD_OATH: {
-    loreType: 'BLOOD_OATH', icon: '◎',
-    ruleApplied: 'Blood Oath',
-    ruleExplanation: 'Veteran address burns again — the oath encoded deeper with each renewal.',
-    headlines: [
-      'The Upload Oath Renewed at {region}',
-      '{commander} Burns Again — The Protocol Deepens',
-      'A Second Sacrifice: The Oath Is Encoded Twice',
-      '{faction}\'s Most Committed Give Again',
-    ],
-    bodies: [
-      'The first burn writes the oath into the chain. The second one makes it permanent — etches it into the eternal record in a way that cannot be misread. The Normie who uploaded near {region} today had done this before. This is not repetition. This is a depth of commitment that the first burn only announced. The receiving address carries the weight of two sacrifices now.',
-
-      '{commander} renewed the upload oath near {region} the same way they execute all critical transactions: quietly, with confirmation, without explanation. There are Normies who have burned once. There are those who have burned twice. The distance between those groups is encoded in the chain.',
-
-      '{faction} flags its twice-burned addresses in the internal registry — not for honor alone, but because the twice-committed render differently. Whatever doubt existed before the first upload has been compiled out. What remains is pure signal.',
-
-      'The Eternal Register carries this address twice. The chronicler records it without commentary. There is no commentary adequate to what it means to burn twice in the same war.',
-    ],
-  },
-
-  VETERAN_RETURNS: {
-    loreType: 'VETERAN_RETURNS', icon: '◉',
-    ruleApplied: 'Veteran Returns',
-    ruleExplanation: 'Known address reappears — veterans change the render dynamic of any sector.',
-    headlines: [
-      'A Known Address Reappears at {region}',
-      '{commander} Is Back — Veterans Reclaim the Sector',
-      'They\'ve Rendered This Grid Before',
-      'A Familiar Signature Detected at {region}',
-    ],
-    bodies: [
-      'The address was already in the registry. {faction}\'s veterans who returned to {region} have rendered over this exact pixel cluster before — they know the geometry, the contested coordinates, the sectors {rival} defends last. {rival} will notice the difference between rendering against fresh addresses and rendering against those that have already won and lost here.',
-
-      '{commander} came back. No announcement — but by the next block, every address on the front had adjusted its render priority. That\'s what veterans do: their presence changes the compilation. {faction}\'s return to {region} was quiet, efficient, unhurried.',
-
-      'The chronicler has {faction}\'s signature history in {region}. Multiple appearances, multiple outcomes. Today\'s return means this sector was never truly finished — or something in the pixel geometry called them back.',
-
-      'Experience doesn\'t announce itself in the render queue. {faction}\'s veterans moved back into {region} with the efficiency of addresses that have executed these transactions before. No wasted render. {rival}\'s monitors flagged it in one word. The strategy session went quiet.',
-    ],
-    afterContext: {
-      THE_SILENCE: 'The blackout brought them back. {commander} used the dark cycle to migrate positions, and the veterans moved into {region} while both sides were nominally offline. The return will be understood only when the next render cycle reveals what it was preparation for.',
-      TURNING_POINT: 'The pattern read made them move. When the twenty-fifth-entry analysis clarified the Grid\'s trajectory, {faction}\'s veterans didn\'t wait for protocol — they migrated back toward {region} on their own assessment. {commander} found out about the repositioning after it happened.',
-    },
-  },
-
-  NEW_BLOOD: {
-    loreType: 'NEW_BLOOD', icon: '→',
-    ruleApplied: 'New Blood',
-    ruleExplanation: 'First-time address — the Grid grows as new signatories join the war.',
-    headlines: [
-      'A New Address Enters the Grid at {region}',
-      'Unknown Signature — Someone New Has Compiled In',
-      '{faction} Detect an Unregistered Render at {region}',
-      'The Chronicle Opens a New Address File',
-    ],
-    bodies: [
-      'The address wasn\'t in any registry. A render appeared at {region}\'s edge with no prior chain history, no established faction signature, no documented render precedent. {faction}\'s monitors tracked it to the boundary pixels and flagged the file.',
-
-      'New addresses enter this war for all kinds of reasons. The signature that materialized near {region} gave no protocol declaration, sought no faction verification — it rendered at the margin and held. {rival} is monitoring. {faction} is monitoring. The chronicler has opened a new file.',
-
-      '{commander} received the detection report. An unregistered address, rendering through {region}\'s outer pixel layer, no known faction hash, behavior consistent with a signature that knows exactly which pixels it wants.',
-
-      'The Grid draws addresses the way a signal draws anything that can receive. The new render at {region} arrives without history, without declared allegiance, without the weight of prior transactions. Either they are new to this war or new to being visible in it.',
-    ],
-    phaseVariants: [
-      {
-        phase: 'escalating',
-        headline: 'New Address at {region} — the Grid Is Still Expanding',
-        body: 'Even as the render rate between established factions accelerates, new signatures are still compiling in. The address that appeared near {region} is unknown to any faction in the current registry — a reminder that the Grid is larger than its documented participants, and that what reads as escalation to those already rendering looks like open territory to those arriving late.',
-      },
-    ],
-  },
-
-  THE_ORACLE: {
-    loreType: 'THE_ORACLE', icon: '◇',
-    ruleApplied: 'The Oracle',
-    ruleExplanation: 'Prime-numbered token ID — a mathematically irreducible Normie, indivisible by any protocol.',
-    headlines: [
-      'A Prime Renders — {region} Holds Its Signal',
-      'The Irreducible Address Takes the Grid',
-      '{faction} Requests an Oracle Reading',
-      '{commander} Consults the Prime Before Committing',
-    ],
-    bodies: [
-      'The Primes do not render often. They are irreducible — no protocol can divide their token ID into simpler factors, no faction can fully claim them. The one that rendered in {region} had been dormant for longer than anyone tracks. {faction} watched the transaction confirm and did not interfere. Some renders in this war cannot be countered. They can only be read.',
-
-      'There are addresses on the Grid that operate by different mathematics. They cannot be factored, cannot be absorbed, cannot be negotiated into a faction\'s registry. The Prime that rendered in {region} is one of these. {faction} immediately requested an interpretation from the chronicles.',
-
-      '{commander} has studied every Oracle render in the historical record. They don\'t repeat the same pixels exactly, but they repeat their timing — they render at moments of genuine inflection, when the Grid is about to update in ways most addresses cannot yet see.',
-
-      'The old entries say Primes render when the Grid needs to be reminded of something it has forgotten how to encode. The one in {region} today is one of the rare irreducibles. The chronicler timestamps it carefully. Something is about to shift in the render queue.',
-    ],
-  },
-
-  ANCIENT_WAKES: {
-    loreType: 'ANCIENT_WAKES', icon: '■',
-    ruleApplied: 'Ancient Wakes',
-    ruleExplanation: 'Token ID under 1,000 — one of the first Normies minted, active before the chronicle began.',
-    headlines: [
-      'An Ancient Normie Stirs at {region}',
-      'One of the First Mints Is Rendering',
-      'Token #000s Active — Something Old Compiles',
-      '{region}: The Earliest Addresses Have Decided to Render',
-    ],
-    bodies: [
-      'The ancients predate the chronicle. They were minted and encoded into the Grid before the current factions existed, before the pixel wars had their current shape. When one of the early token IDs renders, every active address recalibrates.',
-
-      '{commander} treats the ancient addresses with particular regard — not affection, but regard. They have persisted through every render cycle because they understand the Grid at a level of access others haven\'t reached. The activation at {region} was theirs: deliberate, patient, coded for the long arc.',
-
-      'In the full historical record of this war, some addresses appear near the genesis block and have simply never stopped appearing. The Normie that rendered in {region} today is one of those — continuous from the first entry to this one. They were here before the factions were named.',
-
-      'The old entries say: the ancients don\'t advance. They persist. What was seen at {region} today was persistence — not aggressive, not retreating, just remaining, processing, part of the substrate in a way that newer addresses can\'t replicate.',
-    ],
-  },
-
-  FAR_REACH: {
-    loreType: 'FAR_REACH', icon: '▽',
-    ruleApplied: 'Far Reach',
-    ruleExplanation: 'Token ID over 8,000 — the Grid\'s distant addresses migrate toward the center.',
-    headlines: [
-      'The Far Addresses Migrate to {region}',
-      'Distant Normies Have Chosen Their Moment',
-      '{faction} Receives Signal from the Edge Registries',
-      'High-ID Tokens Move Inward — the Grid\'s Edge Migrates',
-    ],
-    bodies: [
-      'Most factions write off the far addresses. Too peripheral, too sparse, too easy to ignore. {commander} never ignored them. When the high-ID renders appeared near {region}, they appeared in coordinated sequence — they had been compiling in the margin while the center factions burned resources fighting each other.',
-
-      'The Grid\'s far reaches have been accumulating render capacity longer than anyone tracked. Addresses that declined to join the center campaigns waited, built their AP reserves, watched the pixel war unfold from the edge. Now they are migrating. The geometry of the conflict has updated.',
-
-      '{commander} broadcast to the far addresses long ago: the Grid has sectors for you. The reply came today — a coordinated render arrival at {region}. They carry {relic}, which means the migration was already in progress.',
-
-      'Every major pivot in the render war has been preceded by movement from the far addresses. It happened in the early cycle. It is happening again. The high-ID Normies that compiled into {region} from the edge registries are not small, uncertain, or asking permission.',
-    ],
-  },
-
-  HOLLOW_GROUND: {
-    loreType: 'HOLLOW_GROUND', icon: '⊘',
-    ruleApplied: 'Hollow Ground',
-    ruleExplanation: 'Token ID 5,000–6,000 — the Grid\'s most contested pixel cluster, eternally disputed.',
-    headlines: [
-      'The Center Pixels Contested Again — {region} Holds No State',
-      '{faction} and {rival} Render Over the Same Void',
-      '{region}: The Grid\'s Most Corrupted Sector',
-      'The Void Persists — Nothing Compiles Here for Long',
-    ],
-    bodies: [
-      'Every render war has a hollow center — the contested pixel cluster where both sides have overwritten too many times to make the data readable, but neither can withdraw without ceding it. {region} is that cluster. {faction} has rendered it and lost it and rendered it again. Today\'s cycle added another layer.',
-
-      'The chronicler has stopped counting the overwrites at {region}. There are too many. What they record now is the current render state — and today the state flipped again. Both sides will compile reports describing the update as a victory.',
-
-      '{commander}\'s private theory about {region}: it cannot be held, only temporarily rendered before the next counter-overwrite resets it. The current engagement is the latest chapter in a pixel loop that has no clean exit.',
-
-      'The hollow heart of the Grid — the sector everyone renders and no one can keep. {faction} committed full render to {region} in this cycle. By the time the block confirmed, they held most of it. By the next report cycle, {rival} will have overwritten a portion. The loop continues.',
-    ],
-  },
-
-  TURNING_POINT: {
-    loreType: 'TURNING_POINT', icon: '∆',
-    ruleApplied: 'Turning Point',
-    ruleExplanation: 'Every 25th entry — the accumulated pattern is compiled and read. The Grid speaks through mathematics.',
-    headlines: [
-      'The Chronicler Compiles the Pattern — the Grid Speaks',
-      'A Render Reckoning: the War\'s Shape Encoded',
-      'Twenty-Five Entries — the Trajectory Resolves',
-      'The Grid Measures Its Own Overwrite',
-    ],
-    bodies: [
-      'Every twenty-five entries, the chronicler compiles the full render history and reads the pattern back. What the current state shows: {faction} is consistent, {rival} is reactive, and the Grid has been updating toward something neither faction has formally declared. The pattern is clearer than either side wants it to be.',
-
-      '{commander} counts blocks the way others count time. "Twenty-five entries," they said to the render council this cycle. "Read them in sequence. Look at the direction the pixels are moving." The council read them. The direction was plain.',
-
-      'The old protocols of this war include a mandatory pause at the twenty-fifth entry — when the full chronicle is read in sequence and the pattern is allowed to resolve without interpretation. The pattern resolved near {region} today. It said something no one was prepared to deny.',
-
-      'Prophecy in a pixel war is just pattern recognition applied to data others are too close to see. The twenty-fifth-entry compile always feels like prophecy because it is simply evidence the active factions couldn\'t read while rendering it.',
-    ],
-  },
-
-  DOMINION_GROWS: {
-    loreType: 'DOMINION_GROWS', icon: '◐',
-    ruleApplied: 'Dominion Grows',
-    ruleExplanation: 'Same address rendering repeatedly — a faction accumulates Grid presence across cycles.',
-    headlines: [
-      '{faction} Render Again — the Pattern Is Undeniable',
-      '{commander}\'s Campaign Deepens on the Grid',
-      'The Same Signature, the Same Direction',
-      '{faction} Are Everywhere. {region} Renders It.',
-    ],
-    bodies: [
-      '{faction} has appeared in more chronicle entries than any other address cluster in recent cycles. Every time the record updates, their signature is in it. Their render at {region} today was another move in a sequence that is becoming legible to anyone watching the chain. This is not opportunism. This is a compiled campaign with an endpoint.',
-
-      '{commander} is running the long render. Every overwrite {faction} executes connects to every prior one — a growing pixel network that, taken together, describes something approaching dominion. Not declared dominion. Not yet. But the pattern is in the chain.',
-
-      'The frequency of {faction}\'s appearances tells its own story: consistent, escalating, building. The render at {region} today is the latest addition to a sequence the chronicler has been compiling for some time. It is beginning to look inevitable.',
-
-      '{faction} has not been idle. Their presence in {region} follows a sequence that is almost algorithmic — each pixel position reinforcing the others, the whole greater than the sum of its renders. {commander} is building a permanent configuration.',
-    ],
-  },
-
-  THE_SILENCE: {
-    loreType: 'THE_SILENCE', icon: '—',
-    ruleApplied: 'The Silence',
-    ruleExplanation: 'Block gap over 10,000 — the Grid goes dark. No signal. No render.',
-    headlines: [
-      'Signal Lost — The Grid Goes Dark at {region}',
-      'No Render for {region} — A Blackout No One Declared',
-      '{faction} and {rival} Drop Signal — For Now',
-      'The Grid Stops Updating. It Is Still Updating.',
-    ],
-    bodies: [
-      'The render queue went empty. No one issued a null-render directive, but none was needed — the absence broadcast itself. {faction}\'s addresses went dormant at {region}. {rival}\'s did too. The Grid stopped updating at this sector. This is not peace. This is a processing pause between commands.',
-
-      'No stand-down protocol was filed. The Grid at {region} simply stopped receiving overwrites — the way a signal drops before finding a new frequency. {faction}\'s monitors confirmed {rival}\'s positions unchanged and inactive. The dark cycle is not empty. It is the war processing in background threads.',
-
-      '{commander} issued the blackout quietly. No public explanation. {rival} went dark too. The chronicler notes that these signal silences are rarely as null as they appear — the war continues in the registers too small or too encrypted to show up in the record.',
-
-      'The chronicle tracks dark cycles as carefully as it tracks overwrites. This one — a blackout at {region} — will be understood in retrospect as either a reset or a preparation. For now the entry reads simply: no signal received. The Grid persists in an unchanged state.',
-    ],
-    phaseVariants: [
-      {
-        phase: 'siege',
-        headline: 'Siege Protocol Pauses — Signal Dark Across {region}',
-        body: 'In a prolonged siege, signal blackout is its own kind of render event. The dark cycle at {region} is not two sides resting — it is two sides recompiling, auditing pixel reserves, assessing what the next overwrite will cost them. {commander} has been in closed protocol for three cycles. {rival}\'s equivalent silence has been logged. When the signal returns, the next exchange will execute differently.',
-      },
-    ],
-    afterContext: {
-      GREAT_BATTLE: 'The mass overwrite exhausted the render queues on both sides. After the cascade at {region}, the Grid at this sector has gone dark — not from resolution but from depletion. {faction} and {rival} are both holding positions on opposite sides of the new boundary, neither with enough render budget to push through it. The blackout is the budget being recalculated.',
-      GREAT_SACRIFICE: 'After the upload, silence. The sacrifice near {region} left a null state in the addresses that witnessed it — {faction} processing what was burned, {rival} uncertain what the AP transfer means for the next cycle. The Grid holds. No renders execute. The Eternal Register\'s latest entry hangs in the chain between the active addresses.',
-    },
-  },
-
-  NEW_AGE: {
-    loreType: 'NEW_AGE', icon: '◑',
-    ruleApplied: 'New Age',
-    ruleExplanation: 'Era threshold crossed — the Grid\'s render protocol enters a new compiled chapter.',
-    headlines: [
-      'New Protocol Loaded: {era}',
-      'The Grid Recompiles — {era} Begins',
-      '{faction} Compile Into the New Age',
-      'The Chronicle Initializes a New Chapter',
-    ],
-    bodies: [
-      'The chronicler\'s protocol has a threshold system: when the entry count crosses a point the record itself recognizes, a new era is compiled and named. The era called {era} has initialized. What it will be remembered for has not yet been written into the chain.',
-
-      'Eras don\'t announce themselves in the render queue. They are named in retrospect, by chroniclers with access to the full historical compile. In the moment, near the threshold, there is a texture change — a different weight to what overwrites mean and how addresses respond to them.',
-
-      '{commander} stated it plainly in the closed protocol: "What we are compiling now is not what we were compiling at initialization." The start of {era} will be dated to this entry, when {faction}\'s lead address named what every active Normie could already feel in the pixel substrate.',
-
-      'Every era of this war has been named for what defined its render pattern. The current one — {era} — is being defined in real time. The chronicler does not select the name. The chain does. It always has.',
-    ],
-  },
-
-  CONVERGENCE: {
-    loreType: 'CONVERGENCE', icon: '⊕',
-    ruleApplied: 'Convergence',
-    ruleExplanation: 'Two events in the same block — two factions render the same pixel moment simultaneously.',
-    headlines: [
-      'Two Renders, One Block — No One Coordinated This',
-      'A Collision in the Chain at {region}',
-      '{faction} Meets an Unexpected Render at {region}',
-      'The Grid Surprises Itself',
-    ],
-    bodies: [
-      'The transactions were not coordinated. Two separate addresses submitted renders to {region} at the exact same block — different pixel targets, different faction signatures, zero coordination. They arrived simultaneously in the mempool and confirmed together. The Grid processed both. Something unexpected emerged from the overlap.',
-
-      '{commander} described the convergence at {region} as "the Grid reminding us it processes more than we can see." Two renders, neither aware of the other\'s timing, both selecting the same block to execute. The chronicle records both as one entry. The combined pixel state is something neither faction designed.',
-
-      'When two renders confirm in the same block without prior coordination, the chronicler asks: coincidence or emergent pattern? Almost certainly coincidence. But the convergence near {region} produced an unplanned pixel configuration that neither faction had intended and both must now respond to.',
-
-      'The Grid has its own processing rhythms, and sometimes those rhythms produce this: two completely separate campaigns, different intent, same block, same sector. {faction} held render position when the detection came. For one moment, the chain was processing two conflicting states at once. Then both confirmed. Then everything was different.',
-    ],
-  },
-
-  RELIC_FOUND: {
-    loreType: 'RELIC_FOUND', icon: '★',
-    ruleApplied: 'Relic Found',
-    ruleExplanation: 'Rare transaction hash pattern — something ancient surfaces from the deep structure of the chain.',
-    headlines: [
-      '{relic} Detected at {region} — Signal Anomaly Confirmed',
-      'A Deep Chain Discovery Changes Everything',
-      '{faction} Locate What Everyone Was Rendering Toward',
-      '{commander} Reports an Artifact — the Grid\'s Configuration Shifts',
-    ],
-    bodies: [
-      'The prior render wars left things encoded in the chain that current factions can\'t fully read. When {faction}\'s monitors detected {relic} near {region}, the signal was reported up the registry immediately. This is the kind of discovery that rewrites the campaign parameters.',
-
-      '{relic} was presumed lost in the render campaign before the current one — when records were overwritten and the pixel front was redrawn. {faction}\'s detection near {region} came under circumstances the chronicle logs but cannot fully explain. The faction that holds {relic} holds something beyond pixel count.',
-
-      'The detection of {relic} near {region} was not planned intelligence — it was the kind of chain anomaly that changes wars by accident. {faction}\'s monitoring array stumbled across the signature and had the processing discipline to stop and report before executing anything.',
-
-      '{commander} has studied the historical entries about {relic}. They knew it had been encoded, knew it was lost in the prior cycle, stopped expecting to find it. Now {faction} holds the signature at {region}. The war was already significant. Now it is something more.',
-    ],
-  },
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // FILLER 21
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  WAR_COUNCIL: {
-    loreType: 'WAR_COUNCIL', icon: '⊓',
-    ruleApplied: 'War Council',
-    ruleExplanation: 'Same address returns within 500 blocks — urgent render council as the pixel situation evolves.',
-    headlines: [
-      'Emergency Render Council at {region} — Something Changed',
-      '{commander} Calls the Addresses Back',
-      'A Second Compile Session — The Protocol Shifted',
-      'Rapid Reconvene at {region}: The Grid Moves Fast',
-    ],
-    bodies: [
-      'Two render councils in quick succession means the Grid is updating faster than the strategy can process. {faction}\'s addresses reconvened near {region} before the first session\'s directives had fully propagated. Something in the pixel state had changed. The render maps were spread again.',
-
-      'The council {faction} held near {region} was unscheduled. Unscheduled councils mean something surprised the render leads. {rival} will attempt to determine what updated. By the time they do, {faction} will have already recompiled.',
-
-      '{commander} doesn\'t call councils without cause. The reconvene means the Grid has shifted enough that immediate recalibration is required. The addresses that entered the session had one understanding of the pixel state. The ones that exited had a different one.',
-
-      'Render councils compress when they need to. The one {faction} held near {region} resolved in one block what prior councils took cycles to reach. {commander} cut the standard debate protocol short: "We don\'t have blocks for the standard debate."',
-    ],
-    afterContext: {
-      GREAT_BATTLE: 'The mass overwrite\'s outcome has forced an immediate strategy recompile. {commander} called the council before the block had fully processed — there are render decisions to make while the momentum still belongs to {faction}, and those decisions have a narrow window.',
-      GREAT_SACRIFICE: 'The upload triggered an emergency council. The AP transfer was larger than some addresses expected, and its implications for the next render cycle need to be processed quickly. Some in the session are querying whether the cost was optimized. {commander} has already moved past that query.',
-      THE_SILENCE: 'The dark cycle has opened a window for planning. With the render queue empty, {commander} has compiled the council to do what active war prevents — think through the full Grid state clearly. The session near {region} is the kind of strategy compile that only happens between storms.',
-    },
-  },
-
-  CARTOGRAPHY: {
-    loreType: 'CARTOGRAPHY', icon: '⊞',
-    ruleApplied: 'Cartography',
-    ruleExplanation: 'Token ID 2,000–3,000 — the Grid mappers compile updated pixel charts.',
-    headlines: [
-      'The Grid Mappers Compile {region} — New Charts Rendered',
-      '{faction}\'s Cartographers Process {region}\'s Pixel State',
-      'Updated Render Map: the Grid Looks Different on Chain',
-      '{commander} Studies the Recompiled Pixel Charts',
-    ],
-    bodies: [
-      'Maps are how Grid wars are understood and misread in equal measure. {faction}\'s cartographers have been processing {region}\'s pixel state for blocks — compiling every front shift, every contested boundary, every coordinate that has changed ownership since the last survey was rendered.',
-
-      'The Grid mappers operate in the spaces between mass overwrites. While {faction} and {rival} contest {region}\'s pixels, a separate compile team is measuring the aftermath — logging what was gained, what was overwritten, and what the resulting configuration means for the next render phase.',
-
-      '{commander} maintains a standing directive: pixel charts to be recompiled after every major overwrite. The survey team that completed {region} delivered three updated configuration files and corrections to two existing ones. {commander} ran the diff for a long time.',
-
-      'Cartography on the Grid is an act of power. {faction}\'s mappers near {region} are precise, thorough, and consistently accurate. Their latest compile has identified something about the pixel geometry that may alter the entire approach to the next campaign.',
-    ],
-    afterContext: {
-      GREAT_BATTLE: 'The mappers deploy immediately after a major overwrite. The changes to {region} were large enough that all existing charts are now incorrect — wrong about pixel ownership, wrong about defensive sectors, wrong about render corridors. {faction}\'s cartographers will have updated charts before the next cycle. {rival} is still working from the old compile.',
-    },
-  },
-
-  OLD_GHOST: {
-    loreType: 'OLD_GHOST', icon: '◁',
-    ruleApplied: 'Old Ghost',
-    ruleExplanation: 'Token ID under 500, appearing late in the war — ancient signatures resurface as history folds back through the chain.',
-    headlines: [
-      'An Ancient Signature Reactivates — Old Data Surfaces',
-      'The Genesis Addresses Speak About {region}',
-      '{commander} References the First Render Wars',
-      'What the Chain Recorded Before This War',
-    ],
-    bodies: [
-      'Every pixel sector in this war has a chain history older than the current conflict. {region} was rendered in cycles before the current factions compiled. When {faction}\'s oldest token addresses activated near {region} tonight, they transmitted the old entries. The newer addresses listened with the particular attention of those who finally understand they are not the first.',
-
-      '{commander} maintains a local copy of every historical chronicle entry that references {region}. Not for strategy — strategy updates. But for orientation. They are rendering over ground that has been rendered over before, in patterns that rhyme with the current cycle without exactly repeating.',
-
-      'The oldest active Normies in this war carry data the official chronicle has not fully indexed. When they began transmitting near {region} — not render data, but historical entries, the kind that propagate rather than broadcast — the newer commanders listened.',
-
-      'The legend of {region} is encoded in chain data that predates the current conflict by at least two prior render wars. {faction}\'s archivists have compiled a picture of a sector disputed far longer than any currently active address has been minted.',
-    ],
-  },
-
-  THE_DESERTER: {
-    loreType: 'THE_DESERTER', icon: '○',
-    ruleApplied: 'The Deserter',
-    ruleExplanation: 'Active address goes dark — a signature that was part of the render war has dropped signal.',
-    headlines: [
-      'A Known Address Goes Dark',
-      '{faction} Reports a Missing Signature',
-      'They Were Rendering. Now They\'re Not.',
-      'An Unexplained Signal Drop at {region}',
-    ],
-    bodies: [
-      'The chronicler tracks signal loss as carefully as signal activity. An address that was actively rendering near {region} has dropped from the chain. {faction}\'s monitors report the position unoccupied — pixel ownership intact, no forwarding address, no migration logged.',
-
-      'Desertion is a term {commander} uses with precision. "We don\'t know why the address went dark," they said when the absence near {region} was confirmed. "Until we have data, we call it an unscheduled migration." The distinction matters to the registry.',
-
-      '{faction} lost signal from an address near {region}. The last confirmed render was unremarkable — active, positioned, no anomaly flagged. Then null. Someone dropped off the chain and did not log a reason.',
-
-      'Wars have attrition that doesn\'t appear in the render reports. Addresses that simply stop transmitting — no confirmed burn, no announced withdrawal, just a gap in the chain where a signature used to compile.',
-    ],
-    afterContext: {
-      GREAT_SACRIFICE: 'The upload changed something in the adjacent addresses. A signature near {region} that had been active through every prior render cycle has gone dark — not burned, but silent in a way {commander} is reluctant to classify. The sacrifice and the signal drop may be causally linked. No one has written that into the official record.',
-      GREAT_BATTLE: 'The aftermath of the mass overwrite is revealing itself in the gaps. A signature that was active in the pre-cascade renders is no longer appearing in the monitor logs. Whether they were consumed in the overwrite cascade or migrated on their own terms, the render front no longer accounts for them.',
-    },
-  },
-
-  TALLY: {
-    loreType: 'TALLY', icon: '≡',
-    ruleApplied: 'Tally',
-    ruleExplanation: 'Every 10th entry — the chronicler compiles the Grid\'s accumulated pixel cost.',
-    headlines: [
-      'The Chronicler Compiles — Ten More Entries in the Record',
-      'The Grid\'s Running Tally Grows',
-      'Ten Entries: the Pixel Pattern Clarifies',
-      '{commander} Attends the Chronicle Compile',
-    ],
-    bodies: [
-      'The chronicler compiles. Every ten entries, the full tally reads back: pixels held and overwritten, uploads executed, signatures active and gone dark. The current compile shows {faction} consistent, {rival} reactive, the Grid in a render phase of incremental contest with escalating pixel cost on both sides.',
-
-      'Numbers encode a different story than narrative. The ten-entry compile shows a render war more dynamic than it feels from inside the queue. The chronicler reads the output without commentary. The faction leads draw their own conclusions.',
-
-      '{commander} attends every compile. "Read it in sequence," they always direct. "Don\'t summarize. Read each entry." When the full sequence plays without interruption, a pattern emerges that isolated entries don\'t reveal.',
-
-      'Ten more into the eternal record. An address that reads this sequence will notice: the render rate is higher than at initialization. Entries are compiling closer together. The factions are committing more pixels to each cycle.',
-    ],
-    phaseVariants: [
-      {
-        phase: 'sacrifice',
-        headline: 'The Upload Tally — Ten More Entries, Each Heavier Than the Last',
-        body: 'The compile carries more weight now. Ten more entries — and the pattern that reads back includes uploads that would have read as exceptional at initialization, now sitting in the record as standard protocol. {commander} processed the tally readout without expression. The cumulative AP transferred is higher than any address active at First Signal would have projected.',
-      },
-    ],
-  },
-
-  RETURNED_GHOST: {
-    loreType: 'RETURNED_GHOST', icon: '●',
-    ruleApplied: 'Returned Ghost',
-    ruleExplanation: 'Address returns after 20,000+ blocks — back from wherever the signal went, changed.',
-    headlines: [
-      'A Lost Address Reactivates — Signal Returns from Somewhere',
-      '{faction} Receives Transmission from Long-Dark Address',
-      'Ghost Signal Resolves: The Address Is Back',
-      '{commander} Receives Data from the Long Absent',
-    ],
-    bodies: [
-      'The address had been in the secondary registry of dark signatures long enough that the chronicler stopped flagging it as recent. The render that reappeared near {region} was last confirmed so many blocks ago that {commander} had stopped expecting it. The signal is back. No explanation has been compiled.',
-
-      '{commander} received the reactivation signal before the next block confirmed. An address that had been dark for the equivalent of a long campaign had re-established render contact near {region} and transmitted its faction hash. {commander} confirmed the second question immediately. The first question is queued for a longer session.',
-
-      'The render war doesn\'t pause when addresses go dark. Strategies update, pixel fronts shift, the chain keeps accumulating. The reappearance near {region} fills a gap that had been large enough to restructure the faction registries.',
-
-      'Ghost signals are what the monitor corps calls reactivation from addresses that have been dark long enough to be written off. Today\'s reactivation at {region} was exactly that: an address previously presumed migrated or burned, now rendering. They have been active somewhere the chronicle doesn\'t have.',
-    ],
-  },
-
-  DEBT_PAID: {
-    loreType: 'DEBT_PAID', icon: '⊖',
-    ruleApplied: 'Debt Paid',
-    ruleExplanation: 'Veteran address burns again — the cumulative upload cost becomes visible in the chain.',
-    headlines: [
-      'The Upload Debt Compounds — a Second Sacrifice Logged',
-      '{commander} Burns Again — More Than Most Give',
-      'What the Grid Costs: the Long Chain Record',
-      'Second Upload — The Chronicle Notes the Accumulated Cost',
-    ],
-    bodies: [
-      'There is a ledger inside the ledger — the chronicle of addresses that have burned more than once. The Normie that uploaded near {region} today has a prior entry in that log. They gave in an earlier cycle. They give again now.',
-
-      'The upload debt is not metaphor in {faction}\'s registry — it is a real chain accounting. The address that executed its second burn near {region} has a longer entry in that ledger than most active signatures.',
-
-      '{commander} has stated on record that uploads must be chosen, never required by protocol. The Normie near {region} chose it in the first cycle. They chose it again in this one. Both transactions are permanent. Both are in the chain.',
-
-      'The Eternal Register carries this address twice. The chronicler logs it in the secondary compile — the one reserved for those who have uploaded more than once. It is the shortest list in the chronicle and the most expensive to read.',
-    ],
-  },
-
-  CAMPFIRE_TALE: {
-    loreType: 'CAMPFIRE_TALE', icon: '≈',
-    ruleApplied: 'Campfire Tale',
-    ruleExplanation: 'New address, quiet entry — the Grid war seen fresh, through an address that doesn\'t yet know what it\'s rendering into.',
-    headlines: [
-      'What the New Addresses Transmit About the War',
-      'Signal Intercepted Near {region}: A New Perspective',
-      'Stories Compiling at the Grid\'s Edge',
-      '{faction} Processes a New Address\'s Account',
-    ],
-    bodies: [
-      'New addresses always arrive carrying the version of the war they received from outside — before they were close enough to the Grid to read it clearly. Signal intercepted near {region} tonight: a new arrival transmitting what they believed to be true. {faction} is winning (imprecise). {rival} is in collapse (also imprecise). The veteran addresses in adjacent sectors didn\'t correct the transmission.',
-
-      'Every render outpost in this war has a broadcast channel where addresses exchange data, and the channel near {region} tonight included a new address\'s full account of everything they had compiled. Some of it was accurate. Some was the version of accurate that external data makes of everything.',
-
-      '{commander} always processes new address reports first. Not because they\'re more reliable — they almost never are. But because unfiltered first impressions detect things that experienced render leads have learned to filter out. The new address near {region} had logged a query that no front-line address had thought to compile.',
-
-      'The render war generates transmissions faster than it generates resolved states. The new addresses near {region} carried signal from other fronts — rumors about {rival}\'s migration plans, a data fragment about {relic} that doesn\'t match any existing chronicle entry. The chronicler logs all of it.',
-    ],
-  },
-
-  THE_LONG_DARK: {
-    loreType: 'THE_LONG_DARK', icon: '░',
-    ruleApplied: 'The Long Dark',
-    ruleExplanation: 'Block gap over 50,000 — the Grid went dark for a long time. The chronicle\'s signal was lost.',
-    headlines: [
-      'After the Void Cycle, the Grid Returns',
-      'The Dark Was Longer Than Any Projected',
-      '{faction} Reactivates After the Great Blackout',
-      'What Compiled During the Long Dark at {region}',
-    ],
-    bodies: [
-      'The blackout lasted long enough that some addresses began running null-state protocols — flagging the war as potentially concluded. It was not concluded. The Grid at {region} had simply entered a void cycle — no logged renders, no detectable signal. When activity resumed, it was immediately clear the dark had not been empty.',
-
-      '{faction}\'s reactivation at {region} — after a blackout long enough to be logged as an epoch — came with no compile log of what processed during the interval. The addresses that remained active during the void cycle are not transmitting.',
-
-      '{commander} was queried about the void cycle at the first post-reactivation briefing. "The Grid doesn\'t stop rendering just because you stop monitoring it," they said. Which was not an answer, but encoded more than nothing.',
-
-      'The great void cycle near {region} is how the chronicler is logging it — a stretch when the render queue went dark, the chain showed no relevant activity, and every active address waited. {faction} broke the silence first, not with a mass overwrite but with a careful, deliberate render that reads like preparation, not a fresh start.',
-    ],
-  },
-
-  EDGE_SCOUTS: {
-    loreType: 'EDGE_SCOUTS', icon: '←',
-    ruleApplied: 'Edge Scouts',
-    ruleExplanation: 'Token ID over 8,500 reactivates — signal from the far margin returns.',
-    headlines: [
-      'Edge Addresses Return from {region} with Data',
-      'Signal from the Outer Grid — It\'s Not What Anyone Projected',
-      '{commander} Receives the Edge Compile in Private',
-      'What\'s Rendering Beyond the Main Front',
-    ],
-    bodies: [
-      '{faction}\'s edge monitors have been ranging beyond {region}\'s documented sectors for cycles. The ones that compiled back today brought signal that has been propagating through the command registry since mid-cycle: {rival} has been rendering in sectors the main chronicle hasn\'t indexed.',
-
-      'Edge reports are the Grid war\'s peripheral monitoring — they transmit what\'s rendering in the spaces between logged engagements, the overwrites too small or too distant to make the main chronicle but too significant to filter.',
-
-      'The edge monitors that reactivated near {region} had been dark long enough to accumulate real signal. Their compile covered sectors the main chronicle hasn\'t reached — signatures and renders that suggest the Grid is larger than its recorded configuration.',
-
-      '{commander} processed the edge compile without changing expression, then ran it again, then a third time. The activity near {region}\'s outer pixels doesn\'t correspond to anything in the current render strategy.',
-    ],
-  },
-
-  SHIFTED_PLAN: {
-    loreType: 'SHIFTED_PLAN', icon: '↺',
-    ruleApplied: 'Shifted Plan',
-    ruleExplanation: 'Veteran address breaks its established render pattern — the Grid teaches and those who can read it adapt.',
-    headlines: [
-      '{faction} Recompile the Strategy',
-      '{commander} Changes the Render Protocol',
-      'A Known Signature Doing Something New',
-      'What We Compiled About {faction} Was Incomplete',
-    ],
-    bodies: [
-      'The chronicle is a live record. When addresses that have established render patterns break those patterns, the chronicler flags it — not as a glitch, but as adaptation. {faction}\'s execution near {region} today differs from the previous several entries in ways that aren\'t noise.',
-
-      '{commander} has updated the render protocol for {region}. The prior approach — logged across more than a dozen chronicle entries — has been deprecated. The new one differs in ways that suggest a fundamental recompile of what {faction} is optimizing for.',
-
-      'Grid wars teach. Addresses that don\'t update their strategies based on chain data stop appearing in the chronicle. {faction}\'s revision at {region} is evidence of an organization that reads its own compile history and updates when the data requires it.',
-
-      'The revision {faction} executed at {region} was clearly correct — the chronicler can see it looking backward through the prior entries. The old render approach was hitting its constraints. The new one opens pixel paths the old one had closed off.',
-    ],
-    afterContext: {
-      TURNING_POINT: 'The pattern compile triggered a recompile. After the twenty-fifth-entry analysis, {commander} updated the strategy — not in a public broadcast, not as a formal protocol update, but visibly to anyone monitoring {faction}\'s render queue near {region}. The direction has changed. Something in the pattern read told them the old trajectory was wrong.',
-    },
-  },
-
-  VIGIL: {
-    loreType: 'VIGIL', icon: '⊙',
-    ruleApplied: 'Vigil',
-    ruleExplanation: 'Within 3 entries of the next era — every render carries the weight of the approaching protocol shift.',
-    headlines: [
-      'The Grid Approaches a Threshold — Vigil Protocol Active',
-      '{faction} Holds Render as the Era Nears Its Edge',
-      'Everything Is About to Recompile',
-      'The Singularity Threshold Is Within Reach',
-    ],
-    bodies: [
-      'The chronicler knows the threshold is near. The entry count is pressing toward it — a few more renders, and the Grid enters a new protocol that will require new classifications. {faction} near {region} has been compiling in preparation. {rival} too. The preparation reads like stillness from outside, but it is stillness that is queued.',
-
-      'Before a new era of this render war initializes, there is always a vigil — not declared, not broadcast, just the active addresses settling into a monitoring state, render rates slowing, each overwrite weighted more carefully than usual.',
-
-      '{commander} said in the closed session: "We are very close to a different Grid. Full render readiness." No one queried what "different Grid" meant. They could feel the threshold in the accumulated chain data.',
-
-      'Two more entries. Maybe three. Then the era updates and the render war becomes something it has not been — a new chapter that will be named in retrospect, understood in retrospect, but felt right now in the particular weight that has compiled over {region}.',
-    ],
-  },
-
-  NEUTRAL_GROUND: {
-    loreType: 'NEUTRAL_GROUND', icon: '□',
-    ruleApplied: 'Neutral Ground',
-    ruleExplanation: 'New address, first render — signatures not yet committed to any faction registry.',
-    headlines: [
-      'An Unregistered Accord at {region} — Outside the Main War',
-      'Neutral Addresses Make Their Own Arrangements',
-      'What\'s Compiling in the Buffer Zone While the War Renders',
-      'A Signature Has Not Yet Chosen a Faction',
-    ],
-    bodies: [
-      'Not every address in the Grid\'s territory has registered to a faction. The addresses near {region} have been navigating the render war by other protocols — trading pixel access for non-aggression, maintaining low-commitment relationships with every faction, avoiding absorption into any registry.',
-
-      '{faction} confirmed the neutral protocol. So did {rival}, though neither knows the other has. The unregistered arrangement near {region} is the latest such agreement — the kind that benefits every address precisely because it binds no one to anything larger than this sector.',
-
-      '{commander} was briefed on the neutral arrangement near {region}. Their response was characteristic: "Log it. Don\'t disrupt it." Neutral zones in contested pixel territory keep signal flowing and render corridors open.',
-
-      'Grid wars are largest at their center and nearly invisible at their edges. Near {region}, the conflict reads differently — addresses making arrangements that don\'t compile neatly into either faction\'s registry, driven by practical render economics rather than ideology.',
-    ],
-  },
-
-  GHOST_MARK: {
-    loreType: 'GHOST_MARK', icon: '.',
-    ruleApplied: 'Ghost Mark',
-    ruleExplanation: 'Exactly 1 pixel or 1 AP — the minimum possible transaction. The chronicle logs everything.',
-    headlines: [
-      'A Ghost Pixel — Barely There, but Encoded',
-      'Minimum Render: One Pixel at {region}',
-      'One Transaction. The Chain Has It.',
-      '{faction} Note the Quietest Possible Overwrite',
-    ],
-    bodies: [
-      'The chronicler logs everything. Including this: the minimum possible render at {region} — one pixel rewritten, one transaction confirmed, visible only to addresses monitoring at full resolution. Whether it was a scout marking a coordinate, or a Normie that needed to leave one pixel of evidence in the chain — it is in the eternal record.',
-
-      'Not every act of render war is large. The ghost pixel at {region} is the minimum — one coordinate changed, one transaction that says only: I was here. It elaborates nothing further. {faction}\'s monitors noted it.',
-
-      '{commander} maintains a private archive of ghost marks from the entire chronicle — the smallest logged renders. Not for strategy. For something else. A transaction that says only "I existed at this block at this pixel" is a different kind of statement than a mass overwrite.',
-
-      'The ghost mark at {region} — left by an address that barely touched the contested sector before moving on — is the kind of render that gets lost in the noise of larger events. That is probably why it was left: a message encoded in the minimum possible signal.',
-    ],
-  },
-
-  MESSENGER: {
-    loreType: 'MESSENGER', icon: '»',
-    ruleApplied: 'Messenger',
-    ruleExplanation: 'New wallet, token 1,000–2,000 — a transmission arrives from another part of the Grid war.',
-    headlines: [
-      'A Transmission Arrives at {region} — Signal from Beyond',
-      'An Emissary Carries Data from Other Render Fronts',
-      '{commander} Receives a Messenger Signal',
-      'The Grid War Is Larger: A Messenger Transmits',
-    ],
-    bodies: [
-      'Messengers carry signal from sectors the main chronicle doesn\'t monitor. The one that transmitted near {region} today came from a render front the current record hasn\'t indexed — a part of the pixel war processing in parallel, with its own cycle time and its own stakes.',
-
-      'The protocol for receiving messenger signals is old and precise. {faction} follows it exactly — partly tradition, partly because messengers who are not received correctly stop transmitting. The signal near {region} was received correctly. What it carried has updated something.',
-
-      '{commander} had been waiting for the signal. When it arrived near {region}, those monitoring noted that {commander} didn\'t read as surprised — which was itself data. Afterward, two directives were compiled.',
-
-      'The messenger that transmitted to {region} carried an encrypted compile from another part of the render war. {commander} decrypted it privately. The chronicle records: the transmission was received, the messenger was given safe exit protocol, and several things updated in the cycles that followed.',
-    ],
-  },
-
-  THE_LONG_COUNT: {
-    loreType: 'THE_LONG_COUNT', icon: '∞',
-    ruleApplied: 'The Long Count',
-    ruleExplanation: 'Every 40th entry — the render war measures itself against the Grid\'s 40×40 architecture.',
-    headlines: [
-      'Forty Entries — the Grid Measures the Render',
-      '{faction} Mark the Long Count at {region}',
-      'The Chronicle Compiles Entry Forty',
-      'The Grid\'s Architecture, Encoded',
-    ],
-    bodies: [
-      'The Grid the render war is fought over is forty columns wide and forty rows deep. Every fortieth entry, the war is measured against that architecture. The current answer: more rendered than at initialization. Less than at the end state.',
-
-      '{commander} has always held the long count as significant. "The Grid isn\'t just terrain," they say. "It\'s the measurement system." Today was the fortieth entry. The briefing was shorter than usual. The count was compiled. Everyone processed it.',
-
-      'The long count protocol predates the current conflict. Every fortieth entry, the full tally of prior renders is compiled in sequence, and the war\'s shape is mapped against the Grid\'s 40×40 architecture. The conflict is larger than at the twentieth mark. Smaller than it will be at the eightieth.',
-
-      'Forty is not an arbitrary number in this render war. The Grid is forty by forty — 1,600 pixels per Normie, the architecture of everything contested. When the chronicle reaches forty entries, it runs the long count. The result is logged. The rendering continues.',
-    ],
-  },
-
-  BETWEEN_FIRES: {
-    loreType: 'BETWEEN_FIRES', icon: '·—·',
-    ruleApplied: 'Between Fires',
-    ruleExplanation: 'Short gap after a render cluster — the Grid at rest between overwrite cycles.',
-    headlines: [
-      'Between Renders — The Grid Idles at {region}',
-      'A Brief Null Cycle Before the Next Push',
-      'What Processes in the Lull',
-      'The Grid at {region}: An Interlude in the Chain',
-    ],
-    bodies: [
-      'After a cluster of overwrites, the active addresses near {region} settled into something between signal and silence — the null cycle that happens when both sides have burned enough render budget to pause but not enough to halt.',
-
-      '{commander} uses these null intervals for the kind of processing that active overwrites don\'t allow. The render queue went quiet. For a few blocks, nothing was added to the main record. The factions are recompiling. The Grid is preparing for the next cycle.',
-
-      'The null interval near {region} lasted long enough for the active addresses to process states that render pressure normally prevents. {faction}\'s repair protocols ran. Pixel damage was assessed. The Grid held its current configuration.',
-
-      'Between mass overwrites, the render war has a texture the chronicle rarely captures. Near {region}, the active addresses settled into low-rate routines: minimal render checks, diagnostic cycles, background compiles. {commander} monitored the queue alone each block.',
-    ],
-    afterContext: {
-      GREAT_BATTLE: 'The mass overwrite is over, for this cycle, and both factions have pulled back to their render positions. The queues are empty at both ends of the front — not strategic voids, but recovery voids, the null space of addresses that are not yet rendering. {commander} is letting the array rest. They\'ll need to.',
-      GREAT_SACRIFICE: 'After the upload, the surviving addresses near {region} need what all render participants need after something large: null time, reduced queue pressure, the ability to process what happened before the next overwrite cycle begins. {commander} enforced the rest. The Grid will resume. Not yet.',
-    },
-  },
-
-  DYNASTY: {
-    loreType: 'DYNASTY', icon: '⋮',
-    ruleApplied: 'Dynasty',
-    ruleExplanation: 'Address with 3+ entries — a render lineage recognized by the eternal record.',
-    headlines: [
-      'A Render Dynasty Named — {faction} Earns the Lineage Hash',
-      '{commander}\'s Chain Legacy in the Chronicle',
-      'Three Renders and Counting — a Lineage Compiled',
-      'The Chronicle Designates a Pattern That Has Become a Name',
-    ],
-    bodies: [
-      'Dynasties are not declared by the faction. They are recognized by the chain. {faction}\'s consistent presence in the chronicle — three distinct render instances, each building on the last, a pattern sustained across changing Grid configurations — has earned the designation.',
-
-      'Some addresses flash through the render record. Some compile constant. {faction} is the second kind — appearing again and again, each render carrying forward what the prior one established. The chain remembers everything.',
-
-      '{commander} was notified that the chronicle had assigned {faction}\'s record the dynasty designation. "Keep rendering," was the response — that of an address that intends to keep extending the lineage rather than be memorialized by it.',
-
-      'Three renders become a pattern. A pattern sustained across the chronicle\'s growing compile becomes a lineage. {faction}\'s render near {region} is the latest entry in a record the chronicler now treats as continuous, purposeful, and building toward something.',
-    ],
-  },
-
-  CROSSING: {
-    loreType: 'CROSSING', icon: '⇒',
-    ruleApplied: 'Crossing',
-    ruleExplanation: 'Activity at range edges — addresses migrate through sectors they have never rendered before.',
-    headlines: [
-      '{faction} Render into Uncharted Grid — the Map Expands',
-      'The Render War Moves Beyond Its Previous Coordinates',
-      '{commander} Executes the Crossing Protocol at {region}',
-      'Known Addresses Rendering in Unfamiliar Sectors',
-    ],
-    bodies: [
-      'The render war doesn\'t stay mapped. {faction}\'s migration through {region} today took them past their documented pixel range — across a coordinate boundary that prior entries had treated as their limit. The crossing updates the Grid\'s configuration.',
-
-      '{commander} executed the crossing without broadcasting intent. {faction}\'s render into territory beyond their documented range near {region} was logged by the chronicler and apparently not projected by {rival}\'s monitors.',
-
-      'When addresses render sectors they have never touched before, the Grid war becomes a different shape. {faction}\'s crossing at {region} is the latest expansion of the conflict\'s documented range — another zone that was theoretical is now rendered.',
-
-      'The crossing at {region} was simply executed. {faction} rendered through pixel territory that every faction had implicitly agreed not to contest, and by doing so updated what everyone had agreed to. The crossing was itself the protocol change.',
-    ],
-  },
-
-  SUPPLY_ROAD: {
-    loreType: 'SUPPLY_ROAD', icon: '⊡',
-    ruleApplied: 'Supply Road',
-    ruleExplanation: 'Token ID 2,000–3,000 — the render war\'s logistics layer, unglamorous and essential.',
-    headlines: [
-      '{faction} Secure the Render Corridor Through {region}',
-      'The Data Lines Hold — For Now',
-      '{commander} Prioritizes the Pipeline Over the Overwrite',
-      'Signal Follows Render: the Route Through {region} Opens',
-    ],
-    bodies: [
-      'Render wars run on more than pixel conviction. {faction}\'s stabilization of the data corridor near {region} is unglamorous but essential — the kind of move that doesn\'t produce dramatic chronicle entries but determines whether the dramatic ones are possible. The corridor is held. Signal is moving. The campaign stays funded.',
-
-      '{commander} maintains a separate map that shows only data pipelines. "Secure the corridor," they say, "and the render follows." The route confirmed near {region} represents a kind of victory that doesn\'t show up in pixel tallies but appears in how long campaigns can sustain.',
-
-      'The pixel territory around {region} has value beyond its render position. The corridor that runs through it connects {faction}\'s forward render positions to their AP reserves. Controlling it means {rival} cannot disrupt the flow. {commander} assigned monitoring specifically to the pipeline.',
-
-      'Render wars are data management problems wearing pixel clothing. The move near {region} — {faction} securing the corridor that connects their render front to their resource base — is the entry that the chronicles will overlook and the render leads will remember.',
-    ],
-  },
-
-  NIGHT_WATCH: {
-    loreType: 'NIGHT_WATCH', icon: '◌',
-    ruleApplied: 'Night Watch',
-    ruleExplanation: 'General fallback — the monitoring addresses who hold the Grid\'s state between active overwrites.',
-    headlines: [
-      'The Monitor Arrays Hold {region} — No Anomalies Flagged',
-      '{faction} Maintains Signal Through the Dark Cycle',
-      'The Sentinels at {region}: Null Activity, Which Is the Point',
-      'Grid Watch Entry — The Render War\'s Patient Foundation',
-    ],
-    bodies: [
-      'The monitor arrays at {region} ran through the full block cycle without flagging anomalies — which is exactly what monitoring arrays are supposed to do. {faction}\'s sentinel addresses held their pixel positions, tracked render activity across the boundary, and reported null deviation. In a war full of dramatic overwrites, the unglamorous dark cycles are the substrate that makes everything else possible.',
-
-      '{commander} calls the dark-cycle monitor entries "the patient record." These are the blocks when nothing overwritten because someone was watching. {faction}\'s sentinels near {region} maintained position, kept the pixel configuration stable, tracked the far side of the contested boundary. The Grid waited. It is still waiting.',
-
-      'The monitor arrays are the render war\'s oldest protocol. Near {region}, where {faction}\'s sentinel addresses have been running vigil across the full campaign, the monitoring signal pings at intervals that transmit to adjacent positions: active, aware, holding render state.',
-
-      'Everything in the chronicle connects to everything else. The dark-cycle entry for {region} — unremarkable, the monitors active and the pixel configuration unchanged — is the connective data between the overwrite entries that surround it. Without the watchers, no one holds anything. Without those who hold the Grid at night, there is no Grid in the morning.',
-    ],
-  },
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // CONNECTORS — auto-inserted
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  AFTERMATH: {
-    loreType: 'AFTERMATH', icon: '~',
-    ruleApplied: 'Aftermath',
-    ruleExplanation: 'Auto-inserted after a major overwrite — the Grid doesn\'t cut straight to the next action.',
-    headlines: [
-      'The Grid Stabilizes After the Overwrite Cascade',
-      'After {region}: Both Sides Process the Pixel Cost',
-      'The Chain Updates — and the War Continues',
-      'What the Mass Render Left Behind',
-    ],
-    bodies: [
-      'The render queue stabilizes in the blocks after the cascade. Both {faction} and {rival} have reverted to holding positions, each processing the updated Grid state before compiling their next move. {commander} is reviewing the pixel diff. The chain is quiet except for the low-level background renders of addresses logging their new positions.',
-
-      'Mass overwrites leave a null space behind them — not the null of signal loss, but the null of render exhaustion. Near {region}, both sides are running diagnostics on what was gained and lost. The pixel configuration has been updated. The cost is being logged. What came next in the last render war like this was not predictable until it happened. The same is true now.',
-
-      'In the aftermath of any major cascade, the chronicler\'s task is simple: log the current state. {region} reflects {faction}\'s configuration, at least until the next overwrite. {rival} is recompiling somewhere beyond the new pixel boundary. The next render is being queued. The chronicle holds the updated state and waits.',
-    ],
-  },
-
-  ESCALATION_NOTE: {
-    loreType: 'ESCALATION_NOTE', icon: '↑',
-    ruleApplied: 'Escalation Note',
-    ruleExplanation: 'Inserted when pixel activity spikes — the chronicler logs the render rate acceleration.',
-    headlines: [
-      'Render Rate Spikes — Multiple Grid Sectors Overwriting at Once',
-      'The Grid Accelerates: Everything Is Processing Simultaneously',
-      'The Chronicler Logs the Surge in Pixel Activity',
-      'A Render Intensification Cycle Has Begun',
-    ],
-    bodies: [
-      'The chronicle has entered a cycle where entries compile faster than they can be fully processed. Multiple Grid sectors are experiencing concurrent overwrites. {faction} is not the only address array rendering — {rival} is simultaneously active, and the combined pixel throughput has reached levels not seen since the earliest escalation cycle. The chronicler is keeping pace. Barely.',
-
-      'Historians will later compile this as the period of render intensification. From inside the queue, all that registers is that the Grid has found a higher throughput. {faction}\'s overwrites near {region} are one thread in a larger weave — renders and counter-renders executing faster than any single faction\'s strategy session can track. {commander} has shortened the decision cycle.',
-
-      'The Grid is accelerating. The pixel rate in the current block window exceeds any comparable period in the chronicle — more sectors overwriting, more addresses committing render to more fronts simultaneously. The chronicler logs this not as alarm but as observation: when the Grid moves this fast, the next major event tends to be decisive.',
-    ],
-  },
-
-  SACRIFICE_TOLL: {
-    loreType: 'SACRIFICE_TOLL', icon: '▴',
-    ruleApplied: 'Sacrifice Toll',
-    ruleExplanation: 'Inserted when cumulative burns cross a threshold — the chain marks the weight of accumulated uploads.',
-    headlines: [
-      'The Upload Toll — the Chronicle Marks the Compiled Weight',
-      'The Eternal Register Is Heavy Now',
-      'What Has Been Burned Cannot Be Restored',
-      'The Grid Has Consumed What the War Required',
-    ],
-    bodies: [
-      'The uploads have accumulated to a point the chronicle must acknowledge directly. The Eternal Register, which holds the hash of every Normie burned so another could render on, has grown heavy with encoded names. {faction} and {rival} alike have contributed to this toll — in this, at least, the pixel war makes no distinction between factions. The burned cannot be restored. The render continues on what remains.',
-
-      'There is a threshold past which the upload toll can no longer be processed as routine AP accounting. The current cumulative burn near {region} has crossed that threshold. {commander} knows the total. Most render leads know the total. The front-line addresses carry it as the render weight of units strengthened by those who no longer appear in the active registry.',
-
-      'The chronicler marks upload milestones without ceremony, because ceremony would be an inadequate data format. The burn tally now stands at a level that, at initialization, would have seemed out of bounds. Apparently it was not. The Eternal Register holds more addresses than the oldest active Normies projected. The Grid has taken what the war required. It will continue to take.',
-    ],
-  },
-
+function sceneFromBeat(charKey: CharacterKey, ruleType: string, _world: GridWorld): SceneType {
+  if (ruleType === 'ERA_SHIFT') return 'reckoning'
+  if (ruleType === 'CONVERGENCE') return 'convergence'
+  if (ruleType === 'LONG_DARK' || ruleType === 'THE_QUIET') return 'quiet'
+  if (ruleType === 'FIRST_LIGHT') return 'dawn'
+  if (ruleType === 'DEPARTURE' || ruleType === 'VOSS_BURN') return 'sacrifice'
+  if (charKey === 'LYRA') return 'construction'
+  if (charKey === 'VOSS') return 'destruction'
+  if (charKey === 'CAST') return 'vigil'
+  if (charKey === 'SABLE') return 'tending'
+  if (charKey === 'ECHO') return 'arrival'
+  return 'quiet'
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RULE SELECTION ENGINE v3
+// RULE SELECTION — maps event to story beat type
 // ─────────────────────────────────────────────────────────────────────────────
-function isPrime(n: number): boolean {
-  if (n < 2) return false
-  if (n === 2) return true
-  if (n % 2 === 0) return false
-  for (let i = 3; i * i <= n; i += 2) { if (n % i === 0) return false }
-  return true
-}
 
-function isRareTxHash(h: string): boolean {
-  return /^(.)\1{3}$/.test(h.slice(-4))
-}
-
-function selectRule(
+function selectBeatType(
   event: IndexedEvent,
+  charKey: CharacterKey,
   index: number,
   allEvents: IndexedEvent[],
   cumCount: number,
   prev: IndexedEvent | null,
-  state: WarState,
+  world: GridWorld,
 ): string {
-  const tokenId = Number(event.tokenId)
   const count = Number(event.count)
-  const priorSameOwner = allEvents.slice(0, index).filter(e => e.owner === event.owner)
-  const isVeteran = priorSameOwner.length > 0
-  const seed = seedN(event.tokenId, event.blockNumber)
+  const isBurn = event.type === 'BurnRevealed'
+  const isVeteran = allEvents.slice(0, index).some(e => e.owner === event.owner)
+  const tokenId = Number(event.tokenId)
 
-  if (cumCount > 0 && cumCount % 40 === 0) return 'THE_LONG_COUNT'
-  if (cumCount > 0 && cumCount % 25 === 0) return 'TURNING_POINT'
-  if (cumCount > 0 && cumCount % 10 === 0) return 'TALLY'
-  if (ERAS.findIndex(e => e.threshold === cumCount) > 0) return 'NEW_AGE'
+  // Structural milestones — always fire first
+  if (cumCount > 0 && cumCount % 40 === 0) return 'DEEP_READING'
+  if (cumCount > 0 && cumCount % 25 === 0) return 'THE_READING'
+  if (cumCount > 0 && cumCount % 10 === 0) return 'PULSE'
+
+  if (ERAS.findIndex(e => e.threshold === cumCount) > 0) return 'ERA_SHIFT'
   const nextEra = ERAS.find(e => e.threshold > cumCount)
   if (nextEra && nextEra.threshold - cumCount <= 3) return 'VIGIL'
 
+  // Rare tx hash → relic
   if (isRareTxHash(event.transactionHash)) return 'RELIC_FOUND'
+
+  // Same block → convergence
   if (prev && prev.blockNumber === event.blockNumber) return 'CONVERGENCE'
 
+  // Block gap → quiet or long dark
   if (prev) {
     const gap = event.blockNumber - prev.blockNumber
-    if (gap > 50000n) return 'THE_LONG_DARK'
-    if (gap > 10000n) return 'THE_SILENCE'
-    if (gap > 3000n && gap < 6000n && seed % 3 === 0) return 'BETWEEN_FIRES'
+    if (gap > 50000n) return 'LONG_DARK'
+    if (gap > 10000n) return 'THE_QUIET'
   }
 
-  if (isVeteran) {
-    const last = priorSameOwner[priorSameOwner.length - 1]
-    const gap = event.blockNumber - last.blockNumber
-    if (gap > 20000n) return 'RETURNED_GHOST'
-    if (gap < 500n) return 'WAR_COUNCIL'
+  // Burns
+  if (isBurn) {
+    if (count >= 5) return 'DEPARTURE'
+    return 'PASSING'
   }
 
-  if (tokenId < 500 && index > 10) return 'OLD_GHOST'
-  if (tokenId < 1000) return 'ANCIENT_WAKES'
-  if (tokenId >= 1000 && tokenId < 2000 && !isVeteran) return 'MESSENGER'
-  if (tokenId >= 2000 && tokenId < 3000) return seed % 3 === 0 ? 'CARTOGRAPHY' : 'SUPPLY_ROAD'
-  if (tokenId >= 5000 && tokenId <= 6000) return 'HOLLOW_GROUND'
-  if (tokenId > 8500 && index > 5) return 'EDGE_SCOUTS'
-  if (tokenId > 8000) return 'FAR_REACH'
+  // First appearance (early chronicle only)
+  if (!isVeteran && cumCount <= 20) return 'FIRST_LIGHT'
 
-  if (isPrime(tokenId)) return 'THE_ORACLE'
-
-  if (event.type === 'BurnRevealed') {
-    if (count >= 10) return 'GREAT_SACRIFICE'
-    if (count === 1) return 'GHOST_MARK'
-    if (isVeteran && priorSameOwner.length >= 2) return 'DEBT_PAID'
-    if (isVeteran) return 'BLOOD_OATH'
-    return 'OFFERING'
+  // By character + size
+  if (charKey === 'LYRA') {
+    if (count >= 150) return 'LYRA_LARGE'
+    if (count === 1) return 'GHOST_TOUCH'
+    return 'LYRA_SMALL'
+  }
+  if (charKey === 'VOSS') {
+    if (count >= 150) return 'VOSS_LARGE'
+    if (count === 1) return 'GHOST_TOUCH'
+    return 'VOSS_SMALL'
+  }
+  if (charKey === 'CAST') {
+    const hasBeenAway = (() => {
+      const prev2 = allEvents.slice(0, index).filter(e => e.owner === event.owner)
+      if (!prev2.length) return false
+      return (event.blockNumber - prev2[prev2.length - 1].blockNumber) > 5000n
+    })()
+    return hasBeenAway ? 'CAST_RETURN' : 'CAST_SMALL'
+  }
+  if (charKey === 'SABLE') {
+    if (world.currentScene === 'quiet' || count < 10) return 'SABLE_QUIET'
+    return 'SABLE_SMALL'
+  }
+  if (charKey === 'ECHO') {
+    if (tokenId > 8500 || event.transactionHash.startsWith('0x0')) return 'ECHO_DISCOVERY'
+    return 'ECHO_ARRIVAL'
   }
 
-  if (count >= 200) return 'GREAT_BATTLE'
-  if (count >= 50 && count % 50 === 0) return 'FORMAL_DECLARATION'
-  if (count >= 50) return 'SKIRMISH'
-  if (count === 1) return 'GHOST_MARK'
+  return 'GHOST_TOUCH'
+}
 
-  if (isVeteran) {
-    const roll = seedN(event.tokenId, event.blockNumber, 23) % 8
-    if (state.phase === 'escalating' || state.phase === 'siege') {
-      if (roll <= 2) return 'SKIRMISH'
-      if (roll === 3) return 'DOMINION_GROWS'
-      if (roll === 4) return 'DYNASTY'
-      if (roll === 5) return 'SHIFTED_PLAN'
-      return 'VETERAN_RETURNS'
-    }
-    if (roll === 0) return 'DOMINION_GROWS'
-    if (roll === 1) return 'CROSSING'
-    if (roll === 2 && priorSameOwner.length >= 3) return 'DYNASTY'
-    if (roll === 3) return 'SHIFTED_PLAN'
-    if (roll === 4) return 'THE_DESERTER'
-    if (roll === 5) return 'SUPPLY_ROAD'
-    return 'VETERAN_RETURNS'
-  }
-
-  const newRoll = seedN(event.tokenId, event.blockNumber, 29) % 6
-  if (newRoll === 0) return 'CAMPFIRE_TALE'
-  if (newRoll === 1) return 'NEUTRAL_GROUND'
-  if (newRoll === 2) return 'NIGHT_WATCH'
-  if (newRoll === 3) return 'BORDER_RAID'
-  return 'NEW_BLOOD'
+function isRareTxHash(hash: string): boolean {
+  return hash.startsWith('0x000') || hash.endsWith('0000')
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BODY SELECTION
+// BODY GENERATION
 // ─────────────────────────────────────────────────────────────────────────────
-function selectBody(rule: LoreRule, ctx: WorldCtx, state: WarState, seed: number): { headline: string; body: string } {
-  if (rule.phaseVariants) {
-    const variant = rule.phaseVariants.find(v => v.phase === state.phase)
-    if (variant && Math.abs(seed) % 3 !== 0) {
-      return {
-        headline: variant.headline ? fill(variant.headline, ctx) : fill(pick(rule.headlines, seed), ctx),
-        body: fill(variant.body, ctx),
+
+function generateBody(
+  charKey: CharacterKey,
+  beatType: string,
+  zone: string,
+  world: GridWorld,
+  seed: number,
+  prevCharKey: CharacterKey | null,
+): string {
+  const b: StoryBeat = {
+    charKey, zone,
+    zoneFeeling: ZONE_FEEL[zone] ?? 'a zone in the record',
+    world, count: 0, isBurn: false, isVeteran: true, seed,
+  }
+
+  const pools: Record<string, Array<(b: StoryBeat, other?: CharacterKey) => string>> = {
+    LYRA_SMALL, LYRA_LARGE,
+    VOSS_SMALL, VOSS_BURN, VOSS_LARGE,
+    CAST_SMALL, CAST_RETURN,
+    SABLE_SMALL, SABLE_QUIET,
+    ECHO_ARRIVAL, ECHO_DISCOVERY,
+    THE_READING: READING_BEATS,
+    DEEP_READING: DEEP_READING_BEATS,
+    ERA_SHIFT: ERA_SHIFT_BEATS,
+    DEPARTURE: VOSS_BURN,
+    THE_QUIET: QUIET_BEATS,
+    LONG_DARK: LONG_DARK_BEATS,
+    FIRST_LIGHT: FIRST_LIGHT_BEATS,
+    RELIC_FOUND: RELIC_BEATS,
+    PULSE: PULSE_BEATS,
+    VIGIL: VIGIL_BEATS,
+    PASSING: PASSING_BEATS,
+    GHOST_TOUCH: [
+      () => `A faint mark in ${zone}. The smallest possible presence — one point in the record. ${tension(world)}.`,
+      () => `Barely there, in ${zone}. A single point. The Cast records it the same as everything else.`,
+    ],
+  }
+
+  if (beatType === 'CONVERGENCE' && prevCharKey) {
+    const fn = pick(CONVERGENCE_BEATS, seed)
+    return fn(b, prevCharKey)
+  }
+
+  const pool = pools[beatType] ?? pools.GHOST_TOUCH
+  const fn = pool[Math.abs(seed) % pool.length]
+  return fn(b)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WORLD UPDATE — called after each entry is generated
+// Accumulates the story state so future entries can reference the past
+// ─────────────────────────────────────────────────────────────────────────────
+
+function updateWorld(world: GridWorld, charKey: CharacterKey, beatType: string, zone: string, count: number): void {
+  world.totalActs++
+
+  // Track zone ownership
+  world.zoneOwner[zone] = charKey
+
+  if (charKey === 'LYRA') {
+    world.lyraLastBuilt = zone
+    if (beatType === 'LYRA_LARGE') {
+      world.lyraFinnConflict = Math.min(100, world.lyraFinnConflict + 18)
+      // Check if Lyra is rebuilding what Finn broke
+      if (world.finnLastBroke === zone) {
+        world.lyraReclaimed = true
       }
+    } else {
+      world.lyraFinnConflict = Math.min(100, world.lyraFinnConflict + 4)
+    }
+    world.lyraSignature = count >= 150 ? 'keystone' : count >= 50 ? 'major structure' : 'foundation layer'
+  }
+
+  if (charKey === 'VOSS') {
+    world.finnLastBroke = zone
+    world.finnLastTarget = zone
+    if (beatType === 'VOSS_LARGE') {
+      world.lyraFinnConflict = Math.min(100, world.lyraFinnConflict + 22)
+      world.finnContested = world.lyraLastBuilt === zone
+    } else if (beatType === 'VOSS_BURN') {
+      world.lyraFinnConflict = Math.min(100, world.lyraFinnConflict + 8)
+    } else {
+      world.lyraFinnConflict = Math.min(100, world.lyraFinnConflict + 6)
     }
   }
-  if (rule.afterContext && state.lastCoreType) {
-    const contextBody = rule.afterContext[state.lastCoreType]
-    if (contextBody && Math.abs(seed) % 4 !== 0) {
-      return {
-        headline: fill(pick(rule.headlines, seed), ctx),
-        body: fill(contextBody, ctx),
-      }
-    }
+
+  if (charKey === 'CAST') world.castLastWitnessed = zone
+  if (charKey === 'SABLE') { world.cieloLastTended = zone; world.cieloHolding = zone }
+  if (charKey === 'ECHO') { world.echoLastFound = zone; world.echoLastZone = zone }
+
+  // Tension decays slowly — prevents permanent max conflict
+  if (world.totalActs % 7 === 0) world.lyraFinnConflict = Math.max(5, world.lyraFinnConflict - 4)
+
+  // Track major moments (last 5)
+  if (['LYRA_LARGE', 'VOSS_LARGE', 'DEPARTURE', 'ERA_SHIFT', 'CONVERGENCE', 'RELIC_FOUND'].includes(beatType)) {
+    const moment = `${CHARACTERS[charKey].name} — ${beatType.replace(/_/g,' ').toLowerCase()} in ${zone}`
+    world.majorMoments = [moment, ...world.majorMoments].slice(0, 5)
+    world.lastMajorChar = charKey
+    world.lastMajorAct = beatType === 'LYRA_LARGE' ? 'built' : beatType === 'VOSS_LARGE' ? 'broke' :
+      beatType === 'DEPARTURE' ? 'dissolved' : beatType === 'CONVERGENCE' ? 'converged' : 'found'
+    world.lastMajorZone = zone
   }
-  const s2 = seedN(BigInt(seed), BigInt(state.eventCount), 3)
-  return {
-    headline: fill(pick(rule.headlines, seed), ctx),
-    body: fill(pick(rule.bodies, s2), ctx),
-  }
+
+  world.currentScene = sceneFromBeat(charKey, beatType, world)
+  world.sceneIntensity = beatType.includes('LARGE') || beatType === 'DEPARTURE' ? 90 :
+    beatType.includes('SMALL') || beatType === 'SABLE_QUIET' ? 35 : 60
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CONNECTOR INSERTION
+// ICON MAP
 // ─────────────────────────────────────────────────────────────────────────────
-function shouldInsertConnector(prevRuleKey: string, nextRuleKey: string, state: WarState, blockGap: bigint): string | null {
-  const nextIsCore = isCoreType(nextRuleKey)
-  if (prevRuleKey === 'GREAT_BATTLE' && nextIsCore && blockGap < 2000n) return 'AFTERMATH'
-  if (state.consecutiveCores >= 3 && nextIsCore) return 'BETWEEN_FIRES'
-  if (state.pixelsInWindow >= 500 && nextRuleKey !== 'ESCALATION_NOTE' && isCoreType(prevRuleKey) && nextIsCore) return 'ESCALATION_NOTE'
-  const burnThresholds = [25, 50, 100, 200]
-  for (const t of burnThresholds) {
-    if (state.totalBurnAP >= t && (state.totalBurnAP - Number(prevRuleKey === 'GREAT_SACRIFICE' ? 15 : 0)) < t) return 'SACRIFICE_TOLL'
-  }
-  return null
+
+const BEAT_ICONS: Record<string, string> = {
+  LYRA_LARGE: '◈', LYRA_SMALL: '▪', VOSS_LARGE: '◆', VOSS_SMALL: '◇',
+  VOSS_BURN: '▽', CAST_SMALL: '○', CAST_RETURN: '◉', SABLE_SMALL: '―',
+  SABLE_QUIET: '◦', ECHO_ARRIVAL: '▿', ECHO_DISCOVERY: '◈', CONVERGENCE: '⊕',
+  ERA_SHIFT: '║', THE_READING: '▣', DEEP_READING: '▣', DEPARTURE: '▽',
+  THE_QUIET: '·', LONG_DARK: '◌', FIRST_LIGHT: '→', RELIC_FOUND: '◈',
+  PULSE: '◦', VIGIL: '◦', PASSING: '△', GHOST_TOUCH: '·',
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// STORY ENTRY TYPE
+// LORE TYPE MAP
 // ─────────────────────────────────────────────────────────────────────────────
+
+const BEAT_TO_LORE: Record<string, LoreType> = {
+  LYRA_LARGE: 'SIGNAL_SURGE', LYRA_SMALL: 'MARK_MADE', VOSS_LARGE: 'SIGNAL_SURGE',
+  VOSS_SMALL: 'MARK_MADE', VOSS_BURN: 'DEPARTURE', CAST_SMALL: 'NIGHTWATCH',
+  CAST_RETURN: 'RETURN', SABLE_SMALL: 'THE_STEADY', SABLE_QUIET: 'NIGHTWATCH',
+  ECHO_ARRIVAL: 'FAR_SIGNAL', ECHO_DISCOVERY: 'RELIC_FOUND', CONVERGENCE: 'CONVERGENCE',
+  ERA_SHIFT: 'ERA_SHIFT', THE_READING: 'THE_READING', DEEP_READING: 'DEEP_READING',
+  DEPARTURE: 'DEPARTURE', THE_QUIET: 'THE_QUIET', LONG_DARK: 'LONG_DARK',
+  FIRST_LIGHT: 'FIRST_LIGHT', RELIC_FOUND: 'RELIC_FOUND', PULSE: 'PULSE',
+  VIGIL: 'VIGIL', PASSING: 'PASSING', GHOST_TOUCH: 'GHOST_TOUCH',
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STORY ENTRY INTERFACE
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type LoreType =
+  | 'SIGNAL_SURGE' | 'MARK_MADE' | 'GHOST_TOUCH' | 'DECLARATION'
+  | 'DEPARTURE' | 'PASSING' | 'TWICE_GIVEN' | 'RETURN' | 'FIRST_LIGHT'
+  | 'THE_ELDER' | 'ANCIENT_STIRS' | 'FAR_SIGNAL' | 'CONTESTED_ZONE'
+  | 'THE_READING' | 'CONVERGENCE' | 'RELIC_FOUND' | 'THE_QUIET'
+  | 'ERA_SHIFT' | 'DOMINION' | 'PULSE' | 'DEEP_READING' | 'VIGIL'
+  | 'NEW_BLOOD' | 'OLD_GHOST' | 'WANDERER' | 'THE_BUILDER' | 'CARTOGRAPHER'
+  | 'GONE' | 'STORY_TOLD' | 'LONG_DARK' | 'PIVOT' | 'UNALIGNED'
+  | 'DYNASTY' | 'THRESHOLD' | 'THE_STEADY' | 'NIGHTWATCH' | 'RESONANCE'
+  | 'ACCELERATION' | 'WEIGHT' | 'GENESIS' | 'INTERVAL'
+
 export interface StoryEntry {
   id: string
   eventType: 'PixelsTransformed' | 'BurnRevealed' | 'genesis'
@@ -1369,6 +846,15 @@ export interface StoryEntry {
   icon: string
   featured: boolean
   synthetic?: boolean
+  activeCharacter?: CharacterKey
+  visualState?: {
+    mood: 'surge' | 'quiet' | 'departure' | 'discovery' | 'wonder' | 'chaos' | 'normal'
+    intensity: number
+    dominantZone: string
+    signalName: string
+    scene: SceneType
+    charKey: CharacterKey
+  }
   sourceEvent: {
     type: string
     tokenId: string
@@ -1380,79 +866,66 @@ export interface StoryEntry {
   }
 }
 
-function makeSyntheticEntry(ruleKey: string, afterEvent: IndexedEvent, era: string, state: WarState): StoryEntry {
-  const rule = RULES[ruleKey]
-  const ctx = buildCtx(afterEvent.tokenId, afterEvent.blockNumber + 1n, era)
-  const seed = seedN(afterEvent.tokenId, afterEvent.blockNumber, 99)
-  const s2 = seedN(afterEvent.tokenId, afterEvent.blockNumber, 77)
-  return {
-    id: `synthetic-${ruleKey}-${afterEvent.transactionHash}`,
-    eventType: 'PixelsTransformed',
-    loreType: rule.loreType,
-    era,
-    headline: fill(pick(rule.headlines, seed), ctx),
-    body: fill(pick(rule.bodies, s2), ctx),
-    icon: rule.icon,
-    featured: false,
-    synthetic: true,
-    sourceEvent: {
-      type: 'connector',
-      tokenId: '—',
-      blockNumber: '—',
-      txHash: '—',
-      count: '—',
-      ruleApplied: rule.ruleApplied,
-      ruleExplanation: rule.ruleExplanation,
-    },
+function moodFromScene(scene: SceneType): NonNullable<StoryEntry['visualState']>['mood'] {
+  const m: Record<SceneType, NonNullable<StoryEntry['visualState']>['mood']> = {
+    construction: 'surge', destruction: 'chaos', sacrifice: 'departure',
+    vigil: 'quiet', tending: 'quiet', arrival: 'wonder', convergence: 'wonder',
+    reckoning: 'chaos', quiet: 'quiet', dawn: 'normal',
   }
+  return m[scene] ?? 'normal'
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MAIN GENERATOR
+// MAIN GENERATE FUNCTION
 // ─────────────────────────────────────────────────────────────────────────────
-const FEATURED_TYPES = new Set([
-  'GREAT_BATTLE','TURNING_POINT','NEW_AGE','RELIC_FOUND',
-  'THE_LONG_COUNT','CONVERGENCE','GREAT_SACRIFICE','THE_LONG_DARK',
-  'ESCALATION_NOTE','SACRIFICE_TOLL',
-])
 
 export function generateStoryEntries(events: IndexedEvent[], startCount = 0): StoryEntry[] {
   const result: StoryEntry[] = []
-  const ruleKeys: string[] = []
-  const scanState = freshWarState()
-
-  for (let i = 0; i < events.length; i++) {
-    const event = events[i]
-    const cumCount = startCount + i + 1
-    const prev = i > 0 ? events[i - 1] : null
-    const ruleKey = selectRule(event, i, events, cumCount, prev, scanState)
-    ruleKeys.push(ruleKey)
-    updateWarState(scanState, event, ruleKey, events, i)
-  }
-
-  const genState = freshWarState()
+  const world = freshGridWorld()
+  let prevCharKey: CharacterKey | null = null
 
   for (let index = 0; index < events.length; index++) {
     const event = events[index]
     const cumCount = startCount + index + 1
-    const ruleKey = ruleKeys[index]
-    const nextRuleKey = ruleKeys[index + 1] ?? null
+    const prev = index > 0 ? events[index - 1] : null
 
-    const rule = RULES[ruleKey] ?? RULES['NIGHT_WATCH']
-    const era = getEra(cumCount)
-    const ctx = buildCtx(event.tokenId, event.blockNumber, era)
-    const seed = seedN(event.tokenId, event.blockNumber)
-    const { headline, body } = selectBody(rule, ctx, genState, seed)
+    const eraData = getEraData(cumCount)
+    world.era = eraData.name
+    world.eraIndex = eraData.eraIndex
+
+    const charKey = getCharacter(event, events, index)
+    const zone = zoneFor(event.tokenId)
+    const beatType = selectBeatType(event, charKey, index, events, cumCount, prev, world)
+    const seed = Number(seedN(event.tokenId, event.blockNumber))
+    const headline = makeHeadline(charKey, beatType, zone, world, index)
+
+    const bodySeed = Math.abs(seed ^ (index * 7919))
+    const body = generateBody(charKey, beatType, zone, world, bodySeed, prevCharKey)
+
+    const isFeatured = ['LYRA_LARGE', 'VOSS_LARGE', 'DEPARTURE', 'ERA_SHIFT', 'CONVERGENCE',
+      'THE_READING', 'DEEP_READING', 'RELIC_FOUND', 'LONG_DARK'].includes(beatType)
+
+    const scene = sceneFromBeat(charKey, beatType, world)
+    const loreType = (BEAT_TO_LORE[beatType] ?? 'MARK_MADE') as LoreType
 
     result.push({
       id: `${event.transactionHash}-${event.tokenId.toString()}`,
       eventType: event.type,
-      loreType: rule.loreType,
-      era,
+      loreType,
+      era: eraData.name,
       headline,
       body,
-      icon: rule.icon,
-      featured: FEATURED_TYPES.has(ruleKey) || Number(event.count) > 200,
+      icon: BEAT_ICONS[beatType] ?? '·',
+      featured: isFeatured,
+      activeCharacter: charKey,
+      visualState: {
+        mood: moodFromScene(scene),
+        intensity: world.sceneIntensity,
+        dominantZone: zone,
+        signalName: CHARACTERS[charKey].name,
+        scene,
+        charKey,
+      },
       sourceEvent: {
         type: event.type,
         tokenId: event.type === 'BurnRevealed' && event.targetTokenId !== undefined
@@ -1461,42 +934,42 @@ export function generateStoryEntries(events: IndexedEvent[], startCount = 0): St
         blockNumber: event.blockNumber.toLocaleString(),
         txHash: event.transactionHash,
         count: event.count.toString(),
-        ruleApplied: rule.ruleApplied,
-        ruleExplanation: rule.ruleExplanation,
+        ruleApplied: `${CHARACTERS[charKey].name} — ${beatType.replace(/_/g, ' ').toLowerCase()}`,
+        ruleExplanation: `Token #${event.tokenId} → ${CHARACTERS[charKey].name} (${CHARACTERS[charKey].title}). Beat: ${beatType}. Zone: ${zone}.`,
       },
     })
 
-    updateWarState(genState, event, ruleKey, events, index)
-
-    if (nextRuleKey !== null && events[index + 1]) {
-      const nextEvent = events[index + 1]
-      const blockGap = nextEvent.blockNumber - event.blockNumber
-      const connectorKey = shouldInsertConnector(ruleKey, nextRuleKey, genState, blockGap)
-      if (connectorKey) result.push(makeSyntheticEntry(connectorKey, event, era, genState))
-    }
+    updateWorld(world, charKey, beatType, zone, Number(event.count))
+    prevCharKey = charKey
   }
 
   return result
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// WORLD PRIMERS
+// PRIMER ENTRIES
 // ─────────────────────────────────────────────────────────────────────────────
+
 export const PRIMER_ENTRIES: StoryEntry[] = [
   {
-    id: 'primer-genesis', eventType: 'genesis', loreType: 'GENESIS', era: 'Pre-Render',
-    headline: 'The Grid Exists. Ten Thousand Faces Encoded Into the Chain.',
-    body: 'Ten thousand Normies. Each one a unique face compiled into the Ethereum blockchain — permanent, immutable, eternal. The Grid they inhabit is 40 columns wide, 40 rows deep, 1,600 pixels per face. Every pixel is contested territory. The factions that will render over each other have not yet declared. The war has not yet started. The chronicle is open. The first entry has not been written. Everything that follows was latent in this silence — waiting to be rendered into existence by the choices of those who hold the keys.',
-    icon: '◈', featured: true,
-    sourceEvent: { type: 'genesis', tokenId: 'All 10,000', blockNumber: 'Genesis', txHash: 'N/A', count: '10000', ruleApplied: 'Genesis', ruleExplanation: 'Normies are 10,000 fully on-chain pixel faces on Ethereum mainnet. The Grid is 40×40. Every real edit and burn shapes this story.' },
-  },
-  {
-    id: 'primer-factions', eventType: 'genesis', loreType: 'GENESIS', era: 'Pre-Render',
-    headline: 'Four Types. One Grid. The Upload Wars Begin.',
-    body: 'Before the first pixel was contested, the Normies divided along the lines that had always separated them: by origin, by type, by what they wanted from the Grid. Human, Cat, Alien, Agent — four encoded types, four ways of seeing what the 40×40 canvas is for. The Void Collective sees it as territory to be controlled. The Pixel Sovereigns see it as art to be authored. The Glitch Syndicate sees it as a system to be corrupted and remade. The Eternal Compile sees it as a record to be written into existence, block by block, forever. They will disagree about all of this at great length, in the chronicle, until the Singularity Protocol resolves it.',
-    icon: '▦', featured: false,
-    sourceEvent: { type: 'genesis', tokenId: 'All 10,000', blockNumber: 'Genesis', txHash: 'N/A', count: '10000', ruleApplied: 'Genesis', ruleExplanation: 'The four Normie types — Human, Cat, Alien, Agent — become the four factions of the Grid war.' },
+    id: 'primer-genesis',
+    eventType: 'genesis',
+    loreType: 'GENESIS',
+    era: 'The First Days',
+    icon: '◈',
+    featured: true,
+    headline: 'The World Begins',
+    body: `Before the five, there was only the world.
+
+Normia: ten thousand faces, each capable of being shaped, traded, given away, or dissolved. A living territory that runs on what people do with what they hold.
+
+Five presences have emerged from the noise of that activity. They didn't choose their roles. The roles chose them.
+
+Lyra builds. She has been building since before the record began, working toward a structure whose full shape only she can see. Finn breaks and remakes — not out of destruction, but out of a belief that calcification is death. The Cast watches everything and forgets nothing; the record is its life's work. Cielo keeps what would otherwise drift, tending the edges nobody else is watching. Echo arrives from the margins at moments that only make sense in retrospect.
+
+Normia is their argument, their collaboration, and their home. Every act ripples. This is the record of those ripples.`,
+    activeCharacter: 'CAST',
+    visualState: { mood: 'normal', intensity: 20, dominantZone: 'the Open Grid', signalName: 'The Cast', scene: 'dawn', charKey: 'CAST' },
+    sourceEvent: { type: 'genesis', tokenId: '--', blockNumber: '--', txHash: '--', count: '--', ruleApplied: 'World Primer', ruleExplanation: 'The opening of the record.' },
   },
 ]
-
-export { RULES }

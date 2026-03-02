@@ -26,7 +26,7 @@ const BAYER: number[][] = [
   [ 0,  8,  2, 10], [12,  4, 14,  6],
   [ 3, 11,  1,  9], [15,  7, 13,  5],
 ]
-const dither = (x: number, y: number, v: number, spread = 0.1): number =>
+const dither = (x: number, y: number, v: number, spread = 0.055): number =>
   clamp01(v + (BAYER[y & 3][x & 3] / 16 - 0.5) * spread)
 
 // Detailed pixel-art figure
@@ -95,7 +95,7 @@ const sceneL1: PixelFn = (x, y, t, I) => {
   const fig = figure(47, ground, x, y, 0.95)
   if (fig > 0) return fig
   const buildTop = ground - 40
-  const glow = Math.exp(-(dist(x, y, 47, buildTop) ** 2) / 22) * 0.75 * v * (Math.sin(t * 3) * 0.2 + 0.8)
+  const glow = Math.exp(-(dist(x, y, 47, buildTop) ** 2) / 22) * 0.75 * v * (Math.sin(t * 0.24) * 0.2 + 0.8)
   return dither(x, y, Math.min(1, glow + ((x % 12 === 0 || y % 12 === 0) ? 0.04 * v : 0)))
 }
 
@@ -156,9 +156,9 @@ const sceneL4: PixelFn = (x, y, t, I) => {
   if (x % cW === 0 || y % cH === 0) return dither(x, y, 0.14 + Math.sin(t * 0.3) * 0.03)
   const owned: [number,number][] = [[1,1],[3,2],[0,3],[2,0],[4,1],[3,3]]
   if (owned.some(([a, b]) => a === sX && b === sY)) {
-    return dither(x, y, (0.35 + Math.sin(sX * 3 + sY * 5 + t * 0.8) * 0.2) * v)
+    return dither(x, y, (0.35 + Math.sin(sX * 3 + sY * 5 + t * 0.12) * 0.2) * v)
   }
-  if (sX === 2 && sY === 2) return dither(x, y, Math.abs(Math.sin(t * 4)) * 0.28 * v)
+  if (sX === 2 && sY === 2) return dither(x, y, Math.abs(Math.sin(t * 0.32)) * 0.28 * v)
   return noise(x, y, 3) > 0.97 ? 0.22 : 0.04
 }
 
@@ -178,7 +178,7 @@ const sceneL5: PixelFn = (x, y, t, I) => {
   if (tw > 0) return dither(x, y, tw)
   const fig = figure(54, surface, x, y, 0.92)
   if (fig > 0) return fig
-  const glow = Math.exp(-(dist(x, y, 40, surface) ** 2) / 110) * 0.32 * v * (Math.sin(t * 1.5) * 0.2 + 0.8)
+  const glow = Math.exp(-(dist(x, y, 40, surface) ** 2) / 110) * 0.32 * v * (Math.sin(t * 0.13) * 0.2 + 0.8)
   return dither(x, y, Math.min(1, glow))
 }
 
@@ -196,9 +196,9 @@ const sceneF1: PixelFn = (x, y, t, I) => {
   }
   const fig = figure(cx, cy, x, y, 1.0)
   if (fig > 0) return fig
-  const ring = ((t * 16) % 42) + 3
+  const ring = ((t * 3.5) % 42) + 3
   if (Math.abs(d - ring) < 2) return dither(x, y, 0.55 * v)
-  const debris = noise(x, y, Math.floor(t * 1.5) + 1) > 0.87 && d > 10 ? 0.34 * v : 0
+  const debris = noise(x, y, Math.floor(t * 0.12) + 1) > 0.87 && d > 10 ? 0.34 * v : 0
   if (y === ground) return 0.16
   return dither(x, y, debris)
 }
@@ -225,15 +225,15 @@ const sceneF2: PixelFn = (x, y, t, I) => {
 // F3: Finn burn — figure dissolving into rising particle streams
 const sceneF3: PixelFn = (x, y, t, I) => {
   const v = I / 100, cx = 40, cy = 50
-  const diss = clamp01(t * 0.035)
+  const diss = clamp01(t * 0.007)
   const fig = figure(cx, cy, x, y, 1.0)
-  if (fig > 0 && noise(x, y, Math.floor(t * 5)) > diss) return fig
+  if (fig > 0 && noise(x, y, Math.floor(t * 0.4)) > diss) return fig
   for (let i = 0; i < 7; i++) {
     const sx = cx + Math.sin(i * 0.9 + t * 0.25) * 14 + Math.sin(i * 2.1) * 4
     if (Math.abs(x - Math.round(sx + Math.sin(y * 0.12 + t) * 2.5)) < 1.5 && y < cy - 4)
       return dither(x, y, (0.6 + Math.sin(t * 5 + y * 0.25 + i) * 0.28) * ((cy - y) / cy) * v)
   }
-  const scatter = noise(x, y, Math.floor(t * 2.5)) > 0.91 ? 0.48 * v : 0
+  const scatter = noise(x, y, Math.floor(t * 0.2)) > 0.91 ? 0.48 * v : 0
   const cd = dist(x, y, cx, cy)
   const ring = Math.abs(cd - 10 - Math.sin(t * 2.2) * 4) < 1.5 ? 0.4 * v : 0
   return dither(x, y, Math.min(1, scatter + ring))
@@ -289,10 +289,10 @@ const sceneF6: PixelFn = (x, y, t, I) => {
   const d = dist(x, y, cx, cy)
   let total = 0
   for (let w = 0; w < 4; w++) {
-    const r = ((t * 22 + w * 14) % 56) + 2
+    const r = ((t * 5 + w * 14) % 56) + 2
     total += Math.exp(-((d - r) ** 2) / 2.5) * (0.8 - w * 0.15) * v
   }
-  const flash = d < 5 ? (1 - d / 5) * Math.abs(Math.sin(t * 8)) * v : 0
+  const flash = d < 5 ? (1 - d / 5) * Math.abs(Math.sin(t * 0.6)) * v : 0
   if ((x === 40 || y === 40) && d < 18) total += 0.14 * v * (1 - d / 18)
   return dither(x, y, Math.min(1, total + flash))
 }
@@ -314,12 +314,12 @@ const sceneC2: PixelFn = (x, y, t, I) => {
   const v = I / 100, ground = 62
   if (y > ground) return 0.04
   if (y === ground) return 0.14
-  const castX = Math.min(40, Math.round(6 + t * 4.5))
+  const castX = Math.min(40, Math.round(6 + t * 0.8))
   const fig = figCast(castX, ground, x, y, 0.9)
   if (fig > 0) return fig
   for (let col = 52; col <= 76; col += 10) {
     if (x === col) {
-      const row = ((y + Math.floor(t * 8) + col * 7) + GH * 10) % GH
+      const row = ((y + Math.floor(t * 0.6) + col * 7) + GH * 10) % GH
       return noise(row, col, col) > 0.44 ? 0.55 : 0.1
     }
     if (x >= col + 1 && x <= col + 7 && (y + col) % 4 === 0)
@@ -336,12 +336,12 @@ const sceneC3: PixelFn = (x, y, t, I) => {
   if (y === ground) return 0.13
   const fig = figCast(40, ground, x, y, 0.76)
   if (fig > 0) return fig
-  const ang = t * 0.8
+  const ang = t * 0.18
   for (let s = 6; s < 38; s += 0.8) {
     const bx = Math.round(40 + Math.cos(ang) * s)
     const by = Math.round(ground - 3 + Math.sin(ang) * s * 0.35)
     if (x === bx && y === by && y < ground)
-      return dither(x, y, (1 - s / 38) * 0.45 * (Math.sin(t * 5) * 0.2 + 0.8) * v)
+      return dither(x, y, (1 - s / 38) * 0.45 * (Math.sin(t * 0.38) * 0.2 + 0.8) * v)
   }
   const hv = (x * 13 + y * 7) % 97
   if (hv < 5) return 0.18 + Math.sin(t * 1.5 + hv) * 0.12
@@ -377,7 +377,7 @@ const sceneC5: PixelFn = (x, y, t, I) => {
   }
   const eD = dist(x, y, 40, 9)
   if (eD < 8) return Math.sin(t * 0.5) > 0.93 ? 0 : (1 - eD / 8) * 0.9
-  const scanY = 14 + ((t * 7.5) % (GH - 24))
+  const scanY = 14 + ((t * 1.5) % (GH - 24))
   if (Math.abs(y - scanY) < 1.2) return 0.43 * v
   return 0
 }
@@ -401,14 +401,14 @@ const sceneCi2: PixelFn = (x, y, t, I) => {
   if (y === wallY && x >= 10 && x < 70) {
     if (x < 36) return dither(x, y, 0.75)
     const gap = x - 36
-    if (gap % 6 < 3) return dither(x, y, 0.25 * (Math.sin(t * 2.5 + x) * 0.3 + 0.7))
+    if (gap % 6 < 3) return dither(x, y, 0.25 * (Math.sin(t * 0.16 + x) * 0.3 + 0.7))
   }
   if (y > wallY && y < wallY + 5 && x >= 10 && x < 36)
     return (x === 10 || x === 35) ? 0.48 : dither(x, y, 0.18)
   const cX = Math.round(36 + (Math.sin(t * 0.35) * 0.5 + 0.5) * 30)
   const fig = figure(cX, ground, x, y, 0.88)
   if (fig > 0) return fig
-  const rg = Math.exp(-(dist(x, y, cX, wallY) ** 2) / 22) * 0.55 * v * (Math.sin(t * 3.5) * 0.28 + 0.72)
+  const rg = Math.exp(-(dist(x, y, cX, wallY) ** 2) / 22) * 0.55 * v * (Math.sin(t * 0.28) * 0.28 + 0.72)
   if (y === ground) return 0.1
   if (y > ground) return 0.04
   return dither(x, y, Math.min(1, rg))
@@ -459,11 +459,11 @@ const sceneCi5: PixelFn = (x, y, t, I) => {
   if (y > ground) return 0.04
   if (x < 12) {
     const fray = noise(x, y, 6) > (0.6 + x * 0.04)
-    return fray ? dither(x, y, 0.35 * (Math.sin(t * 2 + y * 0.3) * 0.3 + 0.7)) : 0.04
+    return fray ? dither(x, y, 0.35 * (Math.sin(t * 0.16 + y * 0.3) * 0.3 + 0.7)) : 0.04
   }
   if (x > 68) {
     const fray2 = noise(x, y, 7) > (0.6 + (80 - x) * 0.04)
-    return fray2 ? dither(x, y, 0.35 * (Math.sin(t * 2 + y * 0.3 + 1) * 0.3 + 0.7)) : 0.04
+    return fray2 ? dither(x, y, 0.35 * (Math.sin(t * 0.16 + y * 0.3 + 1) * 0.3 + 0.7)) : 0.04
   }
   if (x % 14 === 0 || y % 11 === 0) return 0.1
   const base = noise(Math.floor(x / 14), Math.floor(y / 11), 5) > 0.4 ? 0.16 : 0.05
@@ -477,7 +477,7 @@ const sceneCi5: PixelFn = (x, y, t, I) => {
 // E1: Echo arrival — emerging from fog at left edge
 const sceneE1: PixelFn = (x, y, t, I) => {
   const v = I / 100, ground = 60
-  const echoX = Math.min(30, Math.round(5 + t * 1.8))
+  const echoX = Math.min(30, Math.round(5 + t * 0.35))
   const fogBound = echoX + 14 + Math.sin(t * 0.3) * 4
   const fog = x < fogBound ? (1 - x / fogBound) * (noise(x, y, Math.floor(t * 1.5)) * 0.35 + 0.12) : 0
   const fig = figure(echoX, ground, x, y, 0.95)
@@ -501,7 +501,7 @@ const sceneE2: PixelFn = (x, y, t, I) => {
     }
     return dither(x, y, g)
   }
-  const rad = Math.exp(-(dist(x, y, dX, dY - 4) ** 2) / 200) * 0.36 * v * (Math.sin(t * 1.4) * 0.3 + 0.7)
+  const rad = Math.exp(-(dist(x, y, dX, dY - 4) ** 2) / 200) * 0.36 * v * (Math.sin(t * 0.12) * 0.3 + 0.7)
   if (y > ground) return 0.05
   if (y === ground) return 0.15
   return dither(x, y, rad)
@@ -518,11 +518,11 @@ const sceneE3: PixelFn = (x, y, t, I) => {
       const rx = Math.round(eX + Math.cos(rayAng) * s)
       const ry = Math.round(ground - 5 + Math.sin(rayAng) * s)
       if (x === rx && y === ry)
-        return dither(x, y, (1 - s / rayLen) * 0.55 * (Math.sin(t * 2.5 + s * 0.18) * 0.35 + 0.65) * v)
+        return dither(x, y, (1 - s / rayLen) * 0.55 * (Math.sin(t * 0.16 + s * 0.18) * 0.35 + 0.65) * v)
     }
   }
   const bD = dist(x, y, 66, ground - 12)
-  const beacon = Math.exp(-bD * bD / 35) * 0.7 * (Math.sin(t * 2) * 0.25 + 0.75) * v
+  const beacon = Math.exp(-bD * bD / 35) * 0.7 * (Math.sin(t * 0.16) * 0.25 + 0.75) * v
   if (y === ground) return x % 5 === 0 ? 0.17 : 0.08
   if (y > ground) return 0.04
   return dither(x, y, Math.min(1, beacon))
@@ -544,7 +544,7 @@ const sceneE4: PixelFn = (x, y, t, I) => {
   const pings: [number,number][] = [[72,20],[75,44],[70,58]]
   for (const [px, py] of pings) {
     const pd = dist(x, y, px, py)
-    const pingVal = Math.exp(-pd * pd / 18) * 0.55 * (Math.sin(t * 3 + px) * 0.3 + 0.7) * v
+    const pingVal = Math.exp(-pd * pd / 18) * 0.55 * (Math.sin(t * 0.24 + px) * 0.3 + 0.7) * v
     if (pingVal > 0.05) return dither(x, y, pingVal)
   }
   return noise(x, y, 9) > 0.984 ? 0.38 : 0
@@ -553,7 +553,7 @@ const sceneE4: PixelFn = (x, y, t, I) => {
 // E5: Echo surfacing — buried structure rising from data layer
 const sceneE5: PixelFn = (x, y, t, I) => {
   const v = I / 100, surface = 38
-  const rise = clamp01(t * 0.03)
+  const rise = clamp01(t * 0.006)
   const structTop = surface + Math.round((1 - rise) * 22)
   if (x >= 28 && x <= 52 && y >= structTop && y <= surface) {
     if (x === 28 || x === 52 || y === structTop) return dither(x, y, 0.78 * rise)
@@ -591,7 +591,7 @@ const sceneS2: PixelFn = (x, y, t, I) => {
   const speed = (col * 5 + 3) % 6 + 2
   const dropY = ((t * speed * 6) + col * 17) % GH
   const trail = Math.max(0, 1 - Math.abs(y - dropY) / 12) * 0.72 * v
-  const scanY = (t * 28) % GH
+  const scanY = (t * 6) % GH
   const scan = Math.abs(y - scanY) < 1.5 ? (1 - Math.abs(y - scanY) / 1.5) * 0.85 : 0
   const ground = GH - 7
   for (const fx of [8, 20, 40, 60, 72]) {
@@ -615,15 +615,15 @@ const sceneS3: PixelFn = (x, y, t) => {
 // S4: Departure — figure dissolving into expanding waves
 const sceneS4: PixelFn = (x, y, t, I) => {
   const v = I / 100, cx = 40, cy = 52
-  const diss = clamp01(t * 0.038)
+  const diss = clamp01(t * 0.008)
   const fig = figure(cx, cy, x, y, 1.0)
-  if (fig > 0 && noise(x, y, Math.floor(t * 3.5)) > diss) return fig
+  if (fig > 0 && noise(x, y, Math.floor(t * 0.28)) > diss) return fig
   const d = dist(x, y, cx, cy)
   for (let w = 0; w < 3; w++) {
-    const wR = ((t * 18 + w * 24) % 52) + 4
+    const wR = ((t * 4 + w * 24) % 52) + 4
     if (Math.abs(d - wR) < 1.8) return dither(x, y, (0.6 - w * 0.14) * v)
   }
-  const frag = noise(x, y, Math.floor(t * 1.8)) > (0.87 + diss * 0.09) ? 0.52 * v : 0
+  const frag = noise(x, y, Math.floor(t * 0.15)) > (0.87 + diss * 0.09) ? 0.52 * v : 0
   if (y > cy + 8) return dither(x, y, 0.04)
   return dither(x, y, Math.min(1, frag))
 }
@@ -634,7 +634,7 @@ const sceneS5: PixelFn = (x, y, t, I) => {
   const d = dist(x, y, rX, rY)
   if (d < 9) {
     const ang = Math.atan2(y - rY, x - rX)
-    return dither(x, y, (Math.cos(ang * 3) * 0.55 + 0.38) * (Math.sin(t * 1.8) * 0.22 + 0.78))
+    return dither(x, y, (Math.cos(ang * 3) * 0.55 + 0.38) * (Math.sin(t * 0.15) * 0.22 + 0.78))
   }
   for (const angle of [0, 72, 144, 216, 288].map(a => a * Math.PI / 180)) {
     const fx = Math.round(rX + Math.cos(angle + t * 0.12) * 20)
@@ -716,7 +716,7 @@ const sceneS10: PixelFn = (x, y, t, I) => {
   }
   const eD = dist(x, y, 40, 9)
   if (eD < 8) return Math.sin(t * 0.5) > 0.93 ? 0 : (1 - eD / 8) * 0.9
-  const scanY = 14 + ((t * 7.5) % (GH - 24))
+  const scanY = 14 + ((t * 1.5) % (GH - 24))
   if (Math.abs(y - scanY) < 1.2) return 0.44 * v
   return 0
 }
@@ -727,7 +727,7 @@ const sceneS11: PixelFn = (x, y, t) => {
   if (x === cx && y === cy) return 0.92
   if ((Math.abs(x - cx) === 1 && y === cy) || (Math.abs(y - cy) === 1 && x === cx)) return 0.45
   const d = dist(x, y, cx, cy)
-  return dither(x, y, Math.min(1, Math.exp(-d * d / 28) * (Math.sin(t * 2.2) * 0.28 + 0.2) + ((x % 20 === 0 || y % 20 === 0) ? 0.04 : 0)))
+  return dither(x, y, Math.min(1, Math.exp(-d * d / 28) * (Math.sin(t * 0.18) * 0.28 + 0.2) + ((x % 20 === 0 || y % 20 === 0) ? 0.04 : 0)))
 }
 
 // S12: Passing — token arcing between two figures
@@ -876,7 +876,8 @@ function renderFrame(
   intensity: number,
   isDark: boolean,
 ) {
-  const t = tick * 0.016
+  // slow, cinematic time — ~0.4 units/sec at 24fps, no strobe
+  const t = tick * 0.042
   const fn = SCENES[scene] ?? SCENES.s8_quiet
   const buf = img.data
   const bgR = isDark ? 9  : 238, bgG = isDark ? 9  : 236, bgB = isDark ? 8  : 228
@@ -885,9 +886,7 @@ function renderFrame(
   for (let y = 0; y < GH; y++) {
     for (let x = 0; x < GW; x++) {
       const i4 = (y * GW + x) * 4
-      let v = fn(x, y, t, intensity)
-      if (y % 4 === 0) v *= 0.90
-      v = clamp01(v)
+      const v = clamp01(fn(x, y, t, intensity))
       buf[i4]     = Math.round(bgR + (fgR - bgR) * v)
       buf[i4 + 1] = Math.round(bgG + (fgG - bgG) * v)
       buf[i4 + 2] = Math.round(bgB + (fgB - bgB) * v)
@@ -942,9 +941,14 @@ export function WarGrid({
     const smCtx = sm.getContext('2d')!
     smallRef.current = sm; smallCtxRef.current = smCtx
     imgRef.current = smCtx.createImageData(GW, GH)
-    const loop = () => {
-      tickRef.current++
-      renderFrame(sCtx, sm, smCtx, imgRef.current!, tickRef.current, scene, intensity, dark)
+    const FRAME_MS = 1000 / 24 // 24fps — smooth, not stroby
+    let lastTime = 0
+    const loop = (now: number) => {
+      if (now - lastTime >= FRAME_MS) {
+        lastTime = now
+        tickRef.current++
+        renderFrame(sCtx, sm, smCtx, imgRef.current!, tickRef.current, scene, intensity, dark)
+      }
       rafRef.current = requestAnimationFrame(loop)
     }
     rafRef.current = requestAnimationFrame(loop)
@@ -962,7 +966,6 @@ export function WarGrid({
           height={H}
           style={{ display: 'block', width: '100%', aspectRatio: '1/1', imageRendering: 'pixelated' }}
         />
-        <div className="scanlines" />
       </div>
       <div style={{
         borderTop: `1px solid ${dark ? '#1e1e1c' : '#c4c3bb'}`,
