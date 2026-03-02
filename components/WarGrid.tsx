@@ -779,21 +779,21 @@ const SCENES: Record<string, PixelFn> = {
 }
 
 const SCENE_LABELS: Record<string, string> = {
-  l1_build: 'Lyra builds', l2_keystone: 'keystone placed',
-  l3_chain: 'build network', l4_sector: 'sector claimed', l5_foundation: 'foundation laid',
-  f1_clear: 'Finn clears', f2_collapse: 'full collapse', f3_burn: 'Finn dissolves',
-  f4_contested: 'contested zone', f5_aftermath: 'aftermath', f6_shockwave: 'shockwave',
-  c1_watch: 'the Cast watches', c2_return: 'Cast returns', c3_night: 'night watch',
-  c4_panorama: 'full panorama', c5_ledger: 'the record',
-  ci1_tend: 'Cielo tends', ci2_repair: 'wall repaired', ci3_quiet: 'keeping still',
-  ci4_keeper: 'surveying held zones', ci5_edge: 'edge maintenance',
-  e1_arrive: 'Echo arrives', e2_discover: 'discovery', e3_scan: 'edge scan',
-  e4_outer: 'outer zones', e5_surface: 'relic surfaces',
-  s1_convergence: 'convergence', s2_era_shift: 'era shift', s3_long_dark: 'long dark',
-  s4_departure: 'departure', s5_relic: 'relic found', s6_dual_zones: 'dual zone event',
-  s7_vigil: 'vigil before the turn', s8_quiet: 'stillness', s9_dawn: 'first light',
-  s10_reading: 'the reading', s11_ghost: 'ghost touch', s12_passing: 'passing',
-  s13_pulse: 'system pulse',
+  l1_build: 'Lyra builds', l2_keystone: 'major build placed',
+  l3_chain: 'build chain extended', l4_sector: 'sector marked', l5_foundation: 'foundation laid',
+  f1_clear: 'Finn burns', f2_collapse: 'signal dissolved', f3_burn: 'permanent removal',
+  f4_contested: 'Lyra\'s zone burned', f5_aftermath: 'the scar', f6_shockwave: 'burn shockwave',
+  c1_watch: 'the Cast watches', c2_return: 'Cast returns to the chain', c3_night: 'night watch',
+  c4_panorama: 'the full record', c5_ledger: 'the record',
+  ci1_tend: 'Cielo tends', ci2_repair: 'edge repaired', ci3_quiet: 'holding still',
+  ci4_keeper: 'zones held', ci5_edge: 'after the burn',
+  e1_arrive: 'Echo arrives', e2_discover: 'discovery at the margin', e3_scan: 'outer grid scan',
+  e4_outer: 'far sectors', e5_surface: 'old signal surfaces',
+  s1_convergence: 'simultaneous acts', s2_era_shift: 'era shift', s3_long_dark: 'long silence',
+  s4_departure: 'signal removed', s5_relic: 'buried signal found', s6_dual_zones: 'two zones, same block',
+  s7_vigil: 'vigil before the turn', s8_quiet: 'stillness in the chain', s9_dawn: 'first light',
+  s10_reading: 'Cast reads the grid', s11_ghost: 'minimal signal', s12_passing: 'signal passed',
+  s13_pulse: 'grid checkpoint',
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -806,56 +806,55 @@ function beatToScene(entry: StoryEntry): string {
   const idH = entry.id.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
   const v2 = idH % 2, v3 = idH % 3, v4 = idH % 4
 
-  if (beat.includes('lyra large') || beat.includes('lyra_large'))
+  // ── LYRA ────────────────────────────────────────────────────────────────────
+  // lyra returns = the comeback, use keystone scene to signal significance
+  if (beat.includes('lyra returns') || beat.includes('lyra_returns'))
+    return v2 === 0 ? 'l2_keystone' : 'l4_sector'
+  // lyra major = architectural moment
+  if (beat.includes('lyra major') || beat.includes('lyra_major'))
     return v2 === 0 ? 'l2_keystone' : 'l3_chain'
-  if (beat.includes('lyra small') || beat.includes('lyra_small'))
-    return ['l1_build', 'l3_chain', 'l5_foundation'][v3]
-  if (beat.includes('lyra'))
-    return ['l1_build', 'l4_sector', 'l5_foundation'][v3]
+  // lyra builds = steady work
+  if (beat.includes('lyra builds') || beat.includes('lyra_builds') || beat.includes('lyra'))
+    return ['l1_build', 'l3_chain', 'l5_foundation', 'l4_sector'][v4]
 
-  if (beat.includes('voss burn') || beat.includes('finn burn') || beat.includes('voss_burn') || beat.includes('finn_burn'))
-    return v2 === 0 ? 'f3_burn' : 'f6_shockwave'
-  if (beat.includes('voss large') || beat.includes('voss_large') || beat.includes('finn large'))
-    return v2 === 0 ? 'f2_collapse' : 'f6_shockwave'
-  if (beat.includes('voss small') || beat.includes('voss_small') || beat.includes('finn small') || beat.includes('finn_small'))
-    return ['f1_clear', 'f4_contested', 'f5_aftermath'][v3]
-  if (beat.includes('voss') || beat.includes('finn'))
-    return ['f1_clear', 'f2_collapse', 'f5_aftermath'][v3]
+  // ── FINN ────────────────────────────────────────────────────────────────────
+  // finn burns lyra = the central conflict — contested/cracking scene
+  if (beat.includes('finn burns lyra') || beat.includes('finn_burns_lyra'))
+    return v2 === 0 ? 'f4_contested' : 'f3_burn'
+  // finn burns = all burns, use burn/shockwave/aftermath scenes
+  if (beat.includes('finn burns') || beat.includes('finn_burns') || beat.includes('finn') || beat.includes('voss'))
+    return ['f1_clear', 'f3_burn', 'f5_aftermath', 'f6_shockwave'][v4]
 
-  if (beat.includes('cast return') || beat.includes('cast_return'))
+  // ── CAST ────────────────────────────────────────────────────────────────────
+  if (beat.includes('cast returns') || beat.includes('cast_returns'))
     return v2 === 0 ? 'c2_return' : 'c4_panorama'
-  if (beat.includes('cast'))
+  if (beat.includes('cast witnesses') || beat.includes('cast_witnesses') || beat.includes('cast'))
     return ['c1_watch', 'c3_night', 'c5_ledger', 'c4_panorama'][v4]
 
-  if (beat.includes('sable quiet') || beat.includes('sable_quiet') || beat.includes('cielo_quiet'))
-    return v2 === 0 ? 'ci3_quiet' : 'ci4_keeper'
-  if (beat.includes('sable small') || beat.includes('sable_small') || beat.includes('cielo small'))
-    return ['ci1_tend', 'ci2_repair', 'ci5_edge'][v3]
-  if (beat.includes('sable') || beat.includes('cielo'))
-    return ['ci1_tend', 'ci3_quiet', 'ci4_keeper'][v3]
+  // ── CIELO ───────────────────────────────────────────────────────────────────
+  // cielo after finn = tending burned territory
+  if (beat.includes('cielo after finn') || beat.includes('cielo_after_finn'))
+    return v2 === 0 ? 'ci5_edge' : 'ci3_quiet'
+  if (beat.includes('cielo tends') || beat.includes('cielo_tends') || beat.includes('cielo') || beat.includes('sable'))
+    return ['ci1_tend', 'ci2_repair', 'ci3_quiet', 'ci4_keeper'][v4]
 
-  if (beat.includes('echo discovery') || beat.includes('echo_discovery'))
+  // ── ECHO ────────────────────────────────────────────────────────────────────
+  if (beat.includes('echo finds') || beat.includes('echo_finds'))
     return v2 === 0 ? 'e2_discover' : 'e5_surface'
-  if (beat.includes('echo arrival') || beat.includes('echo_arrival'))
-    return ['e1_arrive', 'e3_scan', 'e4_outer'][v3]
-  if (beat.includes('echo'))
+  if (beat.includes('echo arrives') || beat.includes('echo_arrives') || beat.includes('echo'))
     return ['e1_arrive', 'e3_scan', 'e4_outer', 'e5_surface'][v4]
 
+  // ── SYSTEM BEATS ────────────────────────────────────────────────────────────
   if (beat.includes('convergence')) return v2 === 0 ? 's1_convergence' : 's6_dual_zones'
   if (beat.includes('era shift') || beat.includes('era_shift')) return 's2_era_shift'
   if (beat.includes('long dark') || beat.includes('long_dark')) return 's3_long_dark'
-  if (beat.includes('departure')) return v2 === 0 ? 's4_departure' : 'f3_burn'
-  if (beat.includes('relic')) return v2 === 0 ? 's5_relic' : 'e2_discover'
-  if (beat.includes('ghost')) return 's11_ghost'
-  if (beat.includes('deep reading') || beat.includes('deep_reading')) return 's10_reading'
-  if (beat.includes('reading') || beat.includes('pulse')) return v2 === 0 ? 's10_reading' : 's13_pulse'
   if (beat.includes('vigil')) return 's7_vigil'
-  if (beat.includes('passing')) return 's12_passing'
-  if (beat.includes('quiet')) return v2 === 0 ? 's8_quiet' : 'ci3_quiet'
+  if (beat.includes('checkpoint')) return v2 === 0 ? 's10_reading' : 's13_pulse'
   if (beat.includes('first light') || beat.includes('first_light')) return 's9_dawn'
 
+  // ── FALLBACK BY CHARACTER ───────────────────────────────────────────────────
   if (charKey === 'LYRA') return ['l1_build', 'l3_chain', 'l5_foundation'][v3]
-  if (charKey === 'VOSS') return ['f1_clear', 'f4_contested', 'f6_shockwave'][v3]
+  if (charKey === 'VOSS') return ['f1_clear', 'f3_burn', 'f5_aftermath'][v3]
   if (charKey === 'CAST') return ['c1_watch', 'c3_night', 'c4_panorama'][v3]
   if (charKey === 'SABLE') return ['ci1_tend', 'ci2_repair', 'ci5_edge'][v3]
   if (charKey === 'ECHO') return ['e1_arrive', 'e3_scan', 'e4_outer'][v3]
@@ -907,11 +906,13 @@ export function WarGrid({
   activeEntry,
   isDark,
   focusChar,
+  onEntryClick,
 }: {
   entries: StoryEntry[]
   activeEntry?: StoryEntry | null
   isDark?: boolean
   focusChar?: CharacterKey | null
+  onEntryClick?: (entry: StoryEntry) => void
 }) {
   const screenRef = useRef<HTMLCanvasElement>(null)
   const smallRef = useRef<HTMLCanvasElement | null>(null)
@@ -921,17 +922,17 @@ export function WarGrid({
   const rafRef = useRef(0)
   const dark = isDark ?? false
 
-  const { scene, intensity, charKey, charName } = useMemo(() => {
+  const { scene, intensity, charKey, charName, resolvedEntry } = useMemo(() => {
     const dynamic = entries.filter(e => e.eventType !== 'genesis')
     let entry: StoryEntry | null | undefined = activeEntry
     if (!entry && focusChar)
       entry = [...dynamic].reverse().find(e => e.activeCharacter === focusChar) ?? null
     if (!entry) entry = dynamic[dynamic.length - 1] ?? null
-    if (!entry) return { scene: 's9_dawn', intensity: 30, charKey: null as CharacterKey | null, charName: '' }
+    if (!entry) return { scene: 's9_dawn', intensity: 30, charKey: null as CharacterKey | null, charName: '', resolvedEntry: null }
     const sc = beatToScene(entry)
     const ck = (entry.activeCharacter ?? null) as CharacterKey | null
     const char = ck ? CHARACTERS[ck] : null
-    return { scene: sc, intensity: entry.visualState?.intensity ?? 60, charKey: ck, charName: char?.name ?? '' }
+    return { scene: sc, intensity: entry.visualState?.intensity ?? 60, charKey: ck, charName: char?.name ?? '', resolvedEntry: entry }
   }, [entries, activeEntry, focusChar])
 
   useEffect(() => {
@@ -979,7 +980,24 @@ export function WarGrid({
           </div>
           <div style={{ fontSize: '0.52rem', letterSpacing: '0.08em', textTransform: 'uppercase', color: dark ? '#b0b0a8' : '#181815', fontWeight: 700, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {charName && <span style={{ fontWeight: 400, color: dark ? '#484840' : '#7a7970', marginRight: '0.4rem' }}>{charName} ·</span>}
-            {SCENE_LABELS[scene] ?? scene}
+            {resolvedEntry && onEntryClick ? (
+              <button
+                onClick={() => onEntryClick(resolvedEntry)}
+                style={{
+                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                  fontFamily: 'inherit', fontSize: 'inherit', letterSpacing: 'inherit',
+                  textTransform: 'inherit', fontWeight: 'inherit', lineHeight: 'inherit',
+                  color: dark ? '#b0b0a8' : '#181815',
+                  textDecoration: 'underline', textUnderlineOffset: '3px',
+                  textDecorationColor: dark ? '#383830' : '#c4c3bb',
+                }}
+                title="Go to this entry in the chronicle"
+              >
+                {SCENE_LABELS[scene] ?? scene}
+              </button>
+            ) : (
+              <span>{SCENE_LABELS[scene] ?? scene}</span>
+            )}
           </div>
         </div>
         {char && (

@@ -312,13 +312,14 @@ function CharacterRoster({
 
 // ── NOW VIEW ──────────────────────────────────────────────────────────────────
 
-function NowView({ entries, meta, onSelect, onReadAll, selected, isDark }: {
+function NowView({ entries, meta, onSelect, onReadAll, selected, isDark, onEntryClick }: {
   entries: StoryEntry[]
   meta: { totalEvents: number; dynamicEntries: number; lastUpdated: string } | null
   onSelect: (e: StoryEntry) => void
   onReadAll: () => void
   selected: StoryEntry | null
   isDark: boolean
+  onEntryClick?: (e: StoryEntry) => void
 }) {
   const dynamic = entries.filter(e => e.eventType !== 'genesis')
   const { aiText, loading: summaryLoading } = useAISummary(entries)
@@ -337,7 +338,7 @@ function NowView({ entries, meta, onSelect, onReadAll, selected, isDark }: {
             {latest ? `${latest.era} · ${dynamic.length} acts` : '—'}
           </span>
         </div>
-        <WarGrid entries={entries} activeEntry={selected} isDark={isDark} focusChar={focusChar} />
+        <WarGrid entries={entries} activeEntry={selected} isDark={isDark} focusChar={focusChar} onEntryClick={onEntryClick} />
       </div>
 
       {/* ── CHARACTER ROSTER ────────────────────────────────────────────── */}
@@ -526,7 +527,7 @@ function ChronicleEntry({ entry, onSelect, prev }: { entry: StoryEntry; onSelect
   if (isFeatured) return (
     <>
       {showBreak && <div style={{ height: '1px', background: 'var(--border)', margin: '0.75rem 0' }} />}
-      <div style={{ marginBottom: '2.5rem', paddingBottom: '2.5rem', borderBottom: '1px solid var(--border)' }}>
+      <div data-entry-id={entry.id} style={{ marginBottom: '2.5rem', paddingBottom: '2.5rem', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.85rem', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.95rem' }}>{entry.icon}</span>
           {char && <span style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--text)' }}>{char.name}</span>}
@@ -557,7 +558,7 @@ function ChronicleEntry({ entry, onSelect, prev }: { entry: StoryEntry; onSelect
   return (
     <>
       {showBreak && <div style={{ height: '1px', background: 'var(--border)', margin: '0.75rem 0' }} />}
-      <div style={{ marginBottom: '1.3rem', paddingBottom: '1.3rem', borderBottom: '1px solid var(--border)' }}>
+      <div data-entry-id={entry.id} style={{ marginBottom: '1.3rem', paddingBottom: '1.3rem', borderBottom: '1px solid var(--border)' }}>
         <button className="w-full text-left hover:opacity-55 transition-opacity" onClick={() => onSelect(entry)}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '0.3rem', flexWrap: 'wrap' }}>
             <span style={{ color: 'var(--muted)', fontSize: '0.65rem', flexShrink: 0 }}>{entry.icon}</span>
@@ -709,6 +710,37 @@ export function ChroniclesClient() {
 
   const handleSelect = useCallback((e: StoryEntry) => { setSelected(prev => prev?.id === e.id ? null : e) }, [])
 
+  const [scrollTargetId, setScrollTargetId] = useState<string | null>(null)
+
+  // When a scrollTargetId is set and we're in chronicle view, scroll to that entry
+  useEffect(() => {
+    if (!scrollTargetId || view !== 'chronicle') return
+    // Wait a tick for the view to render
+    const timeout = setTimeout(() => {
+      const el = document.querySelector(`[data-entry-id="${CSS.escape(scrollTargetId)}"]`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        // Flash highlight the entry briefly
+        ;(el as HTMLElement).style.transition = 'background 0.3s'
+        ;(el as HTMLElement).style.background = 'var(--border)'
+        setTimeout(() => {
+          ;(el as HTMLElement).style.background = ''
+        }, 1200)
+      }
+      setScrollTargetId(null)
+    }, 120)
+    return () => clearTimeout(timeout)
+  }, [scrollTargetId, view])
+
+  const handleEntryClick = useCallback((e: StoryEntry) => {
+    // Switch to chronicle view, search by headline to surface the entry, then scroll to it
+    setScrollTargetId(e.id)
+    setSearch(e.headline.slice(0, 40)) // search surfaces the entry in flat list
+    const p = new URLSearchParams(sp.toString())
+    p.set('view', 'chronicle')
+    router.push(`/chronicles?${p.toString()}`, { scroll: false })
+  }, [router, sp])
+
   return (
     <>
       {selected && <EntryModal entry={selected} onClose={() => setSelected(null)} />}
@@ -753,7 +785,7 @@ export function ChroniclesClient() {
             <>
               {view === 'now' && (
                 <NowView entries={entries} meta={meta} onSelect={handleSelect}
-                  onReadAll={() => setView('chronicle')} selected={selected} isDark={isDark} />
+                  onReadAll={() => setView('chronicle')} selected={selected} isDark={isDark} onEntryClick={handleEntryClick} />
               )}
 
               {view === 'chronicle' && (
@@ -763,7 +795,7 @@ export function ChroniclesClient() {
                       <span style={{ fontSize: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.22em', color: 'var(--muted)' }}>normia · live scene</span>
                       <span style={{ fontSize: '0.5rem', color: 'var(--muted)', opacity: 0.4 }}>reflecting last act</span>
                     </div>
-                    <WarGrid entries={entries} activeEntry={selected} isDark={isDark} />
+                    <WarGrid entries={entries} activeEntry={selected} isDark={isDark} onEntryClick={handleEntryClick} />
                   </div>
 
                   {!search && genesis.map(e => <ChronicleEntry key={e.id} entry={e} onSelect={handleSelect} />)}
