@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Turbopack: faster builds (Pro enhanced build machines make this even quicker)
-  experimental: { turbo: true },
+  // Turbopack is enabled via CLI: "next build --turbo" or in package.json scripts
+  // The experimental.turbo key was removed in Next.js 15+
 
   images: {
     remotePatterns: [
